@@ -261,7 +261,7 @@ import Testing
     func file(command: String, without missing: String? = nil) -> [String: Any] {
         var hooks: [String: Any] = [:]
         for event in HookVendor.gemini.events where event != missing {
-            hooks[event] = [["hooks": [handler(command: command)]]]
+            hooks[event] = [HookVendor.gemini.shape.entry(handler: handler(command: command), matcher: HookVendor.gemini.matcher(for: event))]
         }
         return ["hooks": hooks]
     }
@@ -277,7 +277,11 @@ import Testing
             let groups = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(groups.count == 1)
             let group = try #require(groups.first)
-            #expect(Set(group.keys) == ["hooks"], "\(event): no matcher — lifecycle matchers are exact strings and omitting one receives every source, reason and type")
+            if event == "AfterTool" {
+                #expect(group["matcher"] as? String == "write_todos", "the plan tool alone, so no other tool call launches the command")
+            } else {
+                #expect(Set(group.keys) == ["hooks"], "\(event): no matcher — lifecycle matchers are exact strings and omitting one receives every source, reason and type")
+            }
             let handlers = try #require(group["hooks"] as? [[String: Any]], "\(event)")
             #expect(handlers.count == 1)
             let handler = try #require(handlers.first)
@@ -294,7 +298,7 @@ import Testing
         #expect(HookVendor.gemini.flag == "--hook --tool gemini")
         #expect(HookVendor.gemini.flag(for: "Notification") == "--hook --tool gemini", "Gemini's payload names its event, so no --event is added")
         #expect(HookVendor.gemini.shape == .nestedGroups)
-        #expect(HookVendor.gemini.events == ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"])
+        #expect(HookVendor.gemini.events == ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd", "AfterTool", "PreCompress"])
         for event in HookVendor.gemini.events {
             #expect(NSDictionary(dictionary: HookVendor.gemini.handler(command: expected, event: event)) == NSDictionary(dictionary: handler(command: expected)),
                     "\(event): the same handler for every event; Gemini documents no per-event cap")
@@ -368,7 +372,7 @@ import Testing
             ],
         ]
         let first = HookSettings.merge(into: existing, vendor: .gemini, executable: executable)
-        #expect(first.added == ["SessionStart", "BeforeAgent", "AfterAgent", "Notification"])
+        #expect(first.added == ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "AfterTool", "PreCompress"])
         #expect(first.present == ["SessionEnd"], "a value that is not an array is left alone rather than replaced")
         #expect(first.settings["theme"] as? String == "GitHub")
         #expect(first.settings["selectedAuthType"] as? String == "oauth-personal")
@@ -432,7 +436,7 @@ import Testing
         settings["hooks"] = hooks
         settings["theme"] = "GitHub"
         let repaired = HookSettings.repair(settings, vendor: .gemini, executable: executable)
-        #expect(repaired.repaired == ["SessionStart", "BeforeAgent", "AfterAgent", "Notification"], "in the vendor's order")
+        #expect(repaired.repaired == ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "AfterTool", "PreCompress"], "in the vendor's order")
         #expect(repaired.added == ["SessionEnd"])
         #expect(repaired.settings["theme"] as? String == "GitHub")
         let written = try #require(repaired.settings["hooks"] as? [String: Any])
@@ -500,7 +504,7 @@ import Testing
         #expect(HookSettings.status(vendor: .gemini, at: url, executable: executable) == .partial(path: executable))
         let repaired = try HookSettings.repairInstall(vendor: .gemini, at: url, executable: executable, now: now.addingTimeInterval(120))
         #expect(repaired.backup != nil)
-        #expect(repaired.added.count == 5)
+        #expect(repaired.added.count == HookVendor.gemini.events.count)
         #expect(HookSettings.status(vendor: .gemini, at: url, executable: executable) == .installed(path: executable))
         #expect(try HookSettings.repairInstall(vendor: .gemini, at: url, executable: executable, now: now.addingTimeInterval(180)).backup == nil)
         #expect(try fm.contentsOfDirectory(atPath: dir.path).filter { $0.contains(".bak-") }.count == 2)

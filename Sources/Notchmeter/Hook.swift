@@ -56,6 +56,9 @@ enum Hook {
     /// switch's target, origin and source; the teammate that went idle; a failed tool and whether it was an abort; a
     /// tool auto mode denied and the kind of denial; the size of a batch; and whether `cwd` is a git worktree.
     static let compactionKey = "compaction"
+    /// The model an assistant other than Claude Code names on an event (0.9.13): Codex on every payload, Cursor where
+    /// it sends one, OpenCode's plugin on a prompt. Claude Code's comes from its status line and its model switches.
+    static let reportedModelKey = "reportedModel"
     static let modelKey = "model"
     static let fromModelKey = "from_model"
     static let modelSourceKey = "model_source"
@@ -154,6 +157,8 @@ enum Hook {
         // no key, so every line from before them is byte for byte what it was.
         /// `trigger` on `PreCompact` and `PostCompact`.
         var compaction: Compaction.Trigger?
+        /// The model the assistant says the session runs on (`Hook.reportedModelKey`); nil when it said none.
+        var reportedModel: String?
         /// The models and the source of a `PostModelSwitch`.
         var modelSwitch: ModelSwitch?
         /// The MCP server an `Elicitation` or `ElicitationResult` names.
@@ -215,6 +220,7 @@ enum Hook {
             todos = Hook.todos(from: userInfo?[Hook.todosKey])
             task = Hook.task(userInfo: userInfo?[Hook.taskKey])
             compaction = Hook.compactionTrigger(userInfo?[Hook.compactionKey])
+            reportedModel = Hook.reportedModel(userInfo?[Hook.reportedModelKey])
             if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
                 modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
                                           source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
@@ -253,6 +259,7 @@ enum Hook {
             if let todos { info[Hook.todosKey] = Hook.userInfo(todos: todos) }
             if let task { info[Hook.taskKey] = Hook.userInfo(task: task) }
             if let compaction { info[Hook.compactionKey] = compaction.rawValue }
+            if let reportedModel { info[Hook.reportedModelKey] = reportedModel }
             if let modelSwitch {
                 info[Hook.modelKey] = modelSwitch.to
                 if let from = modelSwitch.from { info[Hook.fromModelKey] = from }
@@ -488,6 +495,68 @@ enum Hook {
             return TodoPlan.Item(content: title(fromPrompt: entry["content"]), status: status)
         }
         return TodoPlan(items: items)
+    }
+
+    /// Another assistant's task list reduced as `todos(from:)` reduces Claude Code's (0.9.13): `value` is its array
+    /// of items, `text` the key each item's words are under, and `statuses` that assistant's own words for the three
+    /// states the row draws. An item whose status is not among them is dropped rather than guessed at — Gemini CLI's
+    /// and OpenCode's `cancelled` is neither done nor still to do — and nil when the value is not an array at all.
+    static func plan(from value: Any?, text: String, statuses: [String: TodoPlan.Status]) -> TodoPlan? {
+        guard let entries = value as? [[String: Any]] else { return nil }
+        let items = entries.prefix(todoLimit).compactMap { entry -> TodoPlan.Item? in
+            guard let status = (entry["status"] as? String).flatMap({ statuses[$0] }) else { return nil }
+            return TodoPlan.Item(content: title(fromPrompt: entry[text]), status: status)
+        }
+        return TodoPlan(items: items)
+    }
+
+    /// The three states in the words Claude Code, Codex and OpenCode share.
+    static let planStatuses: [String: TodoPlan.Status] = ["pending": .pending, "in_progress": .inProgress, "completed": .completed]
+
+    /// A list whose shape no vendor documents (GitHub Copilot's `update_todo`, which its hooks reference maps to
+    /// `TodoWrite` and says no more of), read in either form a to-do tool takes: an array of items under `todos`,
+    /// `items` or `plan`, with their words under `content`, `title`, `description` or `step` and a status in
+    /// `planStatuses` (or `done`); or a Markdown checklist (`- [x] Read the card`) as a string under one of those keys
+    /// or as the whole value. Anything else is nil, so a shape this does not recognise shows no list rather than a
+    /// wrong one.
+    static func plan(fromUndocumented value: Any?) -> TodoPlan? {
+        var value = value
+        if let text = value as? String, let data = text.data(using: .utf8), let decoded = try? JSONSerialization.jsonObject(with: data),
+           decoded is [String: Any] || decoded is [Any] {
+            value = decoded
+        }
+        if let object = value as? [String: Any] {
+            guard let list = ["todos", "items", "plan"].lazy.compactMap({ object[$0] }).first else { return nil }
+            value = list
+        }
+        if let checklist = value as? String { return plan(fromChecklist: checklist) }
+        guard let entries = value as? [[String: Any]] else { return nil }
+        let statuses = planStatuses.merging(["done": .completed]) { first, _ in first }
+        let items = entries.prefix(todoLimit).compactMap { entry -> TodoPlan.Item? in
+            guard let status = (entry["status"] as? String).flatMap({ statuses[$0] }) else { return nil }
+            let words = ["content", "title", "description", "step"].lazy.compactMap { entry[$0] as? String }.first
+            return TodoPlan.Item(content: title(fromPrompt: words), status: status)
+        }
+        return items.isEmpty && !entries.isEmpty ? nil : TodoPlan(items: items)
+    }
+
+    /// `- [ ] step` and `- [x] step` lines (also `*`, and `[X]`); an in-progress state has no Markdown form. nil when
+    /// no line is a checklist item.
+    static func plan(fromChecklist text: String) -> TodoPlan? {
+        let items = text.split(whereSeparator: \.isNewline).prefix(todoLimit * 4).compactMap { line -> TodoPlan.Item? in
+            let trimmed = line.drop { $0.isWhitespace }
+            guard trimmed.hasPrefix("- [") || trimmed.hasPrefix("* [") else { return nil }
+            let rest = trimmed.dropFirst(3)
+            guard let mark = rest.first, rest.dropFirst().first == "]" else { return nil }
+            let status: TodoPlan.Status
+            switch mark {
+            case " ": status = .pending
+            case "x", "X": status = .completed
+            default: return nil
+            }
+            return TodoPlan.Item(content: title(fromPrompt: String(rest.dropFirst(2))), status: status)
+        }
+        return items.isEmpty ? nil : TodoPlan(items: Array(items.prefix(todoLimit)))
     }
 
     /// A `TaskCreate` or `TaskUpdate` call reduced to what the plan needs: the task's id (the response's `task.id`

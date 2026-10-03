@@ -154,6 +154,14 @@ extension Hook {
         (value as? String).flatMap(Compaction.Trigger.init(rawValue:))
     }
 
+    /// A model id an assistant reported, kept only when it is shaped like one: at most 80 characters of letters,
+    /// digits and `.-_:/@[]`, so a field that held something else never reaches the row.
+    static func reportedModel(_ value: Any?) -> String? {
+        guard let id = (value as? String)?.trimmingCharacters(in: .whitespaces), !id.isEmpty, id.count <= 80,
+              id.allSatisfy({ $0.isLetter || $0.isNumber || ".-_:/@[]".contains($0) }) else { return nil }
+        return id
+    }
+
     /// `PostModelSwitch`'s `to_model`, `from_model` and `source`; nil without a `to_model` shaped like an id. The
     /// cost fields beside them (`context_tokens`, `estimated_cache_write_usd`, `pricing`, `prompt_cache_warm`,
     /// `cache_ttl`) and `requested_model` are left in the payload: the notch shows the model a session runs on and
@@ -192,6 +200,13 @@ enum Compaction {
     enum Trigger: String, Equatable, Sendable {
         case manual, auto
     }
+}
+
+extension ToolID {
+    /// Whether the assistant's hook says when a compaction ends as well as when it starts: Claude Code, Codex and
+    /// Kimi Code have a PostCompact. Gemini CLI's PreCompress, Copilot's and Cursor's preCompact have no partner, so
+    /// their compaction is taken to be over at the session's next event (SessionTracker).
+    var reportsCompactionEnd: Bool { self == .claude || self == .codex || self == .kimi }
 }
 
 /// A switch of the session's model, as `PostModelSwitch` reports it once made.

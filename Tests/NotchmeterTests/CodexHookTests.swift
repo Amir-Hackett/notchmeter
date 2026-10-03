@@ -26,8 +26,10 @@ import Testing
     @Test func sessionStartReadsAsCodexWithTheFlag() throws {
         let json = #"{"session_id":"b5f6c1c2-1111-2222-3333-444455556666","transcript_path":"/Users/x/.codex/sessions/r.jsonl","cwd":"/Users/x/proj","hook_event_name":"SessionStart","source":"startup","model":"gpt-5-codex","permission_mode":"default"}"#
         let message = try #require(parse(json))
-        #expect(message == Hook.Message(event: "SessionStart", needsInput: false, sessionID: "b5f6c1c2-1111-2222-3333-444455556666", project: "proj",
-                                        branch: "main", permissionMode: "default", tool: .codex))
+        var expected = Hook.Message(event: "SessionStart", needsInput: false, sessionID: "b5f6c1c2-1111-2222-3333-444455556666", project: "proj",
+                                    branch: "main", permissionMode: "default", tool: .codex)
+        expected.reportedModel = "gpt-5-codex"
+        #expect(message == expected)
         #expect(message.userInfo[Hook.toolKey] as? String == "codex")
         #expect(Hook.Message(userInfo: message.userInfo) == message, "the tool survives the notification payload, or the store would light Claude's ring")
     }
@@ -169,7 +171,9 @@ import Testing
         let json = #"{"session_id":"s","transcript_path":"/Users/x/.codex/sessions/r.jsonl","cwd":"/Users/x/proj","hook_event_name":"Stop","model":"gpt-5-codex","permission_mode":"plan","turn_id":"t9","stop_hook_active":true,"last_assistant_message":"secret","prompt":"also secret"}"#
         let message = try #require(parse(json))
         let info = message.userInfo
-        #expect(Set(info.keys) == [Hook.eventKey, Hook.needsInputKey, Hook.sessionKey, Hook.projectKey, Hook.branchKey, Hook.permissionKey, Hook.toolKey])
+        #expect(Set(info.keys) == [Hook.eventKey, Hook.needsInputKey, Hook.sessionKey, Hook.projectKey, Hook.branchKey, Hook.permissionKey, Hook.toolKey,
+                                   Hook.reportedModelKey], "since 0.9.13 the model, for the row's model chip")
+        #expect(info[Hook.reportedModelKey] as? String == "gpt-5-codex")
         for key in ["model", "turn_id", "transcript_path", "prompt", "last_assistant_message", "stop_hook_active", "cwd"] {
             #expect(info[key] == nil, "\(key) is not read, and the working directory travels only as its basename")
         }
@@ -244,7 +248,7 @@ import Testing
     func file(command: String, without missing: String? = nil) -> [String: Any] {
         var hooks: [String: Any] = [:]
         for event in HookVendor.codex.events where event != missing {
-            hooks[event] = [["hooks": [HookVendor.codex.handler(command: command, event: event)]]]
+            hooks[event] = [HookVendor.codex.shape.entry(handler: HookVendor.codex.handler(command: command, event: event), matcher: HookVendor.codex.matcher(for: event))]
         }
         return ["hooks": hooks]
     }
@@ -260,7 +264,11 @@ import Testing
             let groups = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(groups.count == 1, "\(event)")
             let group = try #require(groups.first)
-            #expect(Set(group.keys) == ["hooks"], "\(event): no matcher (omitted receives every source, reason and agent type)")
+            if event == "PostToolUse" {
+                #expect(group["matcher"] as? String == "update_plan", "the plan tool alone, so no other tool call launches the command")
+            } else {
+                #expect(Set(group.keys) == ["hooks"], "\(event): no matcher (omitted receives every source, reason and agent type)")
+            }
             let handlers = try #require(group["hooks"] as? [[String: Any]], "\(event)")
             #expect(handlers.count == 1, "\(event)")
             let handler = try #require(handlers.first)
@@ -306,7 +314,8 @@ import Testing
             ],
         ]
         let first = HookSettings.merge(into: existing, vendor: .codex, executable: executable)
-        #expect(first.added == ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop"])
+        #expect(first.added == ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop", "PostToolUse",
+                                "PreCompact", "PostCompact"])
         #expect(first.present == ["SessionEnd"], "a value that is not an array is left alone rather than replaced")
         #expect(first.settings["description"] as? String == "Optional lifecycle hooks for this workspace.", "Codex's top-level description is the user's and is kept")
         #expect(first.settings["version"] == nil, "Codex's file wants no version key, and none is added")
@@ -381,7 +390,8 @@ import Testing
         hooks["SessionStart"] = [foreignGroup, ["matcher": "startup", "hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
         settings["hooks"] = hooks
         let repaired = HookSettings.repair(settings, vendor: .codex, executable: executable)
-        #expect(repaired.repaired == ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SessionEnd"])
+        #expect(repaired.repaired == ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SessionEnd", "PostToolUse",
+                                      "PreCompact", "PostCompact"])
         #expect(repaired.added == ["SubagentStop"])
         #expect(HookSettings.status(settings: repaired.settings, vendor: .codex, executable: executable) == .installed(path: executable))
         let written = try #require(repaired.settings["hooks"] as? [String: Any])
@@ -449,7 +459,7 @@ import Testing
         #expect(HookSettings.status(vendor: .codex, at: url, executable: executable) == .partial(path: executable))
         let repaired = try HookSettings.repairInstall(vendor: .codex, at: url, executable: executable, now: now.addingTimeInterval(120))
         #expect(repaired.backup != nil)
-        #expect(repaired.added.count == 8)
+        #expect(repaired.added.count == HookVendor.codex.events.count)
         #expect(HookSettings.status(vendor: .codex, at: url, executable: executable) == .installed(path: executable))
         #expect(try HookSettings.repairInstall(vendor: .codex, at: url, executable: executable, now: now.addingTimeInterval(180)).backup == nil)
         #expect(try fm.contentsOfDirectory(atPath: dir.path).filter { $0.contains(".bak-") }.count == 2)

@@ -18,8 +18,17 @@ extension Hook {
         /// two are Gemini's own words for the prompt and the stop.
         static let events: [String: String] = [
             "SessionStart": "SessionStart", "BeforeAgent": "UserPromptSubmit", "AfterAgent": "Stop",
-            "Notification": "Notification", "SessionEnd": "SessionEnd",
+            "Notification": "Notification", "SessionEnd": "SessionEnd", "AfterTool": "PostToolUse", "PreCompress": "PreCompact",
         ]
+
+        /// The tool Gemini CLI keeps its plan with, the whole list per call (gemini-cli `core/src/tools/write-todos.ts`,
+        /// read at v0.62.0): `{todos: [{description, status}]}`, status `pending`, `in_progress`, `completed`,
+        /// `cancelled` or `blocked`. A blocked step is still to do; a cancelled one is dropped. Gemini offers the tool
+        /// under its 2.x models only (`config.ts`), so a session on another model simply never shows a list. The
+        /// `AfterTool` entry is matched to this name (HookVendor.matcher(for:)), which Gemini reads as a regular
+        /// expression, so no other tool call launches the command.
+        static let planTool = "write_todos"
+        static let planStatuses: [String: TodoPlan.Status] = Hook.planStatuses.merging(["blocked": .pending]) { first, _ in first }
 
         /// The one documented notification type, and the one that lights the hand. Empty this set to turn the wait off.
         static let waitingNotificationTypes: Set<String> = ["ToolPermission"]
@@ -41,7 +50,7 @@ extension Hook {
                 || (event == "Notification" && (object["notification_type"] as? String).map(waitingNotificationTypes.contains) == true)
         }
 
-        /// The five registered names land on Claude Code's; every other name (a tool, model or compression event
+        /// The registered names land on Claude Code's (AfterTool, since 0.9.13, as the PostToolUse that carries a plan); every other name (a tool, model or compression event
         /// that reached us anyway) passes through verbatim for the tracker to ignore.
         static func canonicalEvent(_ event: String) -> String { events[event] ?? event }
 
@@ -79,6 +88,11 @@ extension Hook {
             // Since 0.7.0 the prompt's first line rides along on BeforeAgent as the session's title
             // (Hook.title(fromPrompt:)); the response and the alert's details stay unread.
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            // Since 0.9.13 a compression's trigger: Gemini reports its start alone (ToolID.reportsCompactionEnd).
+            if event == "PreCompress" { message.compaction = Hook.compactionTrigger(object["trigger"]) }
+            if event == "AfterTool", object["tool_name"] as? String == planTool {
+                message.todos = Hook.plan(from: (object["tool_input"] as? [String: Any])?["todos"], text: "description", statuses: planStatuses)
+            }
             return message
         }
 

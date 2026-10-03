@@ -15,7 +15,10 @@ extension Hook {
     /// - `permission.asked` is the one wait: OpenCode is holding the tool call for the user;
     /// - `permission.replied` ends that wait, which OpenCode, unlike Claude Code, reports, so the hand comes down
     ///   the moment the user answers in the terminal rather than at the turn's end;
-    /// - `session.deleted` ends the session.
+    /// - `session.deleted` ends the session;
+    /// - `todo.updated` (0.9.13) is the session's task list, the whole list each time, read as the PostToolUse that
+    ///   carries Claude Code's (`[{content, status}]`, status `pending`, `in_progress`, `completed` or `cancelled`, as
+    ///   sst/opencode `packages/schema/src/session-todo.ts` has it at v1.18.34; a cancelled task is dropped).
     ///
     /// Nothing is answered from here: the plugin observes permissions and never replies to them, so OpenCode's
     /// entry has no deciding events (HookVendor.decidingEvents).
@@ -31,8 +34,9 @@ extension Hook {
 
         /// Only the event name, `session_id`, `agent_id`, the project name of `cwd` (its folder's, or the
         /// repository's for a git worktree: ProjectName), `status`, `error` and `status_code` on a failure, and
-        /// `prompt` on `chat.message` (kept as its first line, Hook.title(fromPrompt:)) are read. The plugin sends
-        /// nothing else: not the permission's patterns or metadata, not the model, not the reply.
+        /// `prompt` on `chat.message` (kept as its first line, Hook.title(fromPrompt:)), and `todos` on `todo.updated`
+        /// are read. The plugin sends nothing else: not the permission's patterns or metadata, not the model, not the
+        /// reply, not a task's priority.
         static func message(event: String, object: [String: Any], branch: (String) -> String?) -> Message {
             let cwd = nonEmpty(object["cwd"])
             let agent = nonEmpty(object["agent_id"])
@@ -64,6 +68,8 @@ extension Hook {
             case "permission.replied":
                 canonical = "Notification"
                 type = permissionReplied
+            case "todo.updated":
+                canonical = agent == nil ? "PostToolUse" : event
             default:
                 canonical = event
             }
@@ -77,6 +83,10 @@ extension Hook {
                                   failure: failure,
                                   host: nil, tool: .opencode)
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            message.reportedModel = event == "chat.message" ? Hook.reportedModel(object["model"]) : nil
+            if event == "todo.updated", agent == nil {
+                message.todos = Hook.plan(from: object["todos"], text: "content", statuses: Hook.planStatuses)
+            }
             return message
         }
 

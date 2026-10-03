@@ -865,6 +865,10 @@ struct SessionTracker: Equatable, Sendable {
         }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
+        if let model = message.reportedModel, !session.modelFromStatusline { session.model = Hook.modelDisplayName(model) }
+        // An assistant that reports only a compaction's start (ToolID.reportsCompactionEnd) has finished it by the time
+        // it sends anything else.
+        if session.compacting != nil, message.event != "PreCompact", !message.tool.reportsCompactionEnd { session.compacting = nil }
         if let terminal = message.terminal, !terminal.isEmpty { session.terminal = session.terminal?.merging(terminal) ?? terminal }
         // A subagent's task calls reach the same hook under the parent's session id, carrying its `agent_id`: they
         // are its own plan, not the session's, so they never replace or change the list on the parent's row.

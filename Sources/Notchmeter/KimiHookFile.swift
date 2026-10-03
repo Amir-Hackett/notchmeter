@@ -121,6 +121,7 @@ enum KimiHookFile {
     static func table(event: String, handler: [String: Any]) -> String {
         var lines = ["[[hooks]]", "event = \(basicString(event))"]
         if let command = handler["command"] as? String { lines.append("command = \(basicString(command))") }
+        if let matcher = handler["matcher"] as? String { lines.append("matcher = \(basicString(matcher))") }
         if let timeout = (handler["timeout"] as? NSNumber)?.intValue { lines.append("timeout = \(timeout)") }
         return lines.joined(separator: "\n") + "\n"
     }

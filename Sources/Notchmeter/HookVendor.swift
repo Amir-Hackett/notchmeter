@@ -97,16 +97,20 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     var events: [String] {
         switch self {
         case .claude: HookSettings.events
-        case .codex: ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop", "SessionEnd"]
+        // PostToolUse (0.9.13) is matched to the plan tool alone (`matcher(for:)`), so it costs no launch per tool call.
+        case .codex: ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop", "SessionEnd",
+                      "PostToolUse", "PreCompact", "PostCompact"]
         // The last seven are signs of life for the quiet-turn nudge (SessionTracker.heartbeatEvents, 0.7.6):
         // Cursor never says it is waiting for an approval, so a turn that goes quiet with nothing running is the
         // only way to tell. A process launch per shell command, file edit and model step is the price.
         case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd",
                        "beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
-                       "afterFileEdit", "afterAgentThought", "afterAgentResponse"]
-        case .gemini: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"]
-        case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"]
-        case .kimi: ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
+                       "afterFileEdit", "afterAgentThought", "afterAgentResponse", "preCompact"]
+        case .gemini: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd", "AfterTool", "PreCompress"]
+        case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd",
+                        "postToolUse", "preCompact"]
+        case .kimi: ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd", "PostToolUse",
+                     "PreCompact", "PostCompact"]
         // The bus events the plugin forwards; its source is the one place they are subscribed to.
         case .opencode: OpenCodePlugin.events
         }
@@ -132,16 +136,22 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// vendor never cancels the command before the socket itself gives up.
     static let decisionTimeout = Int(Hook.decisionWait)
 
-    /// The matcher a group of ours must carry for one event: Claude Code's `PreToolUse` is registered for
+    /// The matcher an entry of ours must carry for one event: Claude Code's `PreToolUse` is registered for
     /// `AskUserQuestion` alone and its `PostToolUse` for the task tools alone (`TodoWrite|TaskCreate|TaskUpdate`:
-    /// the Task tools current Claude Code keeps its plan with, and the `TodoWrite` older builds used), since the
-    /// command has nothing to say to any other tool call and would only cost a launch per call. Every other entry
-    /// is unmatched.
+    /// the Task tools current Claude Code keeps its plan with, and the `TodoWrite` older builds used), and since
+    /// 0.9.13 each other assistant's after-tool event for its own plan tool alone, since the command has nothing to
+    /// say to any other tool call and would only cost a launch per call. A single tool's name reads the same as
+    /// Codex's exact name, Gemini CLI's and Kimi Code's regular expression and Copilot's anchored one. Codex and
+    /// Gemini CLI carry it on the group, Kimi Code and Copilot on the flat entry itself (`handler(command:event:)`).
+    /// Every other entry is unmatched.
     func matcher(for event: String) -> String? {
-        guard self == .claude else { return nil }
-        return switch event {
-        case "PreToolUse": Hook.askUserQuestionTool
-        case "PostToolUse": Hook.taskTools.joined(separator: "|")
+        switch (self, event) {
+        case (.claude, "PreToolUse"): Hook.askUserQuestionTool
+        case (.claude, "PostToolUse"): Hook.taskTools.joined(separator: "|")
+        case (.codex, "PostToolUse"): Hook.Codex.planTool
+        case (.gemini, "AfterTool"): Hook.Gemini.planTool
+        case (.kimi, "PostToolUse"): Hook.Kimi.planTool
+        case (.copilot, "postToolUse"): Hook.Copilot.planTool
         default: nil
         }
     }
@@ -210,11 +220,17 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
             default: return ["type": "command", "command": command, "async": true, "timeout": 5]
             }
         case .gemini: return ["name": "notchmeter", "type": "command", "command": command, "timeout": 5000]
-        case .kimi: return ["command": command, "timeout": 5]
+        case .kimi:
+            var handler: [String: Any] = ["command": command, "timeout": 5]
+            handler["matcher"] = matcher(for: event)
+            return handler
         case .copilot:
-            return event == "notification"
-                ? ["type": "command", "command": command, "matcher": "permission_prompt|elicitation_dialog", "timeoutSec": 5]
-                : ["type": "command", "command": command, "timeoutSec": 5]
+            if event == "notification" {
+                return ["type": "command", "command": command, "matcher": "permission_prompt|elicitation_dialog", "timeoutSec": 5]
+            }
+            var handler: [String: Any] = ["type": "command", "command": command, "timeoutSec": 5]
+            handler["matcher"] = matcher(for: event)
+            return handler
         // Never written: the plugin module carries the command itself (OpenCodePlugin.source).
         case .opencode: return ["command": command]
         }

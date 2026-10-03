@@ -17,13 +17,17 @@ import Foundation
 enum OpenCodePlugin {
     /// Raised when the plugin's source changes in a way an installed copy should be upgraded for; the launch repair
     /// and Repair rewrite a copy that carries an older one.
-    static let version = 1
+    /// 2 (0.9.13): forwards `todo.updated`, the session's task list, and the model a prompt goes to.
+    static let version = 2
     static let versionMarker = "notchmeter-plugin-version:"
     static let fileName = "notchmeter.js"
 
     /// The events the plugin forwards, as OpenCode names them (Hook+OpenCode.swift maps each one).
     static let events = ["session.created", "chat.message", "session.status", "session.idle", "session.error", "session.deleted",
-                         "permission.asked", "permission.replied"]
+                         "permission.asked", "permission.replied", "todo.updated"]
+
+    /// The most characters of one task's text the plugin sends; the app keeps one line of it (Hook.title(fromPrompt:)).
+    static let todoTextLimit = 200
 
     static func fileURL(environment: [String: String] = ProcessInfo.processInfo.environment, home: URL = Paths.home) -> URL {
         OpenCodePaths.configDirectory(environment: environment, home: home).appendingPathComponent("plugins/\(fileName)")
@@ -38,9 +42,10 @@ enum OpenCodePlugin {
         // Notchmeter plugin for OpenCode (\(versionMarker) \(version)).
         // Written by Notchmeter's Settings › Integrations, which backed up any file it replaced here. It tells the
         // Notchmeter app on this Mac when a session starts, a prompt is sent, a turn ends or fails, a subagent runs,
-        // and OpenCode stops to ask your permission, by running the app's own hook command with a small JSON object.
-        // It sends nothing anywhere else, and never the prompt beyond its first 500 characters, which the app cuts to
-        // one line and keeps only while "Show what a session is working on" is on. Delete this file to remove it.
+        // OpenCode stops to ask your permission, and the session's task list changes, by running the app's own hook
+        // command with a small JSON object. It sends nothing anywhere else, never the prompt beyond its first 500
+        // characters and never a task beyond its first \(todoTextLimit), which the app cuts to one line and keeps only
+        // while "Show what a session is working on" is on. Delete this file to remove it.
         import { spawn } from "node:child_process"
 
         const NOTCHMETER = \(path)
@@ -85,7 +90,8 @@ enum OpenCodePlugin {
           return {
             "chat.message": async (input, output) => {
               if (parents.has(input?.sessionID)) return
-              busy("chat.message", input?.sessionID, { prompt: firstText(output?.parts) })
+              const model = typeof input?.model === "string" ? input.model : input?.model?.modelID
+              busy("chat.message", input?.sessionID, { prompt: firstText(output?.parts), model: typeof model === "string" ? model : undefined })
             },
             event: async ({ event }) => {
               const p = event?.properties ?? {}
@@ -119,6 +125,13 @@ enum OpenCodePlugin {
                   break
                 case "permission.replied":
                   report("permission.replied", p.sessionID)
+                  break
+                case "todo.updated":
+                  // A subagent's own list is its own, not the session's.
+                  if (parents.has(p.sessionID) || !Array.isArray(p.todos)) break
+                  report("todo.updated", p.sessionID, {
+                    todos: p.todos.slice(0, \(Hook.todoLimit)).map((t) => ({ content: String(t?.content ?? "").slice(0, \(todoTextLimit)), status: t?.status })),
+                  })
                   break
               }
             },
