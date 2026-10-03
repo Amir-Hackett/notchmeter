@@ -424,6 +424,7 @@
 "Hook repaired" = "Hook reparado";
 "Hover delay" = "Atraso ao passar o cursor";
 "Hover the rings. The panel opens." = "Passe o cursor sobre os anéis. O painel abre.";
+"News across the notch: who needs you, and why." = "Novidades de um lado a outro do notch: quem precisa de você, e por quê.";
 "Icon style" = "Estilo do ícone";
 "Importing %@…" = "Importando %@…";
 "In the Cost card" = "No cartão Custo";
@@ -1019,7 +1020,7 @@
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "O primeiro assistente fica à esquerda do notch e os demais à direita; os cartões do painel e as pílulas da borda seguem a mesma ordem. Todo o resto de um assistente fica na página dele, em Assistentes na barra lateral.";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "Estes valem para todos os assistentes. A página de cada assistente pode deixar de fora os avisos de limite dele e os avisos de espera e de turno terminado dele.";
 "Open Claude Code in Settings…" = "Abrir o Claude Code nos Ajustes…";
-"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "Os seis painéis dos Ajustes e a página do próprio Claude Code: posição, ao passar o cursor ou sempre aberto, instalação do hook com backup.";
+"Settings: a black or paper panel, your accent, and a page for each assistant." = "Ajustes: um painel preto ou papel, sua cor de destaque e uma página para cada assistente.";
 /* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
 "%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ já define hooks de uma forma que o Notchmeter não edita, então não foi alterado: cole o trecho manualmente";
 "Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "O Antigravity guarda o próprio login nas Chaves; inicie sessão no Gemini CLI com a mesma conta do Google (rode `gemini` e escolha Login with Google) para ler a cota dele";

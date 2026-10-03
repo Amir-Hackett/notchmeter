@@ -269,7 +269,7 @@ private struct NotServedProvider: UsageProvider {
     @Test func coloursAreDistinctAndLegible() throws {
         let black = NSColor.black
         let white = NSColor.white
-        let darkWindow = NSColor(srgbRed: 0x1E / 255, green: 0x1E / 255, blue: 0x1E / 255, alpha: 1)
+        let darkWindow = NSColor(DashboardLook.darkWindow.color)
         let aqua = try #require(NSAppearance(named: .aqua))
         let darkAqua = try #require(NSAppearance(named: .darkAqua))
         func resolved(_ colour: Color, under appearance: NSAppearance) throws -> NSColor {

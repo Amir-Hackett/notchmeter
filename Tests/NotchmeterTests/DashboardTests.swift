@@ -357,12 +357,12 @@ import Testing
         }
     }
 
-    /// The status colours on the limits card are held to the window's own grounds, not the panel's: the black
-    /// look's vermillion passes as text on black (5.4:1) and so the panel leaves it, but the dark window is #1E1E1E
-    /// (4.3:1) and a card's box on it #2E2E2E (3.5:1), both under the 4.5:1 words owe. Measured in both roles on
-    /// both windows and both card boxes, with and without Increase Contrast.
+    /// The status colours on the limits card are held to the window's own grounds, not the panel's: a card's box is
+    /// a wash over the window, and the window was the system's #1E1E1E until 0.9.12, where the panel's vermillion
+    /// read 4.3:1 as words that owe 4.5. Measured in both roles on both windows and both card boxes, with and
+    /// without Increase Contrast.
     @Test func theStatusColoursReadOnEitherWindowAndItsCards() {
-        #expect(DashboardLook.box(dark: true, contrast: false).description == "#2E2E2E", "the card box the dark render measured")
+        #expect(DashboardLook.box(dark: true, contrast: false).description == "#121212", "the card box on the black window")
         for dark in [true, false] {
             for contrast in [false, true] {
                 let window = DashboardLook.window(dark: dark)
@@ -378,10 +378,6 @@ import Testing
                 }
             }
         }
-        let panels = PanelInk.danger.onBlack
-        let lifted = DashboardLook.status(.danger, role: .text, dark: true, contrast: false)
-        #expect(lifted != panels, "the dark window's vermillion is lifted from the panel's, which reads 4.3:1 there")
-        #expect(lifted.contrast(panels) < 2, "and lifted in lightness alone, so it is still the vermillion")
     }
 
     /// The system accent is the one colour on the Mac that says nothing about this app, and the audit of the 0.9.0

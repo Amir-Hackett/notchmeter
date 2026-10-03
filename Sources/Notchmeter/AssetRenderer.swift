@@ -311,10 +311,10 @@ enum AssetRenderer {
         let weekStart = store.cost?.week?.start ?? now
         let pinned = pinPeak ? DashboardModel(providers: store.costSelection.providers, range: range, weekStart: weekStart, now: now).peak?.day : nil
         let host = NSHostingView(rootView: DashboardView(store: store, range: range, scrolls: false, pinned: pinned, now: now)
-            .frame(width: width).background(Color(nsColor: .windowBackgroundColor)))
+            .frame(width: width).background(Color(nsColor: DashboardLook.windowColor)))
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: CGSize(width: width, height: 1)), styleMask: .borderless, backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: appearance)
-        window.backgroundColor = .windowBackgroundColor
+        window.backgroundColor = DashboardLook.windowColor
         window.contentView = host
         host.layoutSubtreeIfNeeded()
         let size = CGSize(width: width, height: ceil(host.fittingSize.height))
@@ -324,7 +324,7 @@ enum AssetRenderer {
         return try bitmap(of: host, size: size, what: "the dashboard")
     }
 
-    /// `--render-gallery <dir>`: Product Hunt's nine 1270×760 frames and the 240×240 thumbnail, each one centred
+    /// `--render-gallery <dir>`: Product Hunt's ten 1270×760 frames and the 240×240 thumbnail, each one centred
     /// on a #1c1c1e canvas with its caption drawn into the image (the gallery strips captions on mobile).
     ///
     /// Eight are stills and the first is the animated GIF the gallery spec always asked for. It was shipped as a
@@ -359,7 +359,15 @@ enum AssetRenderer {
             let compact = try stage.image(.compact, canvas: CGSize(width: 300, height: 44), pixelScale: 4)
             let notchShape = try edgeNotch(store: store, edge: .left)
             let rightNotchShape = try edgeNotch(store: store, edge: .right)
-            let settingsImage = try sheet(settings(store: store, prefs: prefs, actions: actions))
+            // One pane at a size that reads, where a spread of all seven panes put each at a fifth of a pixel a point
+            // and read as the same grey block from one version to the next. The top of Appearance carries the
+            // sidebar (the app's panes in graphite, each assistant in its ring's colour) beside the theme's preview.
+            // In light: drawn offscreen the window is never key, and dark's inactive sidebar dims every label and
+            // paints the selected row's black on black.
+            let appearancePane = try settings(pane: .appearance, store: store, prefs: prefs, actions: actions, appearance: .aqua,
+                                              selectionFill: false)
+            let settingsImage = appearancePane.cropping(to: CGRect(x: 0, y: 0, width: appearancePane.width,
+                                                                   height: min(appearancePane.height, appearancePane.width * 568 / 1174)))
             let costAndAdvice = try panelCrop(VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
                 SpendCard(store: store)
                 AdviceStrip(advice: store.advice)
@@ -387,6 +395,25 @@ enum AssetRenderer {
                                    delay: frame.delay))
             }
             try write(hover, gif: directory.appendingPathComponent("01-hover.gif"))
+
+            // The news across the notch (0.9.9 to 0.9.11), animated: a wait and a finish, each with its glow, then a
+            // long session title scrolling through. The same loops the site shows, each frame captioned like the rest.
+            let newsCaption = L("News across the notch: who needs you, and why.")
+            var news: [Frame] = []
+            let titled = "Move the cost scanner off the main actor and cache each transcript's totals by size and date"
+            // Cut to the strip and a little of its glow: the loops' own margins (the glow's spread and 40 points a
+            // side) would leave the strip two thirds of the frame's width and its words too small to read.
+            let inset = Int((NotchGlowView.spread + 24) * scale)
+            // Started on the wait's news rather than the plain strip: Product Hunt's carousel shows a GIF's first
+            // frame and does not play it, and a card of the plain strip says nothing about news. The loop's frames are
+            // the still and its six crossfade frames in turn, so the wait's still is the eighth.
+            let loop = try notchNewsLoop(now: now, actions: actions)
+            let fromTheWait = Array(loop[7...] + loop[..<7])
+            for frame in try fromTheWait + notchNewsScroll(now: now, actions: actions, title: titled) {
+                let image = frame.image.cropping(to: CGRect(x: inset, y: 0, width: frame.image.width - 2 * inset, height: frame.image.height)) ?? frame.image
+                news.append(Frame(image: try composite(image, caption: newsCaption, lines: [], canvas: canvas), delay: frame.delay))
+            }
+            try write(news, gif: directory.appendingPathComponent("10-news.gif"))
 
             let frames: [(name: String, image: CGImage?, caption: String, lines: [String])] = [
                 ("02-compact", compact, L("Lives in the notch. Takes no menu bar room."), []),
@@ -423,7 +450,7 @@ enum AssetRenderer {
                 // and Integrations panes while the capture was one window opened on General, so the sheet is
                 // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of. The
                 // hook install it names is on Claude Code's own page, the one assistant's page the sheet carries.
-                ("08-settings", settingsImage, L("The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup."), []),
+                ("08-settings", settingsImage, L("Settings: a black or paper panel, your accent, and a page for each assistant."), []),
                 // The lines describe the rest of the window, below the crop, rather than restating what the
                 // picture already shows — and none of them asserts a figure the crop can contradict, which is the
                 // rule frame 3 was rewritten to obey.
@@ -817,9 +844,10 @@ enum AssetRenderer {
         return frames
     }
 
-    /// The moment into a long name's scroll (Marquee) the strip is drawn at; nil draws it still, as the app does under
-    /// a fixed clock. Set only while `notchNewsScroll` draws its frames.
-    @MainActor static var marqueeElapsed: TimeInterval?
+    /// The moment into a long name's scroll (Marquee) every still is drawn at: its start, unless `notchNewsScroll` is
+    /// drawing a frame further in. Never nil here, which would run the scroll on the clock and draw wherever it had
+    /// got to by the time the frame was taken: the gallery, rendering its hover loop first, drew a name's end.
+    @MainActor static var marqueeElapsed: TimeInterval? = 0
 
     /// A long turn's finish across the notch with the session's name longer than its half: still while the name's
     /// start is read, scrolling at Marquee's pace, held at its end, then the plain strip. With the fixture's own title
@@ -843,8 +871,8 @@ enum AssetRenderer {
         let plain = try Stage(store: plainStore, prefs: plainPrefs, actions: actions)
         store.seed(news: news)
         func still(_ elapsed: TimeInterval?, stage plainStage: Stage? = nil) throws -> CGImage {
-            marqueeElapsed = elapsed
-            defer { marqueeElapsed = nil }
+            marqueeElapsed = elapsed ?? 0
+            defer { marqueeElapsed = 0 }
             let stage = try plainStage ?? Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true)
             let row = CGSize(width: max(stage.compactExtent, plain.compactExtent) + 2 * NotchGlowView.spread + 80,
                              height: notch.height + NotchGlowView.depth + 8)
@@ -1063,8 +1091,10 @@ enum AssetRenderer {
     /// asks for the narrowest window, or for the light one, to see a pane where it is tightest.
     @MainActor
     static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions,
-                         width: CGFloat = SettingsWindowController.contentSize.width, appearance: NSAppearance.Name = .darkAqua) throws -> CGImage {
+                         width: CGFloat = SettingsWindowController.contentSize.width, appearance: NSAppearance.Name = .darkAqua,
+                         selectionFill: Bool = true) throws -> CGImage {
         let requests = SettingsRequests()
+        requests.rendersSelectionFill = selectionFill
         // The Mac this is rendered on is not the Mac in the picture. `/Applications/Notchmeter.app` is where the
         // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows on each assistant's
         // page, the status-line row on Claude Code's and the overview on the Integrations pane read as a machine

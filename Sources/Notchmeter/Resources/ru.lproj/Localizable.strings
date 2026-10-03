@@ -424,6 +424,7 @@
 "Hook repaired" = "Хук исправлен";
 "Hover delay" = "Задержка наведения";
 "Hover the rings. The panel opens." = "Наведите на кольца — откроется панель.";
+"News across the notch: who needs you, and why." = "Новости по обе стороны выреза: кому вы нужны и зачем.";
 "Icon style" = "Стиль значка";
 "Importing %@…" = "Импорт %@…";
 "In the Cost card" = "В карточке «Стоимость»";
@@ -1019,7 +1020,7 @@
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "Первый ассистент располагается слева от выреза, остальные — справа; карточки панели и капсулы на краях следуют тому же порядку. Всё остальное об ассистенте — на его собственной странице, в боковой панели под «Ассистентами».";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "Это действует для всех ассистентов. На странице каждого ассистента можно отключить его собственные уведомления о лимитах, об ожидании и о завершённых ходах.";
 "Open Claude Code in Settings…" = "Открыть Claude Code в Настройках…";
-"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "Шесть разделов настроек и собственная страница Claude Code: положение, открытие при наведении или всегда, установка хука с резервной копией.";
+"Settings: a black or paper panel, your accent, and a page for each assistant." = "Настройки: чёрная или бумажная панель, ваш акцентный цвет и страница для каждого ассистента.";
 /* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
 "%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ уже задаёт хуки в форме, которую Notchmeter не редактирует, поэтому файл оставлен без изменений: вставьте фрагмент вручную";
 "Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity хранит собственный вход в Связке ключей; войдите в Gemini CLI с тем же аккаунтом Google (запустите `gemini` и выберите Login with Google), чтобы видеть его квоту";

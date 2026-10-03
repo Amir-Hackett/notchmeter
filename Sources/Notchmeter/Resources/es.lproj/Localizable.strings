@@ -424,6 +424,7 @@
 "Hook repaired" = "Hook reparado";
 "Hover delay" = "Retardo al pasar el puntero";
 "Hover the rings. The panel opens." = "Pasa el puntero por los anillos. Se abre el panel.";
+"News across the notch: who needs you, and why." = "Novedades a lo ancho de la muesca: quién te necesita y por qué.";
 "Icon style" = "Estilo del icono";
 "Importing %@…" = "Importando %@…";
 "In the Cost card" = "En la tarjeta Coste";
@@ -1019,7 +1020,7 @@
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "El primer asistente se sitúa a la izquierda de la muesca y el resto a su derecha; las tarjetas del panel y las píldoras del borde siguen el mismo orden. Todo lo demás de un asistente está en su propia página, bajo Asistentes en la barra lateral.";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "Esto se aplica a todos los asistentes. La página de cada asistente puede omitir sus propios avisos de límite y sus avisos de espera y de turno terminado.";
 "Open Claude Code in Settings…" = "Abrir Claude Code en Ajustes…";
-"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "Los seis paneles de Ajustes y la página propia de Claude Code: posición, abrir al pasar el puntero o siempre, instalación del hook con copia de seguridad.";
+"Settings: a black or paper panel, your accent, and a page for each assistant." = "Ajustes: un panel negro o papel, tu color de acento y una página para cada asistente.";
 /* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
 "%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ ya define hooks de una forma que Notchmeter no edita, así que no se ha modificado: pega el fragmento a mano";
 "Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity guarda su propio inicio de sesión en el Llavero; inicia sesión en Gemini CLI con la misma cuenta de Google (ejecuta `gemini` y elige Login with Google) para leer su cuota";

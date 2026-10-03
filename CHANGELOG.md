@@ -2,6 +2,20 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.12](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.12) — 2026-10-02
+
+### Line icons in the Settings sidebar
+
+- The Settings sidebar now draws simple line icons, with no coloured tiles behind them. The app's own sections are grey, and each assistant keeps the colour its rings wear, so the only colour in the list is your assistants'.
+
+### A black Dashboard
+
+- In Dark mode the Usage Dashboard now stands on the same black as the panel it opens from, rather than the system's grey. Light mode is unchanged.
+
+### Fixes
+
+- Settings: the search field keeps a gap under it while the page scrolls, so rows no longer run up against it.
+
 ## [0.9.11](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.11) — 2026-10-02
 
 ### Long names scroll through

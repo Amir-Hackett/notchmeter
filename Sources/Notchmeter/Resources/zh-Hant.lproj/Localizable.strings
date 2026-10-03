@@ -407,6 +407,7 @@
 "Hook repaired" = "已修復 hook";
 "Hover delay" = "懸停延遲";
 "Hover the rings. The panel opens." = "將游標停在圓環上，面板便會展開。";
+"News across the notch: who needs you, and why." = "橫跨瀏海的動態：誰需要你，以及原因。";
 "Icon style" = "圖示樣式";
 "Importing %@…" = "正在匯入 %@…";
 "In the Cost card" = "費用卡片中顯示";
@@ -1002,7 +1003,7 @@
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "第一個助理位於瀏海左側，其餘位於右側；面板卡片和邊緣膠囊沿用同一順序。助理的其他一切設定都在它自己的頁面上，列在側邊欄的「助理」下。";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "這些設定適用於所有助理。每個助理的頁面都可以省略它自己的限額通知，以及它的等待和一輪完成通知。";
 "Open Claude Code in Settings…" = "在設定中開啟 Claude Code…";
-"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "設定的六個面板和 Claude Code 自己的頁面：位置、懸停或永遠開啟、附備份的掛鉤安裝。";
+"Settings: a black or paper panel, your accent, and a page for each assistant." = "設定：黑色或紙色面板、你的強調色，以及每個助理各自的頁面。";
 /* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
 "%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ 已經以 Notchmeter 不編輯的形式定義了掛鉤，因此未做更動：請改為貼上片段";
 "Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity 把自己的登入資訊保存在鑰匙圈中；請用同一個 Google 帳號登入 Gemini CLI（執行 `gemini` 並選擇 Login with Google）以讀取它的配額";
