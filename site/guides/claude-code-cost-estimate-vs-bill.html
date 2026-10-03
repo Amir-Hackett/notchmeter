@@ -10,7 +10,7 @@
 <!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
 
 <meta property="og:title" content="Why your Claude Code cost estimate doesn't match your bill">
-<meta property="og:description" content="Every rule behind the estimate, the primary sources, and the seven places it is known to differ from a bill.">
+<meta property="og:description" content="Every rule behind the estimate, the primary sources, and the eight places it is known to differ from a bill.">
 <meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
 <meta property="og:url" content="https://www.notchmeter.com/guides/claude-code-cost-estimate-vs-bill.html">
 <meta property="og:site_name" content="Notchmeter">
@@ -48,7 +48,7 @@
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
         <li class="stamp">Tested on Notchmeter 0.9.13</li>
-        <li>Sources read 2026-09-01</li>
+        <li>Sources read 2026-09-01; rates 2026-09-24</li>
       </ul>
     </div>
   </header>
@@ -84,17 +84,18 @@
           <tr><th scope="row">Output</th><td><code>output_tokens</code> (thinking tokens are inside it)</td><td>output rate</td></tr>
           <tr><th scope="row">5-minute cache write</th><td><code>ephemeral_5m_input_tokens</code></td><td>1.25 × input</td></tr>
           <tr><th scope="row">1-hour cache write</th><td><code>ephemeral_1h_input_tokens</code></td><td>2 × input</td></tr>
-          <tr><th scope="row">Cache read</th><td><code>cache_read_input_tokens</code></td><td>0.1 × input (0.025 × on Fable 5.1 and Mythos 5.1)</td></tr>
+          <tr><th scope="row">Cache read</th><td><code>cache_read_input_tokens</code></td><td>0.1 × input (0.05 × on Opus 5.5; 0.025 × on Fable 5.1 and Mythos 5.1)</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Three more rules come straight from Anthropic's pricing page and the Agent SDK's cost documentation. A response whose usage says <code>inference_geo: "us"</code> is multiplied by 1.1 on every bucket, because US-only inference on Claude 4.6 and later is billed at that premium. A web search adds $10 per 1,000 searches, after the multiplier, which never applies to a per-request fee. And a response marked <code>speed: "fast"</code> on Opus 5 or Opus 4.8 is priced at twice the standard rate.</p>
-    <div class="tablewrap" role="region" aria-label="Rates for four current models" tabindex="0">
+    <p>Three more rules come straight from Anthropic's pricing page and the Agent SDK's cost documentation. A response whose usage says <code>inference_geo: "us"</code> is multiplied by 1.1 on every bucket, because US-only inference on Claude 4.6 and later is billed at that premium. A web search adds $10 per 1,000 searches, after the multiplier, which never applies to a per-request fee. And a response marked <code>speed: "fast"</code> on Opus 5 or Opus 4.8 is priced at twice the standard rate, and on Opus 5.5 at the page's own fast rate, $8 input and $40 output, with its 0.05 × cache read applied to the fast input rate ($0.40).</p>
+    <div class="tablewrap" role="region" aria-label="Rates for five current models" tabindex="0">
       <table class="dtable">
-        <caption>Four of the rates, dollars per million tokens, from Anthropic's pricing page on 2026-09-01</caption>
+        <caption>Five of the rates, dollars per million tokens, from Anthropic's pricing page on 2026-09-24</caption>
         <thead><tr><th scope="col">Model</th><th scope="col" class="num">Input</th><th scope="col" class="num">Output</th><th scope="col" class="num">5m write</th><th scope="col" class="num">1h write</th><th scope="col" class="num">Cache read</th></tr></thead>
         <tbody>
           <tr><th scope="row">Fable 5.1</th><td class="num">10</td><td class="num">50</td><td class="num">12.50</td><td class="num">20</td><td class="num">0.25</td></tr>
+          <tr><th scope="row">Opus 5.5</th><td class="num">4</td><td class="num">20</td><td class="num">5</td><td class="num">8</td><td class="num">0.20</td></tr>
           <tr><th scope="row">Opus 5</th><td class="num">5</td><td class="num">25</td><td class="num">6.25</td><td class="num">10</td><td class="num">0.50</td></tr>
           <tr><th scope="row">Sonnet 5</th><td class="num">2</td><td class="num">10</td><td class="num">2.50</td><td class="num">4</td><td class="num">0.20</td></tr>
           <tr><th scope="row">Haiku 4.5</th><td class="num">1</td><td class="num">5</td><td class="num">1.25</td><td class="num">2</td><td class="num">0.10</td></tr>
@@ -108,7 +109,7 @@
     <p>Notchmeter keeps the line with the largest output count. Measured across the 3,501 transcripts on the development Mac on 2026-09-01, keeping the first line of each response would have counted 17,975,458 output tokens; keeping the last counts 24,339,282, <strong>35% more</strong>. A golden test pins it: three lines of one Fable 5.1 response, with output counts of 3, 3 and 1,090, price to $0.1095, not the $0.05515 that keeping the first would give. If another tool shows you a lower figure for the same day, this is the first place to look.</p>
     <p>The other common mismatch is scope. Claude Code's <code>/usage</code> Session block covers one session since its last <code>/clear</code>. Notchmeter's <em>Today</em> covers every transcript on the Mac for the calendar day. Both can be right.</p>
 
-    <h2 id="divergences">The seven known divergences</h2>
+    <h2 id="divergences">The eight known divergences</h2>
     <p>These are the things a bill can contain that the estimate does not, in the order they are likely to matter. They are listed in the <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#known-divergences">accuracy document</a> for the same reason they are listed here: a number that cannot show its work should not be on screen.</p>
     <ol>
       <li><strong>Interrupted responses.</strong> A response that never finished (you pressed Escape, the network dropped) has only placeholder lines, so its output is under-counted. Its input and cache counts are right. It cannot be told apart from a genuinely short reply, so nothing is guessed.</li>
@@ -118,6 +119,7 @@
       <li><strong>Currency.</strong> Everything is computed in US dollars. <em>Show costs in</em> converts with a rate you type, so a converted figure is only as current as that rate, unless you turn on <em>Fetch today's rate</em> (off by default), which converts at the European Central Bank's daily reference rate instead.</li>
       <li><strong>Cursor's percentage fields</strong>, which Cursor's own staff describe as a different internal metric from spend (see the <a href="cursor-copilot-antigravity-limits.html">limits guide</a>).</li>
       <li><strong>Copilot's day series.</strong> GitHub reports a month-to-date count, so a day's credits land on the day this Mac saw them rise.</li>
+      <li><strong>Plan prices.</strong> The plan value line (<em>$412 of API-equivalent value on the $200 Claude Max 20x plan · 2.1x</em>) takes each plan's monthly list price from the vendor's own page as read on 2026-09-24. An annual discount, a regional price, a grandfathered rate or a change on the page since is not modelled, and no scheduled job watches those pages the way one watches Anthropic's pricing page.</li>
     </ol>
     <p>Two rules that used to be on this list are now modelled and are not divergences: the web-search fee and fast mode, both since 2026-09-02.</p>
 
@@ -126,13 +128,14 @@
     <div class="code" tabindex="0"><code>{"claude-opus-5": {"input": 4, "output": 20, "cacheRead": 0.4, "cacheWrite": 5, "cacheWrite1h": 8}}</code></div>
     <p>Rates are dollars per million tokens, and a cache rate you leave out is derived from your input rate with the standard multipliers. An override changes the pricing fingerprint the app's cache is keyed on, so every transcript is re-priced on the next scan.</p>
 
-    <h2 id="other-tools">Codex, OpenCode, Cursor, Copilot and Antigravity</h2>
+    <h2 id="other-tools">Codex, OpenCode, Cursor, Copilot, Gemini CLI, Antigravity and Kimi Code</h2>
     <ul>
       <li><strong>Codex</strong> is priced from its session rollouts at OpenAI's published standard-tier rates, with cached input taken out of <code>input_tokens</code> before it is priced so it is not charged twice. On a ChatGPT plan it is, like Claude's, the value of the work and not a bill.</li>
       <li><strong>OpenCode</strong> is read from its own database on this Mac, and nothing is asked of any server for it. A turn on OpenCode Go is priced at the Go page's rates, for a model that page lists; any other turn is worth the cost OpenCode recorded for it (on OpenCode Zen even a zero, since Zen's free models are free), and a turn it recorded at zero on Anthropic or OpenAI, as it does on a subscription, is priced at that vendor's list rate, like Claude Code's. A turn priced none of those ways counts its tokens and not its dollars.</li>
       <li><strong>Cursor</strong> is not estimated at all. Every dollar on its row is the one Cursor itself put on that event in its own usage export, which is why the row says <em>billing export</em>.</li>
       <li><strong>GitHub Copilot</strong> is GitHub's own running count of AI credits, a cent each at GitHub's published rate, on seats GitHub meters that way.</li>
-      <li><strong>Antigravity</strong> has no row. Its endpoints return quota fractions and no price and no token count, so there is nothing to derive a dollar from, and a $0 would be a claim that it cost nothing.</li>
+      <li><strong>Gemini CLI and Antigravity</strong> have no row. Google's endpoints return quota fractions and no price and no token count, so there is nothing to derive a dollar from, and a $0 would be a claim that they cost nothing.</li>
+      <li><strong>Kimi Code</strong> has no row either. Its usage endpoint returns counts of an allowance and ratios of it, never a price, and Moonshot publishes no per-request rate for a Kimi Code membership.</li>
     </ul>
 
     <h2 id="check-it">Check a number yourself</h2>
@@ -149,7 +152,7 @@
         <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>: every rule above, the full rate tables, and the golden tests that pin them.</li>
         <li>Anthropic, <a href="https://code.claude.com/docs/en/costs">Manage costs effectively</a> (Claude Code documentation), read 2026-09-01.</li>
         <li>Anthropic, <a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Track cost and usage</a> (Agent SDK documentation), read 2026-09-01.</li>
-        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, read 2026-09-01; the rates on this page are from that day's snapshot.</li>
+        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, read 2026-09-01, and its rate table again on 2026-09-24; the rates on this page are from the 2026-09-24 snapshot.</li>
       </ul>
     </div>
   </div>
