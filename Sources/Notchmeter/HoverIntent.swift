@@ -11,7 +11,7 @@ import Foundation
 /// or at once on a click outside, a Spaces switch, the screen lock or Escape. In Open on click mode the pointer
 /// never opens or closes anything: a click on the rings toggles, a click outside closes. A swipe down over the
 /// rings opens and a swipe up over the panel closes. Never close in Always mode by pointer; a hotkey toggle
-/// still can. A glance opens a closed panel for a few seconds and closes it again unless the pointer has come in
+/// still can. A panel the shortcut opened waits for the pointer before the pointer's absence can close it. A glance opens a closed panel for a few seconds and closes it again unless the pointer has come in
 /// meanwhile, in which case it is an ordinary open from then on. Never repeat the current state.
 struct HoverIntent: Equatable {
     enum Mode: Equatable { case onHover, onClick, always }
@@ -42,6 +42,12 @@ struct HoverIntent: Equatable {
     /// thing that closes an open panel is a click outside it, and the panel stands in the middle of the screen —
     /// so a notification's panel stayed up through every click that landed in its own column.
     private var openedForALook = false
+    /// The shortcut opened the panel and the pointer has not come into it since. Open on hover closed any panel
+    /// the pointer stood outside of for `collapseDwell`, including one the shortcut had just opened with the pointer
+    /// at work elsewhere, so it was gone in under a second; the self check's scroll step, which opens the panel
+    /// as the shortcut does, failed under that mode for the same reason (2026-10-03). Until the pointer comes in,
+    /// such a panel closes the ways one opened by a click does: the shortcut again, Escape or a click outside.
+    private var awaitingPointer = false
 
     init(mode: Mode, state: State = .compact, expandDwell: TimeInterval = HoverIntent.expandDwell) {
         self.mode = mode
@@ -97,7 +103,8 @@ struct HoverIntent: Equatable {
                     return .none
                 }
             }
-            guard mode == .onHover || openedForALook, !inside else {
+            if inside { awaitingPointer = false }
+            guard mode == .onHover || openedForALook, !inside, !awaitingPointer else {
                 outsideExpandedSince = nil
                 return .none
             }
@@ -144,7 +151,9 @@ struct HoverIntent: Equatable {
 
     /// The global shortcut: opens a closed panel, closes an open one, whatever the mode.
     mutating func toggle(at time: TimeInterval) -> Output {
-        begin(state == .compact ? .expanded : .compact, at: Self.milliseconds(time))
+        let output = begin(state == .compact ? .expanded : .compact, at: Self.milliseconds(time))
+        awaitingPointer = state == .expanded
+        return output
     }
 
     /// Opens a closed panel for `duration`; nothing while it is already open or in Always mode.
@@ -181,6 +190,7 @@ struct HoverIntent: Equatable {
         glanceUntil = nil
         // Every other way in is the user asking for the panel; `glance` sets it again for the one that is not.
         openedForALook = false
+        awaitingPointer = false
         return next == .expanded ? .expand : .collapse
     }
 

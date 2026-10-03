@@ -296,6 +296,36 @@ import Testing
         #expect(always.toggle(at: 3) == .expand)
     }
 
+    /// Open on hover: a panel the shortcut opened with the pointer elsewhere stays until the pointer has come in
+    /// and gone again, or until it is closed the ways a clicked-open panel is; it used to close in under a second.
+    @Test func aPanelTheShortcutOpenedWaitsForThePointerOnHover() {
+        var intent = HoverIntent(mode: .onHover)
+        #expect(intent.toggle(at: 0) == .expand)
+        intent.transitionSettled(at: 0.4)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 0.5) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 5) == .none, "the pointer at work elsewhere does not close it")
+        #expect(intent.nextDeadline == nil)
+        #expect(intent.pointer(inCompact: false, inExpanded: true, at: 6) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 6.1) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 6.6) == .collapse, "once it has been in, leaving closes it as before")
+
+        var dismissed = HoverIntent(mode: .onHover)
+        #expect(dismissed.toggle(at: 0) == .expand)
+        #expect(dismissed.clickOutside(at: 1) == .collapse)
+        #expect(dismissed.toggle(at: 2) == .expand)
+        #expect(dismissed.escape(at: 3) == .collapse)
+        #expect(dismissed.toggle(at: 4) == .expand)
+        #expect(dismissed.toggle(at: 5) == .collapse)
+
+        // A hover open is the pointer's own: leaving closes it with no wait for anything.
+        var hovered = HoverIntent(mode: .onHover)
+        _ = hovered.pointer(inCompact: true, inExpanded: false, at: 0)
+        #expect(hovered.pointer(inCompact: true, inExpanded: false, at: 0.3) == .expand)
+        hovered.transitionSettled(at: 0.7)
+        #expect(hovered.pointer(inCompact: false, inExpanded: false, at: 0.8) == .none)
+        #expect(hovered.pointer(inCompact: false, inExpanded: false, at: 1.3) == .collapse)
+    }
+
     @Test func controlClicksAndScrollsAreReducedApart() {
         #expect(PointerEvent(kind: .controlClick) != PointerEvent(kind: .click))
         #expect(PointerEvent(kind: .moved) == PointerEvent(kind: .moved))
