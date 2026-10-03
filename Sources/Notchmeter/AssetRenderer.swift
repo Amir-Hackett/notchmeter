@@ -380,7 +380,10 @@ enum AssetRenderer {
                 AdviceStrip(advice: store.advice)
             }, prefs: prefs)
             let (every, everyPrefs) = DemoFixtures.store(now: now, moment: .everyAssistant)
-            let everyCard = try panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image
+            let everyWhole = try panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image
+            // Six sessions make the card three times as tall as it is wide, which a wide frame shrinks past reading:
+            // laid out as two columns it fills the frame.
+            let everyCard = try twoColumns(everyWhole) ?? everyWhole
             let claudeCard = try panelCrop(ToolCard(tool: .claude, status: store.status(.claude), store: store, prefs: prefs), prefs: prefs)
             // The Usage Dashboard's head, for frame 9. The whole window is about 1440x2360 at 1 px a point, an
             // aspect of 0.61 against this frame's 1.67, so fitted whole into the 568 points a caption band leaves
@@ -1725,6 +1728,47 @@ enum AssetRenderer {
     }
 
     /// Images are drawn upright in the flipped context by flipping back over the rectangle they land in.
+    /// A tall picture as two columns side by side, split at the blank band between two of its rows nearest its middle
+    /// (at least 16 points of rows all one colour across the middle four fifths of its width). nil when no such band
+    /// falls in its middle half, and the caller takes the picture whole.
+    static func twoColumns(_ image: CGImage, gap: Int = 24) throws -> CGImage? {
+        let width = image.width, height = image.height
+        guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let data = ctx.data else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        // A bitmap context's memory holds the top row first.
+        let pixels = data.bindMemory(to: UInt32.self, capacity: width * height)
+        let inner = width / 10
+        func blank(_ row: Int) -> Bool {
+            let start = row * width
+            let first = pixels[start + inner]
+            return (inner..<(width - inner)).allSatisfy { pixels[start + $0] == first }
+        }
+        var split: Int?
+        var run = 0
+        let minimum = Int(16 * scale)
+        for row in 0...height {
+            if row < height, blank(row) {
+                run += 1
+                continue
+            }
+            let middle = row - run / 2
+            if run >= minimum, split.map({ abs(middle - height / 2) < abs($0 - height / 2) }) ?? true { split = middle }
+            run = 0
+        }
+        guard let split, split > height / 4, split < height * 3 / 4,
+              let top = image.cropping(to: CGRect(x: 0, y: 0, width: width, height: split)),
+              let bottom = image.cropping(to: CGRect(x: 0, y: split, width: width, height: height - split)) else { return nil }
+        let size = CGSize(width: width * 2 + gap, height: max(split, height - split))
+        return try bitmap(size, pixelScale: 1) { ctx in
+            ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+            ctx.fill(CGRect(origin: .zero, size: size))
+            draw(top, in: CGRect(x: 0, y: 0, width: width, height: split), alpha: 1, into: ctx)
+            draw(bottom, in: CGRect(x: width + gap, y: 0, width: width, height: height - split), alpha: 1, into: ctx)
+        }
+    }
+
     static func draw(_ image: CGImage, in rect: CGRect, alpha: Double, into ctx: CGContext) {
         ctx.saveGState()
         ctx.setAlpha(alpha)
