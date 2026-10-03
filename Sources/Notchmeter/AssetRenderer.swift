@@ -9,7 +9,27 @@ import UniformTypeIdentifiers
 /// and drawn into a bitmap; the notch, menu bar and desktop around it are painted with Core Graphics to the
 /// measurements DynamicNotchKit lays the panel out with (Vendor/DynamicNotchKit/Views/NotchView.swift).
 enum AssetRenderer {
-    static let scale: CGFloat = 2
+    /// Pixels drawn per point: 2 for the gallery, the README's tables and the review pictures. `at(scale:)` raises
+    /// it while one picture is drawn, for the few the site shows wider than 2 px a point stays sharp at on a Retina
+    /// screen (2026-10-03). Every snapshot and bitmap reads it when it draws, so a picture is one scale throughout.
+    /// Drawing is on the main thread, one picture at a time.
+    nonisolated(unsafe) static var scale: CGFloat = 2
+
+    /// Draws whatever `body` draws at `value` pixels a point, then puts the scale back.
+    static func at<T>(scale value: CGFloat, _ body: () throws -> T) rethrows -> T {
+        let saved = scale
+        scale = value
+        defer { scale = saved }
+        return try body()
+    }
+
+    /// Pixels a point for the gallery's frames: 1 for Product Hunt's 1270×760 upload set, 2 (`--gallery-scale 2`)
+    /// for the demo video built from the same frames, so it is drawn at 2540×1520 rather than stretched (2026-10-03).
+    nonisolated(unsafe) static var galleryScale: CGFloat = 1
+
+    /// The scale for the pictures the site shows wide (sessions-assistants.png at about 494 pt, the news strip across
+    /// the page's 1032, the rings' marks at 494): 2 px a point left them at 1.5 to 1.8 pixels per point on screen.
+    static let siteScale: CGFloat = 3
     /// A 14-inch MacBook Pro's notch. DynamicNotchKit rounds the compact shape 6 pt at the top and 14 at the
     /// bottom, the open panel 15 and 20, keeps 8 pt beside the rings and 15 pt around the content.
     static let notch = CGSize(width: 185, height: 32)
@@ -51,16 +71,20 @@ enum AssetRenderer {
             // (DemoFixtures.everyRing), each from a store of its own so the pictures above stay as they were.
             let (waitingAll, waitingAllPrefs) = DemoFixtures.store(now: now, moment: .waiting, everyRing: true)
             let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished, everyRing: true)
-            try write(signalRings(waiting: Stage(store: waitingAll, prefs: waitingAllPrefs, actions: actions),
-                                  finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
-                      png: directory.appendingPathComponent("signal-rings.png"))
+            try at(scale: siteScale) {
+                try write(signalRings(waiting: Stage(store: waitingAll, prefs: waitingAllPrefs, actions: actions),
+                                      finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
+                          png: directory.appendingPathComponent("signal-rings.png"))
+            }
             try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
-            let newsLoop = try notchNewsLoop(now: now, actions: actions)
-            try write(newsLoop, gif: directory.appendingPathComponent("notch-news.gif"))
-            try write(notchNewsScroll(now: now, actions: actions, rest: newsLoop[0].image), gif: review.appendingPathComponent("notch-news-scroll.gif"))
-            try write(notchNewsScroll(now: now, actions: actions, title: "Move the cost scanner off the main actor and cache each transcript's totals by size and date",
-                                      rest: newsLoop[0].image),
-                      gif: directory.appendingPathComponent("notch-news-scroll.gif"))
+            try at(scale: siteScale) {
+                let newsLoop = try notchNewsLoop(now: now, actions: actions)
+                try write(newsLoop, gif: directory.appendingPathComponent("notch-news.gif"))
+                try write(notchNewsScroll(now: now, actions: actions, rest: newsLoop[0].image), gif: review.appendingPathComponent("notch-news-scroll.gif"))
+                try write(notchNewsScroll(now: now, actions: actions, title: "Move the cost scanner off the main actor and cache each transcript's totals by size and date",
+                                          rest: newsLoop[0].image),
+                          gif: directory.appendingPathComponent("notch-news-scroll.gif"))
+            }
             // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
             // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
             let (cowork, coworkPrefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
@@ -81,8 +105,10 @@ enum AssetRenderer {
             // Every assistant's session with its plan open (0.9.13), the Sessions card alone at the panel's width, for
             // the site: each row replayed from its assistant's own payloads (DemoFixtures.everyAssistant).
             let (every, everyPrefs) = DemoFixtures.store(now: now, moment: .everyAssistant)
-            try write(panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image,
-                      png: directory.appendingPathComponent("sessions-assistants.png"))
+            try at(scale: siteScale) {
+                try write(panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image,
+                          png: directory.appendingPathComponent("sessions-assistants.png"))
+            }
             // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
             // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
             // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.
@@ -125,7 +151,8 @@ enum AssetRenderer {
             try write(welcome(now: now), png: review.appendingPathComponent("welcome.png"))
             try write(feedback(store: store, prefs: prefs), png: review.appendingPathComponent("feedback.png"))
             try openCode(into: directory, now: now, actions: actions)
-            try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
+            // At 2 px a point: the README's first picture and the site's hero, each drawn up to 900 pt wide, were 900 px.
+            try write(stage.demo(pixelScale: 2), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
             prefs.panelMode = .detailed
             let detailed = try Stage(store: store, prefs: prefs, actions: actions)
@@ -519,7 +546,7 @@ enum AssetRenderer {
     /// so the second tile showed every signal mark in a corner the app never draws it in. So the caller renders
     /// the second picture for itself and this only has to place it.
     static func composite(_ image: CGImage?, caption: String, lines: [String], canvas: CGSize, beside: CGImage? = nil) throws -> CGImage {
-        try bitmap(canvas, pixelScale: 1) { ctx in
+        try bitmap(canvas, pixelScale: galleryScale) { ctx in
             ctx.setFillColor(CGColor(srgbRed: 0x1c / 255, green: 0x1c / 255, blue: 0x1e / 255, alpha: 1))
             ctx.fill(CGRect(origin: .zero, size: canvas))
             let captionHeight: CGFloat = 96
