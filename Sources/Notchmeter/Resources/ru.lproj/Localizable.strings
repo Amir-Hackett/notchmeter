@@ -1273,7 +1273,7 @@
 "Measured with %@" = "Измерено с помощью %@";
 "Metric" = "Метрика";
 "Money on black, tokens on blue, until a theme is chosen here." = "Деньги на чёрном, токены на синем, пока здесь не выбрана тема.";
-"New in %1$@ %2$@: your usage as a card to share." = "Новое в %1$@ %2$@: ваше использование в виде карточки, которой можно поделиться.";
+"Updated to %1$@ %2$@. Your usage, as a card to share." = "Обновлено до %1$@ %2$@. Ваше использование — в виде карточки, которой можно поделиться.";
 "No assistant has reported spend yet" = "Ни один ассистент ещё не сообщил о расходах";
 "No assistant is ticked; tick one under Assistants to draw the card." = "Ни один ассистент не отмечен; отметьте одного в разделе «Ассистенты», чтобы нарисовать карточку.";
 "Nothing recorded in this range" = "За этот период ничего не записано";

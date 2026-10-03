@@ -1256,7 +1256,7 @@
 "Measured with %@" = "%@ で計測";
 "Metric" = "指標";
 "Money on black, tokens on blue, until a theme is chosen here." = "ここでテーマを選ぶまで、金額は黒、トークンは青で表示します。";
-"New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@ の新機能：使用状況を共有用カードに。";
+"Updated to %1$@ %2$@. Your usage, as a card to share." = "%1$@ %2$@ にアップデートしました。使用状況を共有用カードに。";
 "No assistant has reported spend yet" = "まだ支出を報告したアシスタントはありません";
 "No assistant is ticked; tick one under Assistants to draw the card." = "アシスタントが選択されていません。「アシスタント」でいずれかにチェックを入れるとカードが描画されます。";
 "Nothing recorded in this range" = "この期間には記録がありません";

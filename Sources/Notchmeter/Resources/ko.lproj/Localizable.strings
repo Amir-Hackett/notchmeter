@@ -1256,7 +1256,7 @@
 "Measured with %@" = "%@(으)로 측정";
 "Metric" = "지표";
 "Money on black, tokens on blue, until a theme is chosen here." = "여기서 테마를 고르기 전까지 금액은 블랙, 토큰은 블루로 표시됩니다.";
-"New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@의 새 기능: 사용량을 공유용 카드로.";
+"Updated to %1$@ %2$@. Your usage, as a card to share." = "%1$@ %2$@(으)로 업데이트했습니다. 사용량을 공유용 카드로.";
 "No assistant has reported spend yet" = "아직 지출을 보고한 어시스턴트가 없습니다";
 "No assistant is ticked; tick one under Assistants to draw the card." = "선택된 어시스턴트가 없습니다. 어시스턴트에서 하나를 체크하면 카드가 그려집니다.";
 "Nothing recorded in this range" = "이 기간에 기록된 내용이 없습니다";

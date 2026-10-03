@@ -1273,7 +1273,7 @@
 "Measured with %@" = "由 %@ 测量";
 "Metric" = "指标";
 "Money on black, tokens on blue, until a theme is chosen here." = "在此处选定主题之前，金额用黑色，令牌用蓝色。";
-"New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@ 新功能：把你的用量做成可分享的卡片。";
+"Updated to %1$@ %2$@. Your usage, as a card to share." = "已更新到 %1$@ %2$@。把你的用量做成可分享的卡片。";
 "No assistant has reported spend yet" = "尚无助手报告支出";
 "No assistant is ticked; tick one under Assistants to draw the card." = "未勾选任何助手；在“助手”下勾选一个即可绘制卡片。";
 "Nothing recorded in this range" = "此范围内没有记录";
