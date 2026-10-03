@@ -104,9 +104,10 @@ struct NotchNews: Equatable, Sendable {
     /// "Claude Code", or "Claude Cowork" for a Cowork task: the name the announcement speaks.
     var productName: String { source == .coworkLog ? CoworkSessions.productName : tool.productName }
 
-    /// How long the peek stays beside the notch: long enough to read two words at a glance, short enough that the
-    /// readouts it displaced are back before anyone goes looking for them.
-    static let shownFor: TimeInterval = 4
+    /// How long the peek stays across the notch: long enough to read what happened and the session's name, scrolled
+    /// through when it is long (Marquee), short enough that the readouts it displaced are back before anyone goes
+    /// looking for them. Four seconds until 0.9.11, when a long name began to scroll and needed the second.
+    static let shownFor: TimeInterval = 5
 
     /// How long the peek stays up: a second longer under Reduce Motion, where it arrives without the slide that
     /// draws the eye to it.
@@ -275,6 +276,52 @@ enum NotchPeek {
         return Layout(leading: leading, trailing: trailing,
                       leadingWidth: min(width(leading), max(0, room.leading)),
                       trailingWidth: hasName ? min(width(trailing), max(0, room.trailing)) : 0)
+    }
+}
+
+/// The session's name scrolling across its half of the strip when it is longer than the half (since 0.9.11, at the
+/// owner's asking): still for `lead` so its start is read first, then moving left at a reading pace until its end is
+/// in view, then still for `tail` before the news goes. The news stays as long as that takes, up to `longest`; a
+/// name too long to read through even then moves as fast as `fastest` and ends in an ellipsis there, rather than
+/// racing past. Whether it scrolls at all is its own setting (Preferences.scrollsLongNames), not Reduce animations:
+/// the name is information, not decoration. Off, the name is cut short with an ellipsis, as it always was. Pure, so
+/// the timing is tested without a clock.
+enum Marquee {
+    static let lead: TimeInterval = 1
+    static let tail: TimeInterval = 0.8
+    /// Points a second: a pace the eye follows while reading.
+    static let pace: CGFloat = 40
+    /// The fastest it goes to get a long name's end in view within the time.
+    static let fastest: CGFloat = 80
+    /// The longest news stays, however long the name: the owner's "seven seconds at most".
+    static let longest: TimeInterval = 7
+
+    /// How long news stays up: `base` (NotchNews.shownFor, a second more under Reduce Motion), or, when a name
+    /// `overflow` points longer than its half is to scroll, long enough to read all of it at `pace`, up to `longest`.
+    static func shown(overflow: CGFloat, base: TimeInterval, scrolls: Bool) -> TimeInterval {
+        guard scrolls, overflow > 0 else { return base }
+        return min(longest, max(base, lead + TimeInterval(overflow / pace) + tail))
+    }
+
+    /// The time between the lead and the tail, in which it moves.
+    static func window(shown: TimeInterval) -> CGFloat { CGFloat(max(0, shown - lead - tail)) }
+
+    /// How far a name `overflow` points longer than its half moves, in news shown for `shown` seconds.
+    static func travel(overflow: CGFloat, shown: TimeInterval) -> CGFloat {
+        guard overflow > 0 else { return 0 }
+        return min(overflow, fastest * window(shown: shown))
+    }
+
+    /// Its speed: the reading pace, faster only as far as finishing within the window needs.
+    static func speed(travel: CGFloat, shown: TimeInterval) -> CGFloat {
+        max(pace, travel / max(0.001, window(shown: shown)))
+    }
+
+    /// How far left the name has moved `elapsed` seconds after the news began.
+    static func offset(elapsed: TimeInterval, overflow: CGFloat, shown: TimeInterval) -> CGFloat {
+        let travel = travel(overflow: overflow, shown: shown)
+        guard travel > 0, elapsed > lead else { return 0 }
+        return min(travel, CGFloat(elapsed - lead) * speed(travel: travel, shown: shown))
     }
 }
 

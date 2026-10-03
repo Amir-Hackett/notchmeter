@@ -2336,7 +2336,7 @@ final class UsageStore {
             Oracle.shared.emit("peek", Self.peekFacts(news, action: "shown"))
             peekEnd?.cancel()
             peekEnd = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(NotchNews.shownFor(motionReduced: AccessibilityDisplay.shared.motionReduced)))
+                try? await Task.sleep(for: .seconds(self?.peekDuration(news) ?? NotchNews.shownFor))
                 guard !Task.isCancelled else { return }
                 self?.endPeek()
             }
@@ -2361,6 +2361,17 @@ final class UsageStore {
     /// The title the peek may name `news`'s session by: its display title (the prompt's first line, Claude Code's
     /// session name or Cursor's chat name), only while titles are on and the screen is not shared; nil otherwise,
     /// and the peek falls back to the project.
+    /// How long `news` stays across the notch: five seconds (a second more under Reduce Motion), or long enough to
+    /// scroll a long name through (Marquee), up to seven. Timed for the narrowest strip on any screen, so a name
+    /// that fits the window on one screen and not another is still read through where it scrolls.
+    func peekDuration(_ news: NotchNews) -> TimeInterval {
+        let base = NotchNews.shownFor(motionReduced: AccessibilityDisplay.shared.motionReduced)
+        guard prefs.scrollsLongNames, let name = news.words(hidesFigures: hidesFigures, title: peekTitle(news)).name else { return base }
+        let room = NSScreen.screens.map { NotchPeek.windowRoom(screen: $0.frame, notch: NotchController.notchRect(on: $0)).trailing }.min()
+            ?? NotchPeek.builtIn.trailing
+        return Marquee.shown(overflow: NotchPeekHalf.textWidth(name) - (room - 2 * NotchPeekHalf.padding), base: base, scrolls: true)
+    }
+
     func peekTitle(_ news: NotchNews) -> String? {
         guard prefs.sessionTitles, !hidesFigures else { return nil }
         return sessions.sessions[news.sessionID]?.displayTitle

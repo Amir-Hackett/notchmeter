@@ -1015,7 +1015,8 @@ struct NotchCompactView: View {
         ZStack {
             if let peek {
                 if peek.speaks {
-                    NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side)
+                    NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side,
+                                  scrolls: store.prefs.scrollsLongNames)
                         .transition(.opacity)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(peek.words.spoken)
@@ -1023,7 +1024,8 @@ struct NotchCompactView: View {
                         .accessibilityAddTraits(.isButton)
                         .accessibilityAction { openNews?(peek.news) }
                 } else {
-                    NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side)
+                    NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side,
+                                  scrolls: store.prefs.scrollsLongNames)
                         .transition(.opacity)
                         .accessibilityHidden(true)
                 }

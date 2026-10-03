@@ -1074,12 +1074,14 @@ struct SettingsView: View {
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
                 .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not."))
             Toggle(L("Show news in the notch"), isOn: Binding(get: { prefs.notchNews }, set: { prefs.notchNews = $0 }))
-                .help(L("When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for four seconds: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out."))
+                .help(L("When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for five seconds, up to seven while a long name scrolls: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out."))
             if prefs.notchNews {
                 Picker(L("News style"), selection: Binding(get: { prefs.notchNewsStyle }, set: { prefs.notchNewsStyle = $0 })) {
                     ForEach(NotchNewsStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .help(L("Full names the assistant and what happened, \"Claude Code finished\". Compact shows only the assistant's symbol and the reason's, which leaves more of the line to the session."))
+                Toggle(L("Scroll long names"), isOn: Binding(get: { prefs.scrollsLongNames }, set: { prefs.newsScroll = $0 }))
+                    .help(L("When a session's name is longer than the room beside the notch, it scrolls through once so you can read all of it, and the news stays up to seven seconds to make the time. Off, a long name ends in an ellipsis. This is separate from Reduce animations."))
             }
             Toggle(L("Glow under the notch for news"), isOn: Binding(get: { prefs.notchGlow }, set: { prefs.notchGlow = $0 }))
                 .help(L("A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint."))

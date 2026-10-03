@@ -52,6 +52,9 @@ enum AssetRenderer {
                       png: directory.appendingPathComponent("signal-rings.png"))
             try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
             try write(notchNewsLoop(now: now, actions: actions), gif: directory.appendingPathComponent("notch-news.gif"))
+            try write(notchNewsScroll(now: now, actions: actions), gif: review.appendingPathComponent("notch-news-scroll.gif"))
+            try write(notchNewsScroll(now: now, actions: actions, title: "Move the cost scanner off the main actor and cache each transcript's totals by size and date"),
+                      gif: directory.appendingPathComponent("notch-news-scroll.gif"))
             // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
             // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
             let (cowork, coworkPrefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
@@ -814,6 +817,53 @@ enum AssetRenderer {
         return frames
     }
 
+    /// The moment into a long name's scroll (Marquee) the strip is drawn at; nil draws it still, as the app does under
+    /// a fixed clock. Set only while `notchNewsScroll` draws its frames.
+    @MainActor static var marqueeElapsed: TimeInterval?
+
+    /// A long turn's finish across the notch with the session's name longer than its half: still while the name's
+    /// start is read, scrolling at Marquee's pace, held at its end, then the plain strip. With the fixture's own title
+    /// it is a review loop; with a longer `title`, passed through the hook's own prompt message, it is the loop the
+    /// site shows (`notch-news-scroll.gif`).
+    @MainActor
+    static func notchNewsScroll(now: Date, actions: NotchActions, title: String? = nil) throws -> [Frame] {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .justFinished)
+        if let title {
+            var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "notchmeter", project: "notchmeter", tool: .claude)
+            prompt.title = title
+            store.hookReceived(prompt, now: now)
+        }
+        guard let news = DemoFixtures.news(in: store, moment: .justFinished, now: now),
+              let name = news.words(hidesFigures: false, title: store.peekTitle(news)).name else { return [] }
+        let overflow = NotchPeekHalf.textWidth(name) - (NotchPeek.builtIn.trailing - 2 * NotchPeekHalf.padding)
+        let shown = Marquee.shown(overflow: overflow, base: NotchNews.shownFor, scrolls: true)
+        let travel = Marquee.travel(overflow: overflow, shown: shown)
+        let moving = TimeInterval(travel / Marquee.speed(travel: travel, shown: shown))
+        let (plainStore, plainPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
+        let plain = try Stage(store: plainStore, prefs: plainPrefs, actions: actions)
+        store.seed(news: news)
+        func still(_ elapsed: TimeInterval?, stage plainStage: Stage? = nil) throws -> CGImage {
+            marqueeElapsed = elapsed
+            defer { marqueeElapsed = nil }
+            let stage = try plainStage ?? Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true)
+            let row = CGSize(width: max(stage.compactExtent, plain.compactExtent) + 2 * NotchGlowView.spread + 80,
+                             height: notch.height + NotchGlowView.depth + 8)
+            let image = try stage.image(.compact, canvas: row, pixelScale: scale)
+            return try bitmap(row, pixelScale: scale) { ctx in
+                wallpaper(in: ctx, canvas: row)
+                draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
+            }
+        }
+        let step = 1.0 / 20
+        var frames = [Frame(image: try still(0), delay: Marquee.lead)]
+        for tick in 1..<max(1, Int((moving / step).rounded(.up))) {
+            frames.append(Frame(image: try still(Marquee.lead + Double(tick) * step), delay: step))
+        }
+        frames.append(Frame(image: try still(shown), delay: max(Marquee.tail, shown - Marquee.lead - moving)))
+        frames.append(Frame(image: try still(nil, stage: plain), delay: 1.2))
+        return frames
+    }
+
     /// The collapsed notch announcing a Claude Cowork task's finish (DemoFixtures.coworkNews): the task's title
     /// beside the notch, the finish on the other side, and the white bloom under it, drawn as `notchNews` draws its
     /// rows.
@@ -1342,8 +1392,10 @@ enum AssetRenderer {
             tint = look.theme == .black && look.material.translucent ? look.material.tint : nil
             content = try snapshot(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), what: "the panel")
             // A half can be empty: the closed notch set to show nothing draws no readouts either side of it.
-            leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings", allowEmpty: true)
-            trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings", allowEmpty: true)
+            leading = try snapshot(NotchCompactView(store: store, side: .leading).environment(\.marqueeElapsed, AssetRenderer.marqueeElapsed),
+                                   what: "the leading rings", allowEmpty: true)
+            trailing = try snapshot(NotchCompactView(store: store, side: .trailing).environment(\.marqueeElapsed, AssetRenderer.marqueeElapsed),
+                                    what: "the trailing rings", allowEmpty: true)
             let waiting = !store.awaitingInput.filter(store.isShown).isEmpty
             if drawsGlow, let state = NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: store.glowNews?.at ?? Date()) {
                 let model = NotchGlowModel()
