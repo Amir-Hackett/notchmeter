@@ -90,10 +90,10 @@ struct NotchPeekHalf: View {
         for (index, part) in parts.enumerated() {
             if index > 0 { total += spacing }
             switch part {
-            case .tool: total += symbolSize + 2
+            case .tool: total += symbolWidth(words.toolSymbol)
             case .name: total += textWidth(words.name ?? "")
             case .reason:
-                total += symbolSize + 2
+                total += symbolWidth(words.reasonSymbol)
                 let label = label(words, style: style)
                 if !label.isEmpty { total += spacing + textWidth(label) }
             }
@@ -104,6 +104,17 @@ struct NotchPeekHalf: View {
     /// The peek's layout for `words` in `room`, measured in the strip's font.
     static func layout(words: NotchNews.Words, style: NotchNewsStyle, room: NotchPeek.Room) -> NotchPeek.Layout {
         NotchPeek.layout(room: room, hasName: words.name != nil) { needed(parts: $0, words: words, style: style) }
+    }
+
+    /// A symbol's width at the size and weight the half draws it, as AppKit sets it. A flat `symbolSize + 2` held for
+    /// most of them but not for Codex's `</>`, half as wide again, and "Codex finished" was cut to "Codex finish…" in a
+    /// room "Cursor finished" fitted (2026-10-03).
+    static func symbolWidth(_ name: String) -> CGFloat {
+        let configuration = NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .semibold)
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(configuration) else {
+            return symbolSize + 2
+        }
+        return max(symbolSize + 2, ceil(image.size.width) + 1)
     }
 
     /// The rounded semibold the half draws in, measured the way AppKit sets it.

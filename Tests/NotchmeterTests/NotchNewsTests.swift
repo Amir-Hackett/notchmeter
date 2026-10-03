@@ -218,13 +218,29 @@ import Testing
         #expect(NotchPeekHalf.label(shared, style: .full) == "Claude Code finished")
     }
 
+    /// Each symbol is measured as drawn: Codex's `</>` is wider than the flat allowance that fitted the others, and
+    /// "Codex finished" was cut short in a room the longer "Cursor finished" fitted.
+    @Test @MainActor func everyAssistantsSymbolIsMeasuredAsItIsDrawn() {
+        let flat = NotchPeekHalf.symbolSize + 2
+        for tool in ToolID.allCases {
+            #expect(NotchPeekHalf.symbolWidth(tool.symbolName) >= flat, "\(tool) is never budgeted less than before")
+        }
+        #expect(NotchPeekHalf.symbolWidth(ToolID.codex.symbolName) > NotchPeekHalf.symbolWidth(ToolID.cursor.symbolName))
+        #expect(NotchPeekHalf.symbolWidth("no.such.symbol.anywhere") == flat)
+        let codex = NotchNews(reason: .finished, sessionID: "s", tool: .codex, project: "p", at: Date()).words(hidesFigures: false, title: nil)
+        let needed = NotchPeekHalf.needed(parts: [.tool, .reason], words: codex, style: .full)
+        let drawn = NotchPeekHalf.symbolWidth(codex.toolSymbol) + NotchPeekHalf.symbolWidth(codex.reasonSymbol)
+            + NotchPeekHalf.textWidth(codex.headline) + 2 * NotchPeekHalf.spacing + 2 * NotchPeekHalf.padding
+        #expect(needed >= drawn)
+    }
+
     @Test @MainActor func compactTakesLessOfTheStripThanFull() {
         let words = news(.finished).words(hidesFigures: false)
         let compact = NotchPeekHalf.needed(parts: [.tool, .reason], words: words, style: .compact)
         let full = NotchPeekHalf.needed(parts: [.tool, .reason], words: words, style: .full)
         #expect(compact < full)
-        #expect(compact == 2 * NotchPeekHalf.padding + 2 * (NotchPeekHalf.symbolSize + 2) + NotchPeekHalf.spacing,
-                "Two symbols and nothing beside them.")
+        let symbols = NotchPeekHalf.symbolWidth(words.toolSymbol) + NotchPeekHalf.symbolWidth(words.reasonSymbol)
+        #expect(compact == 2 * NotchPeekHalf.padding + symbols + NotchPeekHalf.spacing, "Two symbols and nothing beside them.")
     }
 
     @Test func theSessionsTitleNamesThePeekBeforeTheFolder() {
