@@ -138,6 +138,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "オンでインストール済みでも、読み取りも支出もセッションもまだないアシスタントは、それらが得られるまでパネルとリングに出ません。最後に見えているアシスタントが隠れることはありません。隠れている間、パネルの末尾にこのパネルを開く「ツールを追加」の行が出ます。";
 "Answer from the notch" = "ノッチから回答する";
 "Answer in the terminal" = "ターミナルで回答する";
+"Answer in Cursor" = "Cursor で回答する";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "まだ表示するものがないアシスタントはパネルに出ません。「設定 › アシスタント」を開くと、各行が何を待っているかを示します。";
 "Automation" = "オートメーション";
 "Check again" = "再確認";
@@ -166,6 +167,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "リクエストをターミナルに戻すまでの時間";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "リクエストをターミナルに戻し、従来どおりターミナルが尋ねます。Escape でも同じです。";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "リクエストを Cursor に戻し、Cursor が自身のプロンプトを表示します。Escape でも同じです。";
 "Hide assistants with nothing to show" = "表示するものがないアシスタントを隠す";
 "Hooks" = "フック";
 "Idle" = "アイドル";
@@ -1313,6 +1315,7 @@
 "Cursor's plan is ready to build" = "Cursor のプランをビルドできます";
 "Opened in Cursor: its Build card is not on screen, so press Build there" = "Cursor で開きました。Build カードが画面にないので、そこで Build を押してください";
 "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "アクセシビリティが必要です：システム設定 › プライバシーとセキュリティ › アクセシビリティ › Notchmeter。";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "これがオンの間、ターン中は Cursor が Notchmeter をスクリーンリーダーとみなし、エディタに Screen Reader Optimized と表示されます。エディタを今のままにするには、Cursor の設定で editor.accessibilitySupport を off にしてください。";
 "View Plan" = "View Plan";
 "A Cursor background agent" = "Cursor のバックグラウンドエージェント";
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Cursor で開きました。ノッチからビルドするには「Cursor のカードを映す」をオンにしてください";

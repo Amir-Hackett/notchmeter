@@ -140,10 +140,12 @@ struct PromptCard: View {
 
     private var passLink: some View {
         Button { decide(request.id, .pass) } label: {
-            Text(L("Answer in the terminal")).font(.caption).foregroundStyle(Ink.secondary)
+            Text(session.tool == .cursor ? L("Answer in Cursor") : L("Answer in the terminal")).font(.caption).foregroundStyle(Ink.secondary)
         }
         .buttonStyle(.plain)
-        .help(L("Hands the request back to the terminal, which asks as it always has; Escape does the same."))
+        .help(session.tool == .cursor
+            ? L("Hands the request back to Cursor, which shows its own prompt for it; Escape does the same.")
+            : L("Hands the request back to the terminal, which asks as it always has; Escape does the same."))
     }
 
     /// *Allow always*: a split button under Allow and Deny. Its main part answers allow with the assistant's

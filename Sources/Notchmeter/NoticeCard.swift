@@ -12,7 +12,7 @@ struct AttentionNotice: Sendable {
     /// as one line rather than the full card.
     var isNudge: Bool {
         guard case .waiting(let blocking, _) = event else { return false }
-        return !blocking || session.quietNudge
+        return !blocking || session.mayBeWaiting
     }
 }
 

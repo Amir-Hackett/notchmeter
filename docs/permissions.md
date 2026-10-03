@@ -44,18 +44,25 @@ menu-heavy app (Chrome, Xcode) would run into them.
 
 ## Accessibility, also for *Mirror Cursor's cards*
 
-*Mirror Cursor's cards* (Settings › Cursor, off by default, 0.9.15) shows Cursor's Run prompt, its mode-switch card
-and a plan's View Plan / Build card on the session's row, and presses the button you pick
-([docs/hooks.md](hooks.md#cursor)).
+*Mirror Cursor's cards* (Settings › Cursor, off by default, 0.9.15) shows Cursor's Run prompt and its mode-switch
+card on the session's row, presses the button you pick, and presses Build on a plan's card when you press Build on
+the row ([docs/hooks.md](hooks.md#cursor)).
 
 - **What it reads.** Cursor's own windows only (bundle `com.todesktop.230313mzl4w4u92`): the role, label and title
-  of its elements, enough to recognise a card by its buttons. It keeps a card's heading (at most 160 characters) and
-  its button labels in memory and nothing else, and logs none of it.
+  of its elements, enough to recognise a card by its buttons. It keeps a card's heading (at most 160 characters; a
+  Run card's is the command), the chat's name where the window shows one, and the button labels, in memory and
+  nothing else, and logs none of it.
 - **What it writes.** `AXManualAccessibility` on Cursor's application element, which makes an Electron app build
   its accessibility tree, and `AXPress` on the one button you picked, after re-reading the card to make sure it
-  has not changed. Nothing else, in Cursor or anywhere.
-- **When it reads.** Once a second, only while the switch is on, the permission is granted, a local Cursor session
-  is tracked and the Mac is awake and unlocked. Each scan stops after 20,000 elements.
+  has not changed. Nothing else, in Cursor or anywhere. Turning the switch off, or quitting Notchmeter, sets
+  `AXManualAccessibility` back to false.
+- **What Cursor does about it.** Asked for its tree, Cursor takes the asker for a screen reader: its editor's status
+  bar shows *Screen Reader Optimized* while the tree is on (Cursor 3.23.12). `"editor.accessibilitySupport": "off"`
+  in Cursor's settings keeps the editor as it was; the cards are read either way.
+- **When it reads.** Once a second, only while the switch is on, the permission is granted, a Cursor chat on this
+  Mac is in a turn (working, or waiting on a card) and the Mac is awake and unlocked; and once when you press Build
+  on a plan's row. Each read stops after 20,000 elements and is one message to Cursor per element (about 0.1 s for
+  the two windows of a short chat). An idle or finished chat's row is never a reason to read.
 - **Without it.** Cursor's cards stay in Cursor, the switch's caption says Accessibility is needed, and a plan
   row's Build opens the plan in Cursor instead of pressing anything.
 

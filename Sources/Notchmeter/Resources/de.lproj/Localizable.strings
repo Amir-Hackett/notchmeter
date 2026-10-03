@@ -156,6 +156,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "Ein Assistent, der aktiviert und installiert ist, aber noch keinen Messwert, keine Ausgaben und keine Sitzung hat, bleibt dem Panel und den Ringen fern, bis er eines davon hat; der letzte sichtbare Assistent wird nie ausgeblendet. Solange einer ausgeblendet ist, endet das Panel mit einer Zeile „Tool hinzufügen“, die diesen Bereich öffnet.";
 "Answer from the notch" = "In der Notch antworten";
 "Answer in the terminal" = "Im Terminal antworten";
+"Answer in Cursor" = "In Cursor antworten";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Assistenten ohne Anzeige bleiben dem Panel fern. Öffnet Einstellungen › Assistenten, wo jede Zeile sagt, worauf sie noch wartet.";
 "Automation" = "Automation";
 "Check again" = "Erneut prüfen";
@@ -184,6 +185,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "Anfrage an das Terminal zurückgeben nach";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Gibt die Anfrage an das Terminal zurück, das wie gewohnt fragt; Escape tut dasselbe.";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Gibt die Anfrage an Cursor zurück, das dafür seine eigene Abfrage zeigt; Escape tut dasselbe.";
 "Hide assistants with nothing to show" = "Assistenten ohne Anzeige ausblenden";
 "Hooks" = "Hooks";
 "Idle" = "Inaktiv";
@@ -1331,6 +1333,7 @@
 "Cursor's plan is ready to build" = "Der Plan von Cursor ist bereit zum Bauen";
 "Opened in Cursor: its Build card is not on screen, so press Build there" = "In Cursor geöffnet: Die Build-Karte ist nicht zu sehen, also dort Build drücken";
 "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "Braucht Bedienungshilfen: Systemeinstellungen › Datenschutz & Sicherheit › Bedienungshilfen › Notchmeter.";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "Solange dies an ist, hält Cursor Notchmeter während eines Durchgangs für einen Screenreader, und sein Editor zeigt Screen Reader Optimized. Damit der Editor bleibt, wie er ist, in den Einstellungen von Cursor editor.accessibilitySupport auf off setzen.";
 "View Plan" = "View Plan";
 "A Cursor background agent" = "Ein Hintergrund-Agent von Cursor";
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "In Cursor geöffnet: „Karten von Cursor spiegeln“ einschalten, um aus der Notch zu bauen";

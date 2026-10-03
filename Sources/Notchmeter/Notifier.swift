@@ -293,7 +293,7 @@ final class Notifier {
         let name = session.productName
         let project = (hidingFigures ? nil : session.displayName) ?? L("a session")
         return switch event {
-        case .waiting where session.quietNudge:
+        case .waiting where session.mayBeWaiting:
             (L("%@ may be waiting", name), L("%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval.", name, project))
         case .waiting:
             (L("%@ is waiting", name), L("%1$@ is waiting in %2$@.", name, project))
@@ -341,7 +341,7 @@ final class Notifier {
         case .trouble(let trouble): Self.identifier(session: session.id, kind: trouble.name)
         }
         deliver(identifier: identifier, thread: session.tool.rawValue, tool: session.tool, title: title, body: body, level: Self.level(for: event),
-                sound: Self.soundCategory(for: event, quietNudge: session.quietNudge), now: now)
+                sound: Self.soundCategory(for: event, quietNudge: session.mayBeWaiting), now: now)
         return true
     }
 

@@ -138,6 +138,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "已開啟且已安裝、但尚無讀數、無花費也無工作階段的助理，在有內容之前不會出現在面板和圓環中；最後一個可見的助理永遠不會被隱藏。有助理被隱藏時，面板末尾會有一列「新增工具」開啟此面板。";
 "Answer from the notch" = "從瀏海處回答";
 "Answer in the terminal" = "在終端機中回答";
+"Answer in Cursor" = "在 Cursor 中回答";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "尚無內容可顯示的助理不會出現在面板上。開啟「設定 › 助理」，每一列都會說明它在等什麼。";
 "Automation" = "自動化";
 "Check again" = "重新檢查";
@@ -166,6 +167,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "多久後把請求交還給終端機";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "把請求交還給終端機，由終端機照常詢問；按 Escape 效果相同。";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "把請求交還給 Cursor，由 Cursor 顯示它自己的提示；按 Escape 效果相同。";
 "Hide assistants with nothing to show" = "隱藏尚無內容可顯示的助理";
 "Hooks" = "掛鉤";
 "Idle" = "閒置";
@@ -1313,6 +1315,7 @@
 "Cursor's plan is ready to build" = "Cursor 的計畫已可建置";
 "Opened in Cursor: its Build card is not on screen, so press Build there" = "已在 Cursor 中打開：Build 卡片不在畫面上，請在那裡按 Build";
 "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "需要輔助使用：系統設定 › 隱私權與安全性 › 輔助使用 › Notchmeter。";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "開啟期間，Cursor 會在一輪對話進行時把 Notchmeter 當作螢幕閱讀器，其編輯器會顯示 Screen Reader Optimized。要讓編輯器保持原樣，請在 Cursor 的設定中把 editor.accessibilitySupport 設為 off。";
 "View Plan" = "View Plan";
 "A Cursor background agent" = "Cursor 背景代理";
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "已在 Cursor 中打開：開啟「鏡像 Cursor 的卡片」即可從瀏海建置";

@@ -138,6 +138,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "켜져 있고 설치되어 있어도 아직 읽기, 지출, 세션이 없는 어시스턴트는 그것이 생길 때까지 패널과 링에 나타나지 않습니다. 마지막으로 보이는 어시스턴트는 절대 숨겨지지 않습니다. 하나라도 숨겨져 있으면 패널 끝에 이 패널을 여는 도구 추가 행이 나타납니다.";
 "Answer from the notch" = "노치에서 답하기";
 "Answer in the terminal" = "터미널에서 답하기";
+"Answer in Cursor" = "Cursor에서 답하기";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "아직 표시할 내용이 없는 어시스턴트는 패널에 나타나지 않습니다. 설정 › 어시스턴트를 열면 각 행이 무엇을 기다리는지 알려 줍니다.";
 "Automation" = "자동화";
 "Check again" = "다시 확인";
@@ -166,6 +167,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "요청을 터미널로 돌려보내기까지";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "요청을 터미널로 돌려보내고 터미널이 평소처럼 묻습니다. Escape도 같은 역할을 합니다.";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "요청을 Cursor로 돌려보내고 Cursor가 자체 프롬프트를 표시합니다. Escape도 같은 역할을 합니다.";
 "Hide assistants with nothing to show" = "표시할 내용이 없는 어시스턴트 숨기기";
 "Hooks" = "훅";
 "Idle" = "유휴";
@@ -1313,6 +1315,7 @@
 "Cursor's plan is ready to build" = "Cursor의 계획을 빌드할 준비가 되었습니다";
 "Opened in Cursor: its Build card is not on screen, so press Build there" = "Cursor에서 열었습니다. Build 카드가 화면에 없으니 그곳에서 Build를 누르세요";
 "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "손쉬운 사용 필요: 시스템 설정 › 개인정보 보호 및 보안 › 손쉬운 사용 › Notchmeter.";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "이 설정이 켜져 있는 동안 턴이 진행되면 Cursor가 Notchmeter를 스크린 리더로 인식해 편집기에 Screen Reader Optimized가 표시됩니다. 편집기를 그대로 두려면 Cursor 설정에서 editor.accessibilitySupport를 off로 설정하세요.";
 "View Plan" = "View Plan";
 "A Cursor background agent" = "Cursor 백그라운드 에이전트";
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Cursor에서 열었습니다. 노치에서 빌드하려면 ‘Cursor 카드 미러링’을 켜세요";

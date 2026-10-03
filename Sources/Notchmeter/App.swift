@@ -391,6 +391,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyCenter.shared.unregisterAll()
         localAPI?.stop()
         store.stopListeningForHooks()
+        // Cursor is told the app has stopped reading its windows, or it would go on believing a screen reader is there.
+        store.cursorUI.release()
         awake.apply(hold: false)
         // The drain log's appends are asynchronous on its serial queue, and GCD does not run what is still queued
         // when the process exits, so the row for a reading adopted in the last moments before quit was lost until

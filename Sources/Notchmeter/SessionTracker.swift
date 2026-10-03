@@ -186,14 +186,6 @@ enum Decision: Equatable, Sendable {
         return false
     }
 }
-
-/// The task list Claude Code keeps for a session, as the hook forwarded it: each item's status, and its text while
-/// *Show what a session is working on* is on. Two tools feed it. Current Claude Code keeps its plan with the Task
-/// tools, one call per change (`TaskCreate`, `TaskUpdate`; `TaskChange`, applied by `applying(_:)`), and each item
-/// carries the task's id. Older builds wrote the whole list at once with `TodoWrite` (Hook.todos(from:)), which
-/// replaces the plan and has no ids. The text is the user's plan in the assistant's words, so it is held under the
-/// same setting as a prompt's first line and dropped the same way (`withoutContent`); the statuses alone are
-/// counts, and are what the row's "2/3" is made of.
 /// Where a Cursor plan stands, told from its tasks and from whether Build was pressed (AgentSession.planState).
 enum CursorPlanState: String, Equatable, Sendable {
     /// Created and not built: View Plan and Build apply.
@@ -212,6 +204,13 @@ enum CursorPlanState: String, Equatable, Sendable {
     }
 }
 
+/// The task list Claude Code keeps for a session, as the hook forwarded it: each item's status, and its text while
+/// *Show what a session is working on* is on. Two tools feed it. Current Claude Code keeps its plan with the Task
+/// tools, one call per change (`TaskCreate`, `TaskUpdate`; `TaskChange`, applied by `applying(_:)`), and each item
+/// carries the task's id. Older builds wrote the whole list at once with `TodoWrite` (Hook.todos(from:)), which
+/// replaces the plan and has no ids. The text is the user's plan in the assistant's words, so it is held under the
+/// same setting as a prompt's first line and dropped the same way (`withoutContent`); the statuses alone are
+/// counts, and are what the row's "2/3" is made of.
 struct TodoPlan: Equatable, Sendable {
     enum Status: String, Equatable, Sendable {
         case pending
@@ -373,7 +372,7 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var branch: String?
     var prURL: String?
     var permissionMode: String?
-    /// Cursor's composer mode as `sessionStart` named it (agent, ask, plan…).
+    /// Cursor's composer mode as the chat's last `sessionStart` or prompt named it (agent, ask, plan…).
     var composerMode: String?
     /// A Cursor background agent rather than a chat in the editor.
     var background = false
@@ -441,6 +440,9 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var quietFalseAlarms = 0
     /// The standing wait is one of Cursor's own cards, seen through Accessibility (CursorAccessibility): proof, not a guess.
     var cardWait = false
+    /// A wait that may not be one (a turn gone quiet), as the banner, its sound and the notice word it. A wait
+    /// Cursor's own card proved ends like a nudge but is said as the wait it is.
+    var mayBeWaiting: Bool { quietNudge && !cardWait }
     // What Claude Code's 0.11 events report (Hook+Events.swift). Each is a fact a hook stated, kept only as long
     // as it stays true, and none of it is ever inferred from a file.
     /// A compaction begun (`PreCompact`) and not yet done (`PostCompact`), with its trigger when the hook named one.
@@ -821,8 +823,6 @@ struct SessionTracker: Equatable, Sendable {
         return session.lastEvent.addingTimeInterval(quietSpell(session))
     }
 
-    /// The turns that have gone quiet (`quietDue`) by `now`, each moved to a wait marked as a nudge, so the
-    /// ring, the card and the notification can say it may be waiting. Returns the sessions just nudged.
     /// A Cursor card asking for the user (Run, a mode switch) is on screen for `id`: the turn is waiting, now, as a
     /// nudge the card itself proves, so the next sign of life ends it like any nudge. Returns the session when this
     /// started the wait, for its notification.
@@ -846,6 +846,8 @@ struct SessionTracker: Equatable, Sendable {
         return ended
     }
 
+    /// The turns that have gone quiet (`quietDue`) by `now`, each moved to a wait marked as a nudge, so the
+    /// ring, the card and the notification can say it may be waiting. Returns the sessions just nudged.
     mutating func quietNudges(now: Date) -> [AgentSession] {
         var nudged: [AgentSession] = []
         for (id, var session) in sessions {
@@ -942,10 +944,11 @@ struct SessionTracker: Equatable, Sendable {
         if let mode = message.composerMode { session.composerMode = mode }
         if message.background { session.background = true }
         if let planFile = message.planFile {
-            if planFile != session.planFile { session.planBuilt = false }
+            // Another plan has not been built; the chat's first plan file changes nothing a Build already said.
+            if let old = session.planFile, planFile != old { session.planBuilt = false }
             session.planFile = planFile
-            if message.event == "UserPromptSubmit" { session.planBuilt = true }
         }
+        if message.planBuild { session.planBuilt = true }
         if let model = message.reportedModel, !session.modelFromStatusline { session.model = Hook.tidyModelName(model) }
         // An assistant that reports only a compaction's start (ToolID.reportsCompactionEnd) has finished it by the time
         // it sends anything else.

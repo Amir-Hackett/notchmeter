@@ -405,6 +405,9 @@ extension Hook {
             }
         }
 
+        /// What a held Cursor call prints when the notch did not answer it: Cursor's own prompt decides.
+        static let cursorDefer = #"{"permission":"ask"}"#
+
         /// What the command prints for `event` given the app's reply and the payload it read: Claude Code's
         /// `PermissionRequest` decision (the shape Codex and Copilot's PascalCase event document too; *Allow always*
         /// adds `updatedPermissions` with the one suggestion chosen, `offeredEntry(at:payload:)`), or a
@@ -412,9 +415,6 @@ extension Hook {
         /// `Elicitation`'s `action` and `content`, checked against the form (`elicitationOutput`). nil, and so
         /// nothing printed, for a pass, a reply that is no decision, an answer to a permission or a permission to a
         /// question, or a payload the command can no longer read; the terminal then asks.
-        /// What a held Cursor call prints when the notch did not answer it: Cursor's own prompt decides.
-        static let cursorDefer = #"{"permission":"ask"}"#
-
         static func output(event: String, reply: Data, payload: Data) -> String? {
             guard let decision = decision(from: reply) else { return nil }
             let object: [String: Any]

@@ -155,6 +155,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "Ассистент, который включён и установлен, но пока не имеет ни показаний, ни расходов, ни сессий, не показывается на панели и кольцах, пока они не появятся; последний видимый ассистент никогда не скрывается. Пока какой-либо ассистент скрыт, панель заканчивается строкой «Добавить инструмент», которая открывает этот раздел.";
 "Answer from the notch" = "Отвечать из выреза";
 "Answer in the terminal" = "Отвечать в терминале";
+"Answer in Cursor" = "Отвечать в Cursor";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Ассистенты, которым пока нечего показать, не отображаются на панели. Открывает Настройки › Ассистенты, где в строке каждого указано, чего он ждёт.";
 "Automation" = "Автоматизация";
 "Check again" = "Проверить снова";
@@ -183,6 +184,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "Возвращать запрос в терминал через";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Возвращает запрос в терминал, который спрашивает как обычно; Escape делает то же самое.";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Возвращает запрос в Cursor, который показывает собственный запрос; Escape делает то же самое.";
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
 "Hooks" = "Хуки";
 "Idle" = "Бездействует";
@@ -1330,6 +1332,7 @@
 "Cursor's plan is ready to build" = "План Cursor готов к сборке";
 "Opened in Cursor: its Build card is not on screen, so press Build there" = "Открыто в Cursor: карточки Build нет на экране, нажмите Build там";
 "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "Нужен Универсальный доступ: Системные настройки › Конфиденциальность и безопасность › Универсальный доступ › Notchmeter.";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "Пока это включено, во время хода Cursor принимает Notchmeter за программу чтения с экрана, и его редактор показывает Screen Reader Optimized. Чтобы редактор остался прежним, задайте editor.accessibilitySupport значение off в настройках Cursor.";
 "View Plan" = "View Plan";
 "A Cursor background agent" = "Фоновый агент Cursor";
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Открыто в Cursor: включите «Отражать карточки Cursor», чтобы собирать из выреза";

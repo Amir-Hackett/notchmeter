@@ -65,6 +65,30 @@ import Testing
         #expect(outside == nil, "only a file inside ~/.cursor/plans is ever named")
         let typed = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"Implement the plan as specified, it is attached for your reference."}"#))
         #expect(typed.title == nil && typed.harnessTurn, "a Build whose plan cannot be read keeps the title it had rather than showing Cursor's own words")
+        #expect(typed.planBuild)
+        #expect(try #require(Hook.Message(userInfo: typed.userInfo)).planBuild, "the app is told it is a Build")
+
+        // Cursor also writes the plan's title, a blank line, then the sentence (its transcript, 3.23.12).
+        let titled = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"Create hello.txt and list files\n\nImplement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself."}"#))
+        #expect(titled.planBuild)
+        #expect(titled.title == "Build: Create hello.txt and list files")
+        #expect(!titled.harnessTurn)
+        let chat = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"Please implement the plan as specified in the doc"}"#))
+        #expect(!chat.planBuild && chat.title == "Please implement the plan as specified in the doc", "a typed prompt is the user's own")
+        let later = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"one\ntwo\nImplement the plan as specified"}"#))
+        #expect(!later.planBuild, "only a prompt that opens the way Build's does")
+    }
+
+    @Test func theModeIsReadOnEveryPromptUnderCursorsOwnName() throws {
+        // `composer_mode` is the chat's mode id; a prompt carries it as `sessionStart` does (Cursor 3.23.12).
+        let ask = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","composer_mode":"chat","prompt":"why"}"#))
+        #expect(ask.composerMode == "ask", "the mode whose id is \"chat\" is the one Cursor calls Ask")
+        let plan = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","composer_mode":"plan","prompt":"plan it"}"#))
+        #expect(plan.composerMode == "plan")
+        let cloud = try #require(parse(#"{"hook_event_name":"sessionStart","conversation_id":"c1","composer_mode":"background"}"#))
+        #expect(cloud.composerMode == "background")
+        let tool = try #require(parse(#"{"hook_event_name":"afterShellExecution","conversation_id":"c1","composer_mode":"plan"}"#))
+        #expect(tool.composerMode == nil, "only the events Cursor puts it on")
     }
 
     @Test func modeBackgroundFailureAndCompactionFillAreRead() throws {

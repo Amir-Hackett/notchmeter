@@ -1649,7 +1649,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Why an assistant whose hook has nothing to answer offers no *Answer from the notch*.
     /// Cursor's two stricter switches: holding every command for the notch, and mirroring Cursor's own cards
     /// through Accessibility. Both off until turned on; the second asks macOS for the permission when it is.
     @ViewBuilder
@@ -1666,8 +1665,12 @@ struct SettingsView: View {
         if prefs.cursorControl, !AXIsProcessTrusted() {
             caption(L("Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter."))
         }
+        if prefs.cursorControl {
+            caption(L("While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings."))
+        }
     }
 
+    /// Why an assistant whose hook has nothing to answer offers no *Answer from the notch*.
     private func noAnswerNote(_ tool: ToolID) -> String? {
         switch tool {
         case .cursor: nil

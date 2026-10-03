@@ -18,7 +18,22 @@ extension Hook {
 
         /// The opening of the prompt Cursor submits when Build is pressed on a plan; nobody types it.
         static let buildPrompt = "Implement the plan as specified"
-        static let composerModes: Set<String> = ["agent", "ask", "edit", "plan", "debug", "manual", "background"]
+        /// `composer_mode` is the chat's own mode id (Cursor 3.23.12 sends its `unifiedMode`): "chat" is the mode
+        /// Cursor calls Ask, "background" a cloud agent, "project" and "multitask" a plan built across agents. The
+        /// names its documentation has used are kept beside them.
+        static let composerModes: Set<String> = ["agent", "chat", "ask", "edit", "plan", "debug", "manual", "background",
+                                                 "project", "multitask", "spec", "triage"]
+        static let composerModeNames = ["chat": "ask"]
+
+        /// Whether `prompt` is the one Build submits, and the plan's title when the prompt opens with it. Cursor
+        /// writes the sentence alone for some builds and "<title>", a blank line, then the sentence for others
+        /// (its `_buildPlanExecutionPrompt`, 3.23.12; the second is what its transcript held on 2026-10-03).
+        static func build(in prompt: String) -> (isBuild: Bool, title: String?) {
+            let lines = prompt.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            if lines.first?.hasPrefix(buildPrompt) == true { return (true, nil) }
+            if lines.count > 1, lines[1].hasPrefix(buildPrompt) { return (true, lines[0]) }
+            return (false, nil)
+        }
 
         /// Every name the reference documents, for recognising a payload that arrived on a plain --hook.
         static let knownEvents: Set<String> = [
@@ -85,11 +100,13 @@ extension Hook {
             // Since 0.7.0 the prompt's first line rides along on beforeSubmitPrompt as the session's title
             // (Hook.title(fromPrompt:)); the attachments and the rest of the prompt stay unread.
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
-            // A Build: the turn is titled with the plan's name, and the plan file is the task list's source.
-            if canonical == "UserPromptSubmit", let prompt = object["prompt"] as? String,
-               prompt.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(buildPrompt) {
+            // A Build: the turn is titled with the plan's name, and the plan file is the task list's source. Where
+            // the payload attaches no plan file the title the prompt opens with stands in; with neither, the app
+            // names the turn from the plan it follows for this chat (UsageStore.hookReceived).
+            if canonical == "UserPromptSubmit", let prompt = object["prompt"] as? String, case let build = Cursor.build(in: prompt), build.isBuild {
+                message.planBuild = true
                 message.planFile = planFile(attachments: object["attachments"], prompt: prompt)
-                if let title = buildTitle(planFile: message.planFile) {
+                if let title = buildTitle(planFile: message.planFile) ?? build.title.flatMap({ Hook.title(fromPrompt: "Build: " + $0) }) {
                     message.title = title
                 } else {
                     message.title = nil
@@ -97,7 +114,9 @@ extension Hook {
                 }
             }
             message.background = object["is_background_agent"] as? Bool == true
-            if canonical == "SessionStart" { message.composerMode = Hook.composerMode(object["composer_mode"]) }
+            // The mode rides on `sessionStart` and on every prompt, and a chat changes it between turns (a plan is
+            // made in Plan and built in Agent), so each prompt's is taken.
+            if canonical == "SessionStart" || canonical == "UserPromptSubmit" { message.composerMode = Hook.composerMode(object["composer_mode"]) }
             if canonical == "PostToolUseFailure" {
                 message.toolFailure = Hook.toolName(object["tool_name"]).map {
                     ToolFailure(tool: $0, interrupt: object["is_interrupt"] as? Bool == true)
@@ -167,9 +186,10 @@ extension Hook {
         }
     }
 
-    /// One of Cursor's composer modes, lowercased; nil for anything else.
+    /// One of Cursor's composer modes, lowercased and under the name Cursor shows for it ("chat" is Ask); nil for
+    /// anything else.
     static func composerMode(_ value: Any?) -> String? {
-        (value as? String).map { $0.lowercased() }.flatMap { Cursor.composerModes.contains($0) ? $0 : nil }
+        (value as? String).map { $0.lowercased() }.flatMap { Cursor.composerModes.contains($0) ? Cursor.composerModeNames[$0] ?? $0 : nil }
     }
 
     /// A fill between 0 and 1; nil for anything outside it or not a number.

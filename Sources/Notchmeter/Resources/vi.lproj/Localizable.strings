@@ -138,6 +138,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "Trợ lý đã bật và đã cài nhưng chưa có số đọc, chi tiêu hay phiên nào sẽ không xuất hiện trên bảng và các vòng cho đến khi có; trợ lý cuối cùng còn hiển thị không bao giờ bị ẩn. Khi có trợ lý bị ẩn, cuối bảng có một hàng Thêm công cụ mở ngăn này.";
 "Answer from the notch" = "Trả lời từ notch";
 "Answer in the terminal" = "Trả lời trong terminal";
+"Answer in Cursor" = "Trả lời trong Cursor";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Trợ lý chưa có gì để hiển thị sẽ không xuất hiện trên bảng. Mở Cài đặt › Trợ lý, mỗi hàng sẽ cho biết nó đang chờ gì.";
 "Automation" = "Tự động hoá";
 "Check again" = "Kiểm tra lại";
@@ -166,6 +167,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "Trả yêu cầu về terminal sau";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Trả yêu cầu về terminal, nơi hỏi như xưa nay; Escape cũng làm vậy.";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Trả yêu cầu về Cursor, nơi hiện lời nhắc của chính nó; Escape cũng làm vậy.";
 "Hide assistants with nothing to show" = "Ẩn trợ lý chưa có gì để hiển thị";
 "Hooks" = "Hook";
 "Idle" = "Rảnh";
@@ -1313,6 +1315,7 @@
 "Cursor's plan is ready to build" = "Kế hoạch của Cursor đã sẵn sàng để xây dựng";
 "Opened in Cursor: its Build card is not on screen, so press Build there" = "Đã mở trong Cursor: thẻ Build không có trên màn hình, hãy bấm Build ở đó";
 "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "Cần Trợ năng: Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng › Notchmeter.";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "Khi bật mục này, trong một lượt Cursor coi Notchmeter là trình đọc màn hình và trình soạn thảo của nó hiện Screen Reader Optimized. Để giữ nguyên trình soạn thảo, hãy đặt editor.accessibilitySupport thành off trong cài đặt của Cursor.";
 "View Plan" = "View Plan";
 "A Cursor background agent" = "Một tác tử nền của Cursor";
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Đã mở trong Cursor: bật “Phản chiếu thẻ của Cursor” để xây dựng từ notch";

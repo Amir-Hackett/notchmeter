@@ -65,6 +65,8 @@ enum Hook {
     /// The Cursor plan file a Build names (`~/.cursor/plans/*.plan.md`, CursorPlanFiles.allowed), its composer mode
     /// (agent, ask, plan…), whether the conversation is a background agent, and the context fill a compaction reports.
     static let planFileKey = "planFile"
+    /// The prompt is the one Cursor's Build submits (Hook.Cursor.build).
+    static let planBuildKey = "planBuild"
     static let composerModeKey = "composerMode"
     static let backgroundKey = "background"
     static let contextKey = "context"
@@ -172,7 +174,9 @@ enum Hook {
         var transcriptPath: String?
         /// The Cursor plan this turn builds or this list came from (`Hook.planFileKey`); nil otherwise.
         var planFile: String?
-        /// Cursor's composer mode on `sessionStart` (`Hook.composerMode`); nil otherwise.
+        /// The turn is a Build of the chat's plan (`Hook.planBuildKey`).
+        var planBuild = false
+        /// Cursor's composer mode on `sessionStart` and on a prompt (`Hook.composerMode`); nil otherwise.
         var composerMode: String?
         /// Cursor's `is_background_agent`, on the events that carry it.
         var background = false
@@ -242,6 +246,7 @@ enum Hook {
             reportedModel = Hook.reportedModel(userInfo?[Hook.reportedModelKey])
             transcriptPath = CursorPlans.transcript(userInfo?[Hook.transcriptKey] as? String)?.path
             planFile = (userInfo?[Hook.planFileKey] as? String).flatMap { CursorPlanFiles.allowed($0)?.path }
+            planBuild = userInfo?[Hook.planBuildKey] as? Bool ?? false
             composerMode = Hook.composerMode(userInfo?[Hook.composerModeKey])
             background = userInfo?[Hook.backgroundKey] as? Bool == true
             context = Hook.contextFraction(userInfo?[Hook.contextKey])
@@ -286,6 +291,7 @@ enum Hook {
             if let reportedModel { info[Hook.reportedModelKey] = reportedModel }
             if let transcriptPath { info[Hook.transcriptKey] = transcriptPath }
             if let planFile { info[Hook.planFileKey] = planFile }
+            if planBuild { info[Hook.planBuildKey] = true }
             if let composerMode { info[Hook.composerModeKey] = composerMode }
             if background { info[Hook.backgroundKey] = true }
             if let context { info[Hook.contextKey] = context }

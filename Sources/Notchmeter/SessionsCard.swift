@@ -206,8 +206,9 @@ struct SessionsCard: View {
                 : session.idleTeammates
             row.denials = session.denials
             row.worktree = session.worktree
-            row.mode = session.composerMode.flatMap { $0 == "agent" ? nil : $0 }
-            row.background = session.background
+            // Plain Agent needs no chip, and a cloud agent's mode ("background") is the Background chip itself.
+            row.mode = session.composerMode.flatMap { $0 == "agent" || $0 == "background" ? nil : $0 }
+            row.background = session.background || session.composerMode == "background"
             if let file = session.planFile { row.plan = Row.PlanMark(file: file, state: session.planState) }
             return row
         }
