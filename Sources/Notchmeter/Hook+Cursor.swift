@@ -16,15 +16,6 @@ extension Hook {
             "postToolUseFailure": "PostToolUseFailure",
         ]
 
-        /// The tools whose failures count towards a run of them (AgentSession.mayBeStuck): the ones whose success
-        /// Cursor also reports, a command's by an afterShellExecution with no failure after it, an edit's by
-        /// afterFileEdit. A command that exits with an error is a failure of `Shell` (Cursor 3.23.12, 2026-10-04);
-        /// `Write` and `StrReplace` are the names its transcripts give its editing tools, whose failures have not
-        /// been seen. A failed `Read` is left out: Cursor says nothing when a read works, so failed reads would add
-        /// up across a turn of reads that mostly worked, and it reads a file before creating it, which fails
-        /// every time.
-        static let countedFailures: Set<String> = [shellTool, "Write", "StrReplace"]
-
         /// The opening of the prompt Cursor submits when Build is pressed on a plan; nobody types it. Long enough
         /// that a prompt someone did type ("Implement the plan as specified in docs/PLAN.md") is not taken for it.
         static let buildPrompt = "Implement the plan as specified, it is attached for your reference"
@@ -152,6 +143,9 @@ extension Hook {
         /// The events whose hook Cursor waits on before it runs the call, and whose flat `permission` it obeys.
         /// They fire for every call, after Cursor's own allowlist, so they are never a sign Cursor itself asked.
         static let decisionEvents: Set<String> = ["beforeShellExecution", "beforeMCPExecution"]
+        /// The tool a command runs under, in a request held for the notch and in the failure Cursor reports for a
+        /// command that exited with an error, which is the one failure of Cursor's that counts towards a run of
+        /// them (SessionTracker.apply, AgentSession.mayBeStuck).
         static let shellTool = "Shell"
 
         /// *Require notch approval*, read by the hook process from the app's own defaults (Preferences), with the

@@ -1097,6 +1097,7 @@
 "%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ está compactando por sí solo su contexto en %2$@: la conversación hasta ahora se sustituye por un resumen.";
 "%@ may be stuck" = "%@ puede estar atascado";
 "%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%1$@ ha tenido %2$ld llamadas a herramientas fallidas seguidas en %3$@, sin ninguna exitosa entre ellas.";
+"%1$@ has had %2$ld commands fail in a row in %3$@, with no command or edit working between them." = "%1$@ ha tenido %2$ld comandos fallidos seguidos en %3$@, sin que ningún comando ni edición funcionara entre ellos.";
 "%@ was blocked" = "%@ fue bloqueado";
 "Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "El modo automático rechazó una llamada a %1$@ en %2$@. La sesión sigue sin ella.";
 "Needs input" = "Necesita datos";
@@ -1117,6 +1118,7 @@
 "%@ asks for input: answer in the terminal" = "%@ pide datos: responde en el terminal";
 "An MCP server asks for input: answer in the terminal" = "Un servidor MCP pide datos: responde en el terminal";
 "May be stuck: %ld tool calls failed in a row" = "Puede estar atascada: %ld llamadas a herramientas fallidas seguidas";
+"May be stuck: %ld commands failed in a row" = "Puede estar atascada: %ld comandos fallidos seguidos";
 "Model" = "Modelo";
 "%@, fell back by itself" = "%@, cambio automático de respaldo";
 "The model this session runs on" = "El modelo con el que funciona esta sesión";

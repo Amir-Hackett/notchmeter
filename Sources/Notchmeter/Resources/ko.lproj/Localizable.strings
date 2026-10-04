@@ -1080,6 +1080,7 @@
 "%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@이(가) %2$@의 컨텍스트를 스스로 압축하고 있습니다. 지금까지의 대화가 요약으로 바뀝니다.";
 "%@ may be stuck" = "%@이(가) 막혔을 수 있습니다";
 "%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%3$@의 %1$@에서 도구 호출이 %2$ld번 연속으로 실패했고, 그 사이에 성공한 호출은 없습니다.";
+"%1$@ has had %2$ld commands fail in a row in %3$@, with no command or edit working between them." = "%3$@의 %1$@에서 명령이 %2$ld번 연속으로 실패했고, 그 사이에 성공한 명령이나 편집은 없습니다.";
 "%@ was blocked" = "%@이(가) 차단되었습니다";
 "Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "자동 모드가 %2$@에서 %1$@ 호출을 거부했습니다. 세션은 그 호출 없이 계속됩니다.";
 "Needs input" = "입력 필요";
@@ -1100,6 +1101,7 @@
 "%@ asks for input: answer in the terminal" = "%@이(가) 입력을 요청합니다: 터미널에서 답하세요";
 "An MCP server asks for input: answer in the terminal" = "MCP 서버가 입력을 요청합니다: 터미널에서 답하세요";
 "May be stuck: %ld tool calls failed in a row" = "막혔을 수 있음: 도구 호출 %ld번 연속 실패";
+"May be stuck: %ld commands failed in a row" = "막혔을 수 있음: 명령 %ld번 연속 실패";
 "Model" = "모델";
 "%@, fell back by itself" = "%@, 자동으로 대체됨";
 "The model this session runs on" = "이 세션이 사용하는 모델";

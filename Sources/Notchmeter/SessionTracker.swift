@@ -470,6 +470,9 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// failed (SessionTracker.apply).
     var commandEnds = false
     var commandEnded = false
+    /// Whether the run of failures standing has been said (`SessionTracker.Outcome.trouble`): a run is news once,
+    /// and a wait in the middle of it, a prompt, a nudge or one of Cursor's own cards, does not make it news again.
+    var stuckSaid = false
     /// Tool calls auto mode denied in this turn (`PermissionDenied`), oldest first, at most `SessionTracker.denialLimit`.
     var denials: [Stamped<Denial>] = []
     /// Whether the wait standing is an MCP server's request for input (`Elicitation`), and which server's.
@@ -523,8 +526,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// between them, and the last of them failed inside `SessionTracker.stuckFor`. "May", because an agent working
     /// through a stubborn failure looks the same from here as one going round in a circle; the row and the notice
     /// both say so.
-    func mayBeStuck(now: Date) -> Bool {
-        guard batches || commandEnds, isWorking, failureStreak >= SessionTracker.stuckAfter, let lastFailure else { return false }
+    func mayBeStuck(now: Date) -> Bool { isWorking && failing(now: now) }
+
+    /// The run of failures behind `mayBeStuck`, whatever the session is doing: a run goes on through a wait, and
+    /// only the row stops saying so while the session is not working.
+    func failing(now: Date) -> Bool {
+        guard batches || commandEnds, failureStreak >= SessionTracker.stuckAfter, let lastFailure else { return false }
         return now.timeIntervalSince(lastFailure.at) < SessionTracker.stuckFor
     }
 
@@ -973,16 +980,18 @@ struct SessionTracker: Equatable, Sendable {
         session.lastEvent = now
         let wasWaiting = session.isWaiting
         let hadPending = session.pending
-        let wasStuck = session.mayBeStuck(now: now)
         // Cursor sends no batch boundary. A command that ends sends afterShellExecution whether it worked or not,
         // and one that failed sends its PostToolUseFailure straight after (Cursor 3.23.12, 2026-10-04: within 25 ms,
-        // six failed commands of six, and none after the one that worked). So a command worked when the next thing
-        // heard from the chat is anything else, and that puts a run of failures back to nothing, as a batch in
-        // which something worked does. Anything heard between the two reads as a success: the count can only
-        // come out low, and an unknown is never what makes a session look stuck.
+        // six failed commands of six, and none after the one that worked). So a command failed when the very next
+        // thing heard from the chat is that, and worked when it is anything else, which puts a run of failures
+        // back to nothing as a batch in which something worked does. Anything heard between the two reads as a
+        // success, and a failure heard at any other moment (a second copy of one, a call denied before it ran, a
+        // Cursor that never says when a command ended) is no part of a run, so what cannot be told apart only
+        // ever lowers the count.
+        let commandFailed = session.commandEnded && message.event == "PostToolUseFailure" && message.toolFailure?.tool == Hook.Cursor.shellTool
         if session.commandEnded {
             session.commandEnded = false
-            if !(message.event == "PostToolUseFailure" && message.toolFailure?.tool == Hook.Cursor.shellTool) {
+            if !commandFailed {
                 session.failureStreaks = [:]
                 session.failuresSinceBatch = [:]
             }
@@ -1096,9 +1105,10 @@ struct SessionTracker: Equatable, Sendable {
             // (`Hook.Message.truncated`): `is_interrupt` sits past the cut, so an aborted large call would count as
             // a try, and its `agent_id` may be past it too, so a subagent's failure would count on the main loop;
             // an unknown is never what makes a session look stuck.
-            // And of Cursor's failures, only a tool's whose success it also reports (Hook.Cursor.countedFailures).
-            if let failure = message.toolFailure, !failure.interrupt, !message.truncated,
-               session.tool != .cursor || Hook.Cursor.countedFailures.contains(failure.tool) {
+            // And of Cursor's failures, only a command's, heard straight after that command ended (above): its other
+            // tools report no success to weigh a failure against, a read that worked least of all, and it reads a
+            // file before creating it, which fails every time.
+            if let failure = message.toolFailure, !failure.interrupt, !message.truncated, session.tool != .cursor || commandFailed {
                 let agent = message.agentID ?? ""
                 session.failureStreaks[agent, default: 0] += 1
                 session.failuresSinceBatch[agent, default: 0] += 1
@@ -1251,8 +1261,13 @@ struct SessionTracker: Equatable, Sendable {
             session.waitsOnAgent = false
         }
         // A run of failures reaching the threshold is news once, the moment it does; the flag then stays on the row
-        // until a call succeeds, the turn ends or the last failure is `stuckFor` old.
-        if !wasStuck, session.mayBeStuck(now: now), outcome.trouble == nil {
+        // until a call succeeds, the turn ends or the last failure is `stuckFor` old. Once for the run, not once
+        // each time the session is working again: a wait in the middle of a run is routine (a permission prompt,
+        // and for Cursor a nudge or its own Run card before every command), and the run is the same run after it.
+        if !session.failing(now: now) {
+            session.stuckSaid = false
+        } else if !session.stuckSaid, session.mayBeStuck(now: now), outcome.trouble == nil {
+            session.stuckSaid = true
             outcome.trouble = (session, .stuck(failures: session.failureStreak))
         }
         sessions[id] = session

@@ -6,10 +6,15 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 ### Cursor
 
-- A question Cursor asks shows on its chat's row with its choices, so the row and the notch say the chat is waiting for you. **Answer in Cursor** brings Cursor forward; the question itself is answered there. It needs *Mirror Cursor's cards*.
-- When Cursor asks you to approve something that is not a command, a file written outside the workspace for one, the row says *Cursor is waiting for your approval* and what the approval is for. It used to say *waiting to run a command* with no command under it.
-- A Cursor chat in which five commands or edits fail in a row, with none working between them, says *May be stuck*, as a Claude Code session does.
-- With several Cursor chats working at once in Cursor's Agents window, a mirrored card goes on the row of the chat the window names, once Cursor has named that chat. It used to go to whichever chat spoke last.
+- A question Cursor asks shows on its chat's row with its choices, so the row and the notch say the chat is waiting for you. **Answer in Cursor** brings Cursor forward; the question itself is answered there. It needs *Mirror Cursor's cards* and its Accessibility permission.
+- When Cursor asks you to approve something that is not a command, a file written outside the workspace for one, the row says *Cursor is waiting for your approval* and what the approval is for. It used to say *Cursor is waiting to run a command* with no command under it.
+- A Cursor chat in which five commands fail in a row, with no command working and no edit landing between them, says *May be stuck*.
+- With several Cursor chats working at once in Cursor's Agents window, a mirrored card goes on the row of the chat the window names, when *Show what a session is working on* is on and Cursor has named the chat. It used to go to whichever chat spoke last, and still does otherwise.
+- The question and the approval are read from Cursor's window as Cursor 3.23.12 draws them. A Cursor that draws them another way is left as it was: its own card, in Cursor.
+
+### Fixes
+
+- *May be stuck* is announced once for a run of failures, for every assistant. A wait in the middle of one, a permission prompt for example, used to make the notice and the strip say it again.
 
 ## [0.9.15](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.15) — 2026-10-03
 

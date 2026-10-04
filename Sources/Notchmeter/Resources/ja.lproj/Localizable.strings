@@ -1080,6 +1080,7 @@
 "%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ が %2$@ のコンテキストを自動で圧縮しています。ここまでの会話は要約に置き換えられます。";
 "%@ may be stuck" = "%@ が行き詰まっているかもしれません";
 "%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%3$@ の %1$@ で、ツール呼び出しが %2$ld 回連続で失敗しました。その間に成功したものはありません。";
+"%1$@ has had %2$ld commands fail in a row in %3$@, with no command or edit working between them." = "%3$@ の %1$@ で、コマンドが %2$ld 回連続で失敗しました。その間に成功したコマンドや編集はありません。";
 "%@ was blocked" = "%@ がブロックされました";
 "Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "自動モードが %2$@ で %1$@ の呼び出しを拒否しました。セッションはそれなしで続行します。";
 "Needs input" = "入力が必要";
@@ -1100,6 +1101,7 @@
 "%@ asks for input: answer in the terminal" = "%@ が入力を求めています：ターミナルで回答してください";
 "An MCP server asks for input: answer in the terminal" = "MCP サーバーが入力を求めています：ターミナルで回答してください";
 "May be stuck: %ld tool calls failed in a row" = "停滞の可能性：ツール呼び出しが %ld 回連続で失敗";
+"May be stuck: %ld commands failed in a row" = "停滞の可能性：コマンドが %ld 回連続で失敗";
 "Model" = "モデル";
 "%@, fell back by itself" = "%@（自動で切り替え）";
 "The model this session runs on" = "このセッションが使っているモデル";

@@ -188,9 +188,15 @@ enum CursorCards {
             hasher.combine(gathered.texts)
             var subject = heading(kind, texts: gathered.texts, commands: gathered.commands)
             // A Run card with no command and no words of its own is an approval of something else, and the button
-            // that is not one of its answers says what: "Create /path/to/file" (Cursor 3.23.12, 2026-10-04).
-            if kind == .run, subject == nil {
-                subject = gathered.buttons.first { !wanted.contains($0.label.lowercased()) }.flatMap { line($0.raw) }
+            // that is not one of its answers says what: "Create /path/to/file" (Cursor 3.23.12, 2026-10-04). A
+            // button of one word ("Copy") names no subject. What such a card says is in its buttons, so they are
+            // part of what makes it this card and not the next: two files whose paths open alike are two cards,
+            // and a press re-read against one must not land on the other.
+            if kind == .run, gathered.commands.isEmpty {
+                hasher.combine(gathered.buttons.map(\.raw))
+                if subject == nil {
+                    subject = gathered.buttons.first { !wanted.contains($0.label.lowercased()) && $0.raw.contains(" ") }.flatMap { line($0.raw) }
+                }
             }
             var card = CursorCard(kind: kind, window: title, heading: subject, options: options, fingerprint: hasher.finalize())
             card.command = kind != .run || !gathered.commands.isEmpty
@@ -252,16 +258,21 @@ enum CursorCards {
         return (cut ? String(line.prefix(headingLimit)) : line) + (cut || text.contains(where: \.isNewline) ? "…" : "")
     }
 
-    /// The choices of a question card, when what was gathered is one: its three texts, and two buttons or more
-    /// lettered A, B and on in order. Cursor's own letters are kept, since they are how its card names a choice.
+    /// The choices of a question card, when what was gathered is one: its three texts, and buttons that are its
+    /// choices and nothing else, two or more, lettered A, B and on in order. Every button, so that the card is the
+    /// card alone: a stretch of the chat that happens to hold those three words and a lettered button or two also
+    /// holds Cursor's other buttons, and is no question. A card drawn some other way is not recognised, which
+    /// leaves it where it was before, in Cursor. Cursor's own letters are kept, since they are how its card names
+    /// a choice.
     private static func choices(of gathered: Gathered) -> [String]? {
         guard questionMarks.isSubset(of: Set(gathered.texts.map { $0.lowercased() })) else { return nil }
-        let lettered = gathered.buttons.map(\.raw).filter { raw in
-            guard let letter = raw.unicodeScalars.first, raw.count > 2 else { return false }
-            return ("A"..."Z").contains(letter) && raw.dropFirst().first == " "
+        let labels = gathered.buttons.map(\.raw)
+        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        guard (2...alphabet.count).contains(labels.count) else { return nil }
+        for (index, raw) in labels.enumerated() {
+            guard raw.count > 2, raw.first == alphabet[index], raw.dropFirst().first == " " else { return nil }
         }
-        guard lettered.count >= 2, zip(lettered, "ABCDEFGHIJKLMNOPQRSTUVWXYZ").allSatisfy({ $0.first == $1 }) else { return nil }
-        return lettered.map { String($0.prefix(headingLimit)) }
+        return labels.map { String($0.prefix(headingLimit)) }
     }
 
     /// The Cursor session a card belongs to. A card that holds a turn (Run, a mode switch) belongs to a chat that is

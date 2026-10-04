@@ -1080,6 +1080,7 @@
 "%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ đang tự nén ngữ cảnh trong %2$@: cuộc trò chuyện đến giờ đang được thay bằng một bản tóm tắt.";
 "%@ may be stuck" = "%@ có thể đang bị kẹt";
 "%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%1$@ đã có %2$ld lần gọi công cụ thất bại liên tiếp trong %3$@, không lần nào thành công xen giữa.";
+"%1$@ has had %2$ld commands fail in a row in %3$@, with no command or edit working between them." = "%1$@ đã có %2$ld lệnh thất bại liên tiếp trong %3$@, không lệnh hay chỉnh sửa nào thành công xen giữa.";
 "%@ was blocked" = "%@ đã bị chặn";
 "Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "Chế độ tự động đã từ chối một lần gọi %1$@ trong %2$@. Phiên tiếp tục mà không có nó.";
 "Needs input" = "Cần nhập liệu";
@@ -1100,6 +1101,7 @@
 "%@ asks for input: answer in the terminal" = "%@ yêu cầu nhập liệu: trả lời trong terminal";
 "An MCP server asks for input: answer in the terminal" = "Một máy chủ MCP yêu cầu nhập liệu: trả lời trong terminal";
 "May be stuck: %ld tool calls failed in a row" = "Có thể bị kẹt: %ld lần gọi công cụ thất bại liên tiếp";
+"May be stuck: %ld commands failed in a row" = "Có thể bị kẹt: %ld lệnh thất bại liên tiếp";
 "Model" = "Mô hình";
 "%@, fell back by itself" = "%@, tự chuyển dự phòng";
 "The model this session runs on" = "Mô hình mà phiên này đang chạy";

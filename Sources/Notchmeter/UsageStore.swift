@@ -2747,7 +2747,9 @@ extension UsageStore {
     func cursorCardsSeen(_ cards: [CursorCard], now: Date = Date()) {
         var bySession: [String: [CursorCard]] = [:]
         var owners: [String: String] = [:]
-        cursorCardNamesTried.formIntersection(cards.map(\.id))
+        // Forgotten once the card has gone, not on a read that came back with nothing at all: a read Cursor did not
+        // answer in time is empty too, and the card it missed must not be looked up again.
+        if !cards.isEmpty { cursorCardNamesTried.formIntersection(cards.map(\.id)) }
         for card in cards where card.blocksTurn {
             let kept = cursorCardOwners[card.id].flatMap { sessions.sessions[$0] == nil ? nil : $0 }
             // A card whose window names its chat waits a moment for Cursor's own chat names when several chats

@@ -146,6 +146,10 @@ import Testing
         let one = group([text("Questions"), button("A apple"), text("Skip"), text("Continue")])
         #expect(CursorCards.detect(in: one, title: "proj").isEmpty)
 
+        // Nor is a stretch of the chat that holds them with another of Cursor's buttons: the card is its choices alone.
+        let stretch = group([text("Questions"), button("A quick fix"), button("B tree notes"), button("Copy"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: stretch, title: "proj").isEmpty)
+
         // Beside a Run card, each is its own.
         let run = group([group([code(["$", " ", "ls"]), button("Skip"), button("Run")])])
         #expect(Set(CursorCards.detect(in: group([questionCard(), run]), title: "proj").map(\.kind)) == [.question, .run])
@@ -162,6 +166,21 @@ import Testing
         #expect(!card.command)
         #expect(card.heading == "Create /Users/x/notes/answers.txt", "the button that is not an answer, punctuation and all")
         #expect(card.options.map(\.label) == ["Skip", "Run"])
+
+        // Two files whose paths open alike past what a heading shows are two cards, so a press re-read against one
+        // cannot land on the other.
+        func long(_ name: String) -> CursorAXNode {
+            let long = "/Users/x/" + String(repeating: "deep/", count: 40) + name
+            return group([group([button("Create \(long)", [text("Create"), text(" "), text(long)]), button("Skip"), button("Run")])])
+        }
+        let first = try #require(CursorCards.detect(in: long("one.txt"), title: "proj").first)
+        let second = try #require(CursorCards.detect(in: long("two.txt"), title: "proj").first)
+        #expect(first.heading == second.heading)
+        #expect(first.id != second.id)
+        // A button of one word names no subject.
+        let bare = try #require(CursorCards.detect(in: group([group([button("Copy"), button("Skip"), button("Run")])]), title: "proj").first)
+        #expect(bare.heading == nil)
+        #expect(!bare.command)
 
         let command = try #require(CursorCards.detect(in: group([group([code(["$", " ", "ls"]), button("Skip"), button("Run")])]), title: "proj").first)
         #expect(command.command)
@@ -331,14 +350,20 @@ import Testing
     /// Cursor has no batch boundary. What it sent on 2026-10-04 (3.23.12) for a command that exits with an error is
     /// beforeShellExecution, afterShellExecution and then PostToolUseFailure for `Shell`; for one that works, the
     /// first two alone. Five that failed with nothing working between them is a chat that may be stuck.
-    @Test func fiveFailedCommandsInARowMayBeStuckAndOneThatWorkedEndsIt() {
-        var tracker = started()
+    final class Feed {
+        var tracker: SessionTracker
         var second = 1.0
         var troubles = 0
+        let t0: Date
+        init(_ tracker: SessionTracker, t0: Date) {
+            self.tracker = tracker
+            self.t0 = t0
+        }
+        var now: Date { t0.addingTimeInterval(second) }
         func send(_ event: String, failed tool: String? = nil, interrupt: Bool = false) {
             var message = Hook.Message(event: event, needsInput: false, sessionID: "c1", tool: .cursor)
             if let tool { message.toolFailure = ToolFailure(tool: tool, interrupt: interrupt) }
-            if tracker.apply(message, now: t0.addingTimeInterval(second)).trouble != nil { troubles += 1 }
+            if tracker.apply(message, now: now).trouble != nil { troubles += 1 }
             second += 1
         }
         func command(fails: Bool) {
@@ -346,61 +371,101 @@ import Testing
             send("afterShellExecution")
             if fails { send("PostToolUseFailure", failed: "Shell") }
         }
-        func stuck() -> Set<String> { tracker.stuck(now: t0.addingTimeInterval(second)) }
+    }
+
+    @Test func fiveFailedCommandsInARowMayBeStuckAndOneThatWorkedEndsIt() {
+        let feed = Feed(started(), t0: t0)
+        func stuck() -> Set<String> { feed.tracker.stuck(now: feed.now) }
+        func streak() -> Int? { feed.tracker.sessions[key]?.failureStreak }
 
         // A file is created: the read before it fails, as it does every time, and is no part of a run.
-        send("PostToolUseFailure", failed: "Read")
-        send("afterFileEdit")
-        for _ in 0..<4 { command(fails: true) }
+        feed.send("PostToolUseFailure", failed: "Read")
+        feed.send("afterFileEdit")
+        for _ in 0..<4 { feed.command(fails: true) }
         #expect(stuck().isEmpty)
-        command(fails: true)
+        feed.command(fails: true)
         #expect(stuck() == [key])
-        #expect(troubles == 1)
-        command(fails: true)
-        #expect(troubles == 1, "news once, not once a failure")
-        #expect(tracker.sessions[key]?.failureStreak == 6)
+        #expect(feed.troubles == 1)
+        feed.command(fails: true)
+        #expect(feed.troubles == 1, "news once, not once a failure")
+        #expect(streak() == 6)
 
         // A command that worked is known to have by what is heard next not being its failure.
-        command(fails: false)
-        send("afterAgentThought")
+        feed.command(fails: false)
+        feed.send("afterAgentThought")
         #expect(stuck().isEmpty)
-        #expect(tracker.sessions[key]?.failureStreak == 0)
+        #expect(streak() == 0)
 
-        // Failed reads never add up, an edit that landed starts the count again, and a call denied is no try.
-        for _ in 0..<6 { send("PostToolUseFailure", failed: "Read") }
-        #expect(tracker.sessions[key]?.failureStreak == 0)
-        for _ in 0..<4 { command(fails: true) }
-        send("afterFileEdit")
-        command(fails: true)
-        #expect(tracker.sessions[key]?.failureStreak == 1)
-        send("beforeShellExecution")
-        send("PostToolUseFailure", failed: "Shell", interrupt: true)
-        #expect(tracker.sessions[key]?.failureStreak == 1)
+        // Only a command's failure counts, heard straight after that command ended: not a read's or an edit's, whose
+        // successes Cursor does not report, not a second copy of the same failure, not a call denied before it ran.
+        for _ in 0..<6 { feed.send("PostToolUseFailure", failed: "Read") }
+        for _ in 0..<6 { feed.send("PostToolUseFailure", failed: "StrReplace") }
+        #expect(streak() == 0)
+        feed.command(fails: true)
+        for _ in 0..<5 { feed.send("PostToolUseFailure", failed: "Shell") }
+        #expect(streak() == 1, "a failure with no command's end before it is no part of a run")
+        feed.send("beforeShellExecution")
+        feed.send("PostToolUseFailure", failed: "Shell", interrupt: true)
+        #expect(streak() == 1)
+        // An edit that landed starts the count again.
+        for _ in 0..<3 { feed.command(fails: true) }
+        feed.send("afterFileEdit")
+        feed.command(fails: true)
+        #expect(streak() == 1)
         // A command skipped on Cursor's card ends with no failure after it, and reads as one that worked.
-        for _ in 0..<3 { command(fails: true) }
-        command(fails: false)
-        command(fails: true)
-        #expect(tracker.sessions[key]?.failureStreak == 1)
+        for _ in 0..<3 { feed.command(fails: true) }
+        feed.command(fails: false)
+        feed.command(fails: true)
+        #expect(streak() == 1)
         #expect(stuck().isEmpty)
-        #expect(troubles == 1)
-
-        // An edit that fails over and over counts as a command does.
-        for _ in 0..<5 { send("PostToolUseFailure", failed: "StrReplace") }
+        #expect(feed.troubles == 1)
+        for _ in 0..<4 { feed.command(fails: true) }
         #expect(stuck() == [key])
-        send("UserPromptSubmit")
+        #expect(feed.troubles == 2, "a new run is news again")
+        feed.send("UserPromptSubmit")
         #expect(stuck().isEmpty, "a new turn starts over")
+    }
+
+    /// A wait in the middle of a run is routine for Cursor: a turn gone quiet is shown as a possible wait, and with
+    /// *Mirror Cursor's cards* its own Run card is a wait before every command. The run is the same run after it.
+    @Test func aWaitInTheMiddleOfARunDoesNotMakeItNewsAgain() {
+        let feed = Feed(started(), t0: t0)
+        for _ in 0..<5 { feed.command(fails: true) }
+        #expect(feed.troubles == 1)
+
+        // A quiet spell shown as a possible wait (once a turn), and the turn going on by itself.
+        feed.second += 300
+        let nudged = feed.tracker.quietNudges(now: feed.now)
+        #expect(nudged.map(\.id) == [key])
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty, "the row says waiting while it waits")
+        feed.send("afterAgentThought")
+        #expect(feed.tracker.sessions[key]?.isWorking == true)
+        #expect(feed.tracker.stuck(now: feed.now) == [key], "and may be stuck again once it goes on")
+        #expect(feed.troubles == 1, "the same run, said once")
+
+        // Cursor's own Run card before the next command, answered, and the command fails too.
+        _ = feed.tracker.cursorCardShown(key, now: feed.now)
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty)
+        feed.command(fails: true)
+        #expect(feed.tracker.sessions[key]?.isWorking == true)
+        #expect(feed.tracker.stuck(now: feed.now) == [key])
+        #expect(feed.troubles == 1)
+
+        // A run that had gone stale and picks up again is news again.
+        feed.second += SessionTracker.stuckFor + 1
+        feed.send("afterAgentThought")
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty)
+        feed.command(fails: true)
+        #expect(feed.troubles == 2)
     }
 
     @Test func aChatThatReportsNoCommandsEndIsNeverCalledStuck() {
         // A Cursor whose hooks say when a call failed and never when a command ended: nothing to weigh a run against.
-        var tracker = started()
-        for index in 0..<8 {
-            var message = Hook.Message(event: "PostToolUseFailure", needsInput: false, sessionID: "c1", tool: .cursor)
-            message.toolFailure = ToolFailure(tool: "Shell", interrupt: false)
-            _ = tracker.apply(message, now: t0.addingTimeInterval(Double(index + 1)))
-        }
-        #expect(tracker.sessions[key]?.failureStreak == 8)
-        #expect(tracker.stuck(now: t0.addingTimeInterval(10)).isEmpty)
+        let feed = Feed(started(), t0: t0)
+        for _ in 0..<8 { feed.send("PostToolUseFailure", failed: "Shell") }
+        #expect(feed.tracker.sessions[key]?.failureStreak == 0)
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty)
+        #expect(feed.troubles == 0)
     }
 
     @Test func aWaitTheCardProvedIsSaidAsAWaitNotAMaybe() throws {
@@ -730,10 +795,18 @@ import Testing
         var card = run("Cursor Agents")
         card.chat = "New Agent"
         store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
-        await until { asked.ids.count == 1 }
-        try? await Task.sleep(for: .milliseconds(50))
-        store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+        #expect(store.cursorCards.isEmpty)
+        // The card is placed by the first read of the window after the look-up has come back, whenever that is.
+        await until {
+            store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+            return !store.cursorCards.isEmpty
+        }
+        #expect(asked.ids.count == 1, "looked up once, however many reads of the window it took")
         #expect(store.cursorCards[key("bbbb-2222")]?.count == 1, "no name to go by: the chat heard from last, as before")
+        // A read that came back with nothing (Cursor did not answer in time) does not have the card looked up again.
+        store.cursorCardsSeen([], now: t0.addingTimeInterval(4))
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(5))
+        #expect(asked.ids.count == 1)
 
         // With titles off nothing of a chat's name is read, so there is nothing to wait for.
         let quiet = "NotchmeterTests.CursorCardStore.titlesoff"
