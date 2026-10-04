@@ -435,6 +435,7 @@
 "In the pill" = "En la píldora";
 "In the side notch" = "En la muesca lateral";
 "Included usage" = "Uso incluido";
+"Monthly usage" = "Uso mensual";
 "inferred" = "deducido";
 "Inner ring" = "Anillo interior";
 "Install" = "Instalar";
@@ -868,6 +869,7 @@
 "per day since %@" = "al día desde %@";
 "Dashboard" = "Panel";
 "%@ so far, no limit set" = "%@ por ahora, sin límite fijado";
+"%@ so far this cycle" = "%@ por ahora en este ciclo";
 "Today's spend" = "Gasto de hoy";
 "%1$@ of a usual %2$@ day" = "%1$@ de un día habitual de %2$@";
 "Heading for ~%ld%% today" = "Camino del ~%ld%% hoy";

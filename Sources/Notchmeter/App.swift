@@ -211,6 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LegacyCaches.clean()
         CostHistory.migrateFromCaches()
         store = UsageStore(prefs: prefs)
+        // An end-to-end run's stand-in for Cursor's window (FileCursorUI): only beside the oracle, and only once it writes.
+        if let cards = FileCursorUI.path() { store.cursorUI = FileCursorUI(path: cards) }
         // The privacy setting is answered here, at the three places a banner is handed over (this pair and
         // `sessionEvent`), rather than by giving the Notifier the store: it stays a type with no dependencies,
         // which is what lets its copy be pinned in tests without Notification Center.
@@ -226,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
         store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
+        store.cursorCardsChanged = { [weak self] started, ended in self?.cursorCardsChanged(started: started, ended: ended) }
         // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
         store.canPeek = { [weak self] in
             self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
@@ -822,12 +825,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.prompt, true)
         guard !holds.isHeld, let presenter = pointerPresenter, !presenter.hover.isOffScreen() else { return }
         if presenter.hover.state == .expanded {
+            // A panel that was opened on one of Cursor's cards is the request's now: its card alone, held open, and
+            // closed with the request, not with the card (cursorCardsChanged).
+            if store.attentionNotice?.forCursorCard == true {
+                store.attentionNotice = nil
+                store.panelOpenedForPrompt = true
+                cursorCardPresenter = nil
+            }
             presenter.window?.makeKey()
         } else {
             // A request opens the panel on its card alone (UsageStore.panelOpenedForPrompt): an approval is a
             // moment's decision, not a reason to put the whole panel on screen.
             store.panelOpenedForPrompt = true
             presenter.expandNow(cause: .notification)
+        }
+    }
+
+    /// The presenter a panel was opened on for one of Cursor's cards, so that one is closed after the card and not a
+    /// panel opened by hand on another display.
+    private var cursorCardPresenter: (any PanelPresenting)?
+
+    /// A read of Cursor's window changed which chats have one of its own cards waiting (*Mirror Cursor's cards*;
+    /// UsageStore.cursorCardsChanged). A card that begins a wait opens the panel on that chat's card alone, its
+    /// buttons on it, as a request's card opens it; until 0.9.17 the card was only on the chat's row, so the notch
+    /// had to be opened by hand to reach Run. Opened to stay, as a click opens it, since a command takes a moment
+    /// to read and a glance is gone before it is; but without the keyboard (PanelCause.cursorCard), which a card
+    /// nobody asked for must not take from the app being typed in. It closes when the chat's cards have gone,
+    /// answered here or in Cursor, or the way any open panel closes, and is not opened again for the same card.
+    ///
+    /// Nothing opens over one of the app's own windows, over a full-screen app the notch is keeping out of, over a
+    /// panel already open (the card is on its row there), or while a held request has the panel. A card that
+    /// appears on a chat already waiting does not come this way: that is a call handed back with *Answer in
+    /// Cursor*, and it is being answered there.
+    private func cursorCardsChanged(started: [AgentSession], ended: [String]) {
+        let showing = store.attentionNotice.flatMap { $0.forCursorCard ? $0.session.id : nil }
+        if let session = started.last, !holds.isHeld, store.sessions.pending(now: Date()).isEmpty,
+           let presenter = pointerPresenter, !presenter.hover.isOffScreen() {
+            var notice = AttentionNotice(session: session, event: .waiting(blocking: true))
+            notice.forCursorCard = true
+            if presenter.hover.state == .expanded {
+                // The panel this opened on a card that has just gone moves to the one that has just come: one
+                // change, where a close and an open would race.
+                if let showing, ended.contains(showing) {
+                    store.attentionNotice = notice
+                    return
+                }
+            } else if (presenter as? NotchController)?.canShowPeek ?? presenter.fullScreenApps.isEmpty {
+                store.attentionNotice = notice
+                cursorCardPresenter = presenter
+                presenter.expandNow(cause: .cursorCard)
+                return
+            }
+        }
+        guard let showing, ended.contains(showing) else { return }
+        // A request that arrived while the card was up took the panel in `promptRequested`; one still pending here
+        // keeps it, on its own card.
+        guard store.sessions.pending(now: Date()).isEmpty else {
+            store.attentionNotice = nil
+            store.panelOpenedForPrompt = true
+            cursorCardPresenter = nil
+            return
+        }
+        if let presenter = cursorCardPresenter, presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .cursorCard) }
+        cursorCardPresenter = nil
+        // A panel that stays open all the same (Always open, or one opened by hand on another display) goes back to
+        // being the whole panel, not a card that has gone.
+        if store.attentionNotice?.forCursorCard == true, presenters.contains(where: { $0.hover.state == .expanded }) {
+            store.attentionNotice = nil
         }
     }
 

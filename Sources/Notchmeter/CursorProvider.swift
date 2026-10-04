@@ -78,10 +78,12 @@ actor CursorProvider: UsageProvider {
             // windows stand. The cycle figures are asked for only where the summary meters nothing, which is the
             // seat they exist for (Enterprise billed on-demand, 2026-09-18); the Grok Bot window is asked for on
             // every seat and simply absent where the seat has none.
+            var cycleStart = Self.cycleStart(of: reading.windows)
             if !Self.headlineMetered(reading.windows),
                let (periodData, periodResponse) = try? await send(Self.periodUsageURL, cookie: cookie, body: Data("{}".utf8)),
                periodResponse?.statusCode == 200, let period = Self.parsePeriodUsage(periodData) {
                 reading = reading.with(windows: Self.applying(period, to: reading.windows))
+                cycleStart = period.cycleStart ?? cycleStart
             }
             if let (sandData, sandResponse) = try? await send(Self.sandUsageURL, cookie: cookie, body: Data("{}".utf8)),
                sandResponse?.statusCode == 200, let sand = Self.parseSandUsage(sandData) {
@@ -94,8 +96,11 @@ actor CursorProvider: UsageProvider {
             // or stale, and the ring would read $0 against a usual day. A seat whose cycle figures carried a real
             // included fraction fails the second test by itself, so the vendor's figure leads and the usual-day
             // heuristic stays for seats nothing else meters (pinned in CursorSpendTests).
-            guard await recordUsageEvents(cookie: cookie), !Self.headlineMetered(reading.windows),
-                  let history, let spend = Self.spendToday(history.load(calendar: .current))
+            guard let export = await recordUsageEvents(cookie: cookie, cycleStart: cycleStart) else { return reading }
+            // A seat Cursor publishes no cycle figure for at all still has one in its export: the events since the
+            // cycle began, at the cost Cursor gave each (`withCycleSpend`).
+            reading = reading.with(windows: Self.withCycleSpend(reading.windows, events: export.events, from: export.start, cycleStart: cycleStart))
+            guard !Self.headlineMetered(reading.windows), let history, let spend = Self.spendToday(history.load(calendar: .current))
             else { return reading }
             return UsageReading(tool: .cursor, windows: [spend] + Self.withoutDeadSplits(reading.windows), plan: reading.plan,
                                 fetchedAt: reading.fetchedAt, observedAt: reading.observedAt)
@@ -117,11 +122,16 @@ actor CursorProvider: UsageProvider {
     /// The last 30 days of usage events, folded into per-day records of the daily-totals file; a failure here
     /// never fails the reading. Every outcome is written down (CursorExportRead) as well as logged, because a
     /// refusal, an empty export and an export nobody ever fetched all reach the Cost card as the same silence.
-    /// True when the export was read, empty or not, so today's line in the daily-totals file is current.
-    private func recordUsageEvents(cookie: String, now: Date = Date()) async -> Bool {
-        guard let history else { return false }
+    /// The events and where the read began when the export was read, empty or not, so today's line in the
+    /// daily-totals file is current; nil when it was not. The read begins thirty local days back, or at the start
+    /// of the billing cycle when that is earlier (a cycle of 31 days, on its last day), so the cycle's own sum
+    /// (`withCycleSpend`) is never short of its first day; never further than `cycleReach` days.
+    private func recordUsageEvents(cookie: String, cycleStart: Date? = nil, now: Date = Date()) async -> (events: [UsageEvent], start: Date)? {
+        guard let history else { return nil }
         let calendar = Calendar.current
-        let start = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: now)) ?? now
+        let thirty = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: now)) ?? now
+        let reach = now.addingTimeInterval(-Self.cycleReach)
+        let start = cycleStart.map { min(thirty, max($0, reach)) } ?? thirty
         var teamId = 0
         if let (teamData, teamResponse) = try? await send(Self.teamsURL, cookie: cookie, body: Data("{}".utf8)),
            teamResponse?.statusCode == 200, let found = Self.parseTeamId(teamData) {
@@ -134,14 +144,14 @@ actor CursorProvider: UsageProvider {
             guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body) else {
                 log.error("Cursor usage events: the request failed on page \(page)")
                 CursorExportRead(readAt: now, problem: L("its usage export could not be fetched")).save(to: defaults)
-                return false
+                return nil
             }
             guard response?.statusCode == 200 else {
                 // Silence here is what hid an empty Cost card: a refusal reads exactly like a month with no spend.
                 let status = response?.statusCode ?? 0
                 log.error("Cursor usage events: HTTP \(status) for team \(teamId)")
                 CursorExportRead(readAt: now, problem: L("cursor.com refused its usage export (HTTP %ld)", status)).save(to: defaults)
-                return false
+                return nil
             }
             let parsed = Self.parseUsageEvents(data)
             // On any page, not just the first: a partial fold would write an understated today row, which is the
@@ -150,7 +160,7 @@ actor CursorProvider: UsageProvider {
             guard parsed.recognised else {
                 log.error("Cursor usage events: page \(page) came back in a shape this build cannot read (\(data.count) bytes) for team \(teamId)")
                 CursorExportRead(readAt: now, problem: L("its usage export came back in a shape Notchmeter could not read")).save(to: defaults)
-                return false
+                return nil
             }
             let batch = parsed.events
             // A server that ignores `page` answers the same events forever; stopping is a short total, counting
@@ -169,12 +179,12 @@ actor CursorProvider: UsageProvider {
         CursorExportRead(readAt: now, events: events.count, costUSD: total).save(to: defaults)
         guard !events.isEmpty else {
             log.notice("Cursor usage events: none in the last 30 days for team \(teamId)")
-            return true
+            return ([], start)
         }
         let days = Self.dayRecords(events, calendar: calendar)
         history.record(days, existing: history.load(calendar: calendar), calendar: calendar)
         log.notice("Cursor usage events: \(events.count) over \(days.count) days worth \(Money.dollars(total), privacy: .public)")
-        return true
+        return (events, start)
     }
 
     private func send(_ url: URL, cookie: String, body: Data? = nil) async throws -> (Data, HTTPURLResponse?) {
@@ -394,14 +404,57 @@ actor CursorProvider: UsageProvider {
     /// cycle's, by the same rule `share` applies (the furthest-along vendor figure wins, because under-reporting
     /// hides a meter that is charging). A seat with no `limit` is left exactly as it was.
     static func applying(_ period: PeriodUsage, to windows: [LimitWindow]) -> [LimitWindow] {
-        guard let limit = period.limitCents, limit > 0, let charged = period.chargedCents else { return windows }
-        let fraction = share(percent: nil, used: charged, limit: limit)
         let cycle: TimeInterval? = if let start = period.cycleStart, let end = period.cycleEnd, end > start { end.timeIntervalSince(start) } else { nil }
+        guard let limit = period.limitCents, limit > 0, let charged = period.chargedCents else {
+            // No allowance of the plan's own, whatever the plan is called. Cursor still says what the seat has
+            // spent this cycle (`spendLimitUsage.individualUsed`, its page's *Your monthly usage*), against the
+            // member's own spend limit where the team set one, and that is the cycle's line on a seat with no other.
+            // Only once something has been spent: a 0 beside "no limit set" would say that of a free seat too.
+            guard let used = period.individualUsedCents, used > 0 else { return windows }
+            let own = period.individualLimitCents.flatMap { $0 > 0 ? $0 : nil }
+            return windows.map { window in
+                guard window.id == "included", window.usedFraction == nil, window.amountUSD == nil else { return window }
+                return LimitWindow(id: window.id, label: .key("Monthly usage"), usedFraction: own.map { share(percent: nil, used: used, limit: $0) },
+                                   resetsAt: window.resetsAt ?? period.cycleEnd,
+                                   note: own.map { L("%1$@ of %2$@", dollars(used), dollars($0)) } ?? L("%@ so far, no limit set", dollars(used)),
+                                   periodDuration: window.periodDuration ?? cycle, model: window.model, source: window.source,
+                                   hiddenByDefault: window.hiddenByDefault, amountUSD: used / 100)
+            }
+        }
+        let fraction = share(percent: nil, used: charged, limit: limit)
         return windows.map { window in
             guard window.id == "included", (window.usedFraction ?? -1) < fraction else { return window }
             return LimitWindow(id: window.id, label: window.name, usedFraction: fraction, resetsAt: window.resetsAt ?? period.cycleEnd,
                                note: L("%1$@ of %2$@", dollars(charged), dollars(limit)), periodDuration: window.periodDuration ?? cycle,
                                model: window.model, source: window.source, hiddenByDefault: window.hiddenByDefault, amountUSD: charged / 100)
+        }
+    }
+
+    /// How far back a read of the export may begin to reach the start of a billing cycle: two months, so a start
+    /// that is plainly wrong does not ask for a year of events.
+    static let cycleReach: TimeInterval = 62 * 86_400
+
+    /// When the billing cycle began, from the summary's own window: its reset less its length.
+    static func cycleStart(of windows: [LimitWindow]) -> Date? {
+        guard let window = windows.first(where: { $0.id == "included" }), let end = window.resetsAt, let length = window.periodDuration, length > 0 else { return nil }
+        return end.addingTimeInterval(-length)
+    }
+
+    /// The cycle's spend from the export, for a seat with no cycle figure from Cursor at all: the events since the
+    /// cycle began, each at the cost Cursor gave it, as the *Monthly usage* line. On an Enterprise seat that sum
+    /// equalled the page's *Your monthly usage* to two cents (2026-10-04). Left alone: a window Cursor already
+    /// filled, a cycle whose start is unknown or earlier than the read reached (the sum would be short), and a
+    /// cycle with nothing spent in it. Marked as worked out here, not published, like *Today's spend*.
+    static func withCycleSpend(_ windows: [LimitWindow], events: [UsageEvent], from readStart: Date, cycleStart: Date?, now: Date = Date()) -> [LimitWindow] {
+        guard let cycleStart, cycleStart <= now, readStart <= cycleStart else { return windows }
+        let spent = events.reduce(0.0) { $1.timestamp >= cycleStart && $1.timestamp <= now ? $0 + $1.costUSD : $0 }
+        guard spent > 0 else { return windows }
+        return windows.map { window in
+            // Not a cycle that has already ended by the summary's own account: its sum would be last cycle's.
+            guard window.id == "included", window.usedFraction == nil, window.amountUSD == nil, window.resetsAt.map({ $0 > now }) ?? true else { return window }
+            return LimitWindow(id: window.id, label: .key("Monthly usage"), usedFraction: nil, resetsAt: window.resetsAt,
+                               note: L("%@ so far this cycle", dollars(spent * 100)), periodDuration: window.periodDuration, model: window.model,
+                               source: .localEstimate, hiddenByDefault: window.hiddenByDefault, amountUSD: spent)
         }
     }
 

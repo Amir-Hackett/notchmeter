@@ -8,7 +8,9 @@
 # the run writes under ~/.cursor/plans and removes, a change to that file with no hook, a Build, and *Require notch
 # approval* at its three edges that need no hand on the notch: off (nothing printed), on with no app running, and
 # on with nobody answering (both hand the call back to Cursor's own prompt). The answers themselves, pressed on
-# the notch, are scripts/e2e-cursor.sh. And a Cursor chat's run of failed commands, which may be stuck.
+# the notch, are scripts/e2e-cursor.sh. And a Cursor chat's run of failed commands, which may be stuck. Since 0.9.17
+# one of Cursor's own cards, through a stand-in for its window (--e2e-cursor-cards): the card on its chat's row, the
+# notch opening on it alone, and closing when the card is answered in Cursor.
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
@@ -71,10 +73,18 @@ trap cleanup EXIT
 defaults delete "$DOMAIN" 2>/dev/null || true
 defaults write "$DOMAIN" welcomed -bool true
 defaults write "$DOMAIN" hookOfferShown -bool true
+# Nor is the usage card the app offers once after an update, which a Mac with a week of spend behind it gets twenty
+# seconds into this launch: it is one of the app's own windows, and while one is up the panel opens for nothing.
+defaults write "$DOMAIN" offerShareCardAfterUpdate -bool false
 defaults write "$DOMAIN" quietNudgeSeconds -int "$QUIET"
 defaults write "$DOMAIN" mutedNudgeProjects -array muted-proj
 
-mkdir -p "$WORK/loud-proj" "$WORK/muted-proj"
+mkdir -p "$WORK/loud-proj" "$WORK/muted-proj" "$WORK/card-proj"
+# *Mirror Cursor's cards*, and the file that stands for Cursor's window in this run: no card yet.
+defaults write "$DOMAIN" cursorControl -bool true
+CARDS="$WORK/cursor-cards.json"
+cards() { printf '%s' "$1" >"$CARDS.new" && mv "$CARDS.new" "$CARDS"; }
+cards '[]'
 
 # Cursor's *Require notch approval*, before the app is up. Off, the hook holds nothing and prints nothing, so
 # Cursor's own flow decides. On with no app to ask, the call is handed to Cursor's own prompt, never left to run.
@@ -90,7 +100,7 @@ defaults write "$DOMAIN" promptHoldSeconds -int 15
 out="$(held_shell e2e-approve 'echo closed')"
 [ "$out" = '{"permission":"ask"}' ] && echo "ok: with the app closed a held call is handed to Cursor's own prompt" \
   || { echo "FAIL: app closed printed: $out" >&2; exit 1; }
-"$BIN" --e2e-oracle "$ORACLE" --no-prompt >"$WORK/app.log" 2>&1 &
+"$BIN" --e2e-oracle "$ORACLE" --e2e-cursor-cards "$CARDS" --no-prompt >"$WORK/app.log" 2>&1 &
 APP_PID=$!
 
 # The oracle's lines, as JSON, counted by a predicate on the parsed object.
@@ -251,6 +261,22 @@ wait_for "its last failure was heard" "$heard and o.get(\"session\") == \"e2e-st
 [ "$(count "$stuck and o.get(\"session\") == \"cursor:e2e-stuck\"")" -eq 1 ] && echo "ok: and it is said once" \
   || { echo "FAIL: stuck was said more than once" >&2; exit 1; }
 expect_none "a command that worked between failures ends the run" "$stuck and o.get(\"session\") == \"cursor:e2e-unstuck\""
+
+# One of Cursor's own cards (0.9.17). A card that starts a wait goes on its chat's row and the notch opens on that
+# card alone, to stay; answered in Cursor (the card leaves its window), the notch closes with it.
+opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "cursorCard" and o.get("cards") == ["notice"]'
+closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "cursorCard"'
+opened_before="$(count "$opened")"; closed_before="$(count "$closed")"
+cursor e2e-card card-proj beforeSubmitPrompt
+cards '[{"kind":"run","window":"card-proj","heading":"ls -la","options":["Skip","Run"]}]'
+wait_for "Cursor's own card reaches its chat's row" 'o["event"] == "session" and o.get("action") == "cursorCard" and o.get("session") == "cursor:e2e-card"' 1 10
+wait_for "and the notch opens on that card alone" "$opened" $((opened_before + 1)) 10
+sleep 3
+[ "$(count "$closed")" -eq "$closed_before" ] && echo "ok: and stays open while the card waits" \
+  || { echo "FAIL: the notch closed while the card was still waiting" >&2; exit 1; }
+cards '[]'
+wait_for "answered in Cursor, the notch closes with the card" "$closed" $((closed_before + 1)) 10
+cursor e2e-card card-proj stop
 
 # *Require notch approval* with nobody at the notch: the call is held, the app's own hold runs out, and the hook
 # hands the call to Cursor's own prompt. Nothing runs on silence.

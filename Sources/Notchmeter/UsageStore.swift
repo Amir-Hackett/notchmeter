@@ -175,7 +175,12 @@ final class UsageStore {
     static let cursorNoteLife: Duration = .seconds(20)
     @ObservationIgnored var cursorUI: CursorUIControlling = LiveCursorUI()
     @ObservationIgnored private var cursorWatch: Task<Void, Never>?
-    @ObservationIgnored private var cursorPressing: Set<String> = []
+    /// The cards one of whose buttons is being pressed (pressCursorCard). Observed: the row holds the card's buttons
+    /// until the press has come back.
+    private(set) var cursorPressing: Set<String> = []
+    /// Counts presses begun and ended, so a read of Cursor's window that was out across either is not applied
+    /// (readCursorCards): what it saw is from before the press settled the card.
+    @ObservationIgnored private var cursorPressCount = 0
     /// The row each card on screen was first put on, by card: which chat spoke last changes while a card waits.
     @ObservationIgnored private var cursorCardOwners: [String: String] = [:]
     /// Cursor's windows were read since *Mirror Cursor's cards* was last off, so Cursor is owed a `release`.
@@ -326,6 +331,21 @@ final class UsageStore {
     @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
     /// A request ended (answered, passed back, overtaken or timed out), by id; wired to NotchActions.promptEnded.
     @ObservationIgnored var promptEnded: (String) -> Void = { _ in }
+    /// What one read of Cursor's window changed (cursorCardsSeen): the chats on which a card began a wait, and the
+    /// chats, by session id, whose cards have all gone. One call for both, so a card leaving one chat as another's
+    /// arrives is one change to the panel and not a close and an open racing each other. Wired by the app
+    /// delegate, which opens the panel on the card and closes it again.
+    @ObservationIgnored var cursorCardsChanged: (_ started: [AgentSession], _ ended: [String]) -> Void = { _, _ in }
+    /// When each card last left a row, by card id, and how soon after that the same card coming back is the same
+    /// card seen again and no new wait to open the panel on: Cursor redraws its chat as it streams, and a card can
+    /// be out of its tree for a read. Kept for that long only.
+    @ObservationIgnored private var cursorCardLeft: [String: Date] = [:]
+    static let cursorCardFlicker: TimeInterval = 3
+    /// Reads of Cursor's window in a row that came back short (CursorUIControlling.read), and how many are waited
+    /// out before one is taken as it is: a read Cursor fell behind on must not take a card off its row, and a
+    /// window that never reads whole must not freeze the rows either.
+    @ObservationIgnored private var cursorShortReads = 0
+    static let cursorShortReadLimit = 3
     /// The socket replies parked on a decision, by request id. Only `decide` writes to one, which is what makes
     /// the request id a nonce: a line on the socket can start a request but never settle one (HookSocket.swift).
     @ObservationIgnored private var pendingReplies: [String: HookSocket.Reply] = [:]
@@ -717,7 +737,7 @@ final class UsageStore {
     /// has since ended (NotchNews.title), and the Cowork reader's.
     func dropTitles() {
         sessions.clearTitles()
-        attentionNotice = attentionNotice.map { AttentionNotice(session: $0.session.withoutTitles(), event: $0.event) }
+        attentionNotice = attentionNotice.map { AttentionNotice(session: $0.session.withoutTitles(), event: $0.event, forCursorCard: $0.forCursorCard) }
         peek = peek?.withoutTitle()
         glowNews = glowNews?.withoutTitle()
         latestNews = latestNews?.withoutTitle()
@@ -2719,10 +2739,7 @@ extension UsageStore {
                 guard let self else { return }
                 self.refreshChangedCursorPlans()
                 if self.cursorWatchWanted {
-                    let ui = self.cursorUI
-                    self.cursorTreeAsked = true
-                    let cards = await Task.detached(priority: .utility) { ui.scan() }.value
-                    self.cursorCardsSeen(cards)
+                    await self.readCursorCards()
                 } else {
                     if !self.cursorCards.isEmpty { self.cursorCardsSeen([]) }
                     if !self.prefs.cursorControl { self.releaseCursorTree() }
@@ -2730,6 +2747,26 @@ extension UsageStore {
                 try? await Task.sleep(for: .seconds(1))
             }
         }
+    }
+
+    /// One read of Cursor's windows, off the main actor, put on the rows. Not while a button is being pressed: the
+    /// press reads the window itself and settles its card, a read beside it competes for Cursor's main thread, and
+    /// one that was out while a press began or ended saw the window as it was before, so it is dropped rather than
+    /// putting back a card the press has just seen go.
+    func readCursorCards() async {
+        guard cursorPressing.isEmpty else { return }
+        let count = cursorPressCount
+        let ui = cursorUI
+        cursorTreeAsked = true
+        let read = await Task.detached(priority: .utility) { ui.read() }.value
+        guard count == cursorPressCount else { return }
+        if read.whole {
+            cursorShortReads = 0
+        } else {
+            cursorShortReads += 1
+            guard cursorShortReads >= Self.cursorShortReadLimit else { return }
+        }
+        cursorCardsSeen(read.cards)
     }
 
     /// Tells Cursor the app has stopped reading its windows, once per spell of reading; also on quit.
@@ -2778,6 +2815,15 @@ extension UsageStore {
             applyAwake()
         }
         withdrawWaiting(ended)
+        // A card that left a moment ago and is back is the same card (cursorCardFlicker): the wait is a wait again,
+        // and the panel is not opened on it a second time, least of all after it was closed by hand.
+        cursorCardLeft = cursorCardLeft.filter { now.timeIntervalSince($0.value) < Self.cursorCardFlicker }
+        let fresh = started.filter { cursorCardLeft[$0.1.id] == nil }.map(\.0)
+        for (id, list) in before where bySession[id] == nil { for card in list { cursorCardLeft[card.id] = now } }
+        let gone = before.keys.filter { bySession[$0] == nil }
+        // Before the notices below, so a panel this opens on the card is already open when the attention setting
+        // is asked what to do about the wait, as a request's is.
+        if !fresh.isEmpty || !gone.isEmpty { cursorCardsChanged(fresh, gone) }
         for (session, card) in started {
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
@@ -2827,11 +2873,19 @@ extension UsageStore {
     func pressCursorCard(_ card: CursorCard, option: String, sessionID: String) {
         guard prefs.cursorControl, !cursorPressing.contains(card.id) else { return }
         cursorPressing.insert(card.id)
+        cursorPressCount += 1
         let ui = cursorUI
         Task { [weak self] in
             let result = await Task.detached(priority: .userInitiated) { ui.press(card, option: option) }.value
             guard let self else { return }
             self.cursorPressing.remove(card.id)
+            self.cursorPressCount += 1
+            // The press saw the card go, so it leaves the row now, with the note that says what was pressed: one
+            // change. Left to the next read of the window, the row carried the card and the note together for up to
+            // a second, a line taller, and then dropped the card (0.9.16: it blinked).
+            if result == .pressed {
+                self.cursorCardsSeen(self.cursorCards.values.flatMap { $0 }.filter { $0.id != card.id })
+            }
             self.noteCursorAction(Self.note(for: result, option: option), for: sessionID)
             Oracle.shared.emit("decision", ["source": "cursorCard", "kind": card.kind.rawValue, "behavior": result.rawValue, "session": sessionID])
             if result == .unavailable { CursorPlanOpener.activateCursor() }

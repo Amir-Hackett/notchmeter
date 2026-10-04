@@ -435,6 +435,7 @@
 "In the pill" = "胶囊内";
 "In the side notch" = "侧边刘海内";
 "Included usage" = "套餐内用量";
+"Monthly usage" = "本月用量";
 "inferred" = "推断";
 "Inner ring" = "内环";
 "Install" = "安装";
@@ -868,6 +869,7 @@
 "per day since %@" = "自 %@ 起每天";
 "Dashboard" = "仪表板";
 "%@ so far, no limit set" = "目前 %@，未设上限";
+"%@ so far this cycle" = "本周期目前 %@";
 "Today's spend" = "今日支出";
 "%1$@ of a usual %2$@ day" = "平常一天 %2$@ 中的 %1$@";
 "Heading for ~%ld%% today" = "今天预计约 %ld%%";

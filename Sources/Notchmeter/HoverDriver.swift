@@ -6,6 +6,10 @@ import AppKit
 /// a notification's Open button, or the state it launched in.
 enum PanelCause: String {
     case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, dashboard, shareCard, menu, notification, launch, glance, fullScreen
+    /// Opened on one of Cursor's own cards, or closed after it (AppDelegate.cursorCardsChanged). Not `notification`:
+    /// that opening takes the keyboard (PanelKeyPolicy), and a card nobody asked for must not take it from the app
+    /// being typed in. Its buttons have no shortcuts.
+    case cursorCard
 }
 
 /// What a mouse monitor saw, reduced to what the machine needs.

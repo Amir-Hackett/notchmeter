@@ -122,6 +122,17 @@ enum AssetRenderer {
                 try write(panelCrop(SessionsCard(store: cursor, prefs: cursorPrefs, actions: actions), prefs: cursorPrefs).image,
                           png: directory.appendingPathComponent("cursor-notch.png"))
             }
+            // The notch opened on a card that started a wait (0.9.17), for review: the building chat's Run prompt alone,
+            // its buttons on it, the way AppDelegate.cursorCardStarted opens it.
+            if let waiting = cursor.sessions.all.first(where: { !(cursor.cursorCards[$0.id] ?? []).isEmpty && $0.project == "api-server" }) {
+                var notice = AttentionNotice(session: waiting, event: .waiting(blocking: true))
+                notice.forCursorCard = true
+                cursor.attentionNotice = notice
+                let opened = try Stage(store: cursor, prefs: cursorPrefs, actions: actions)
+                try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale),
+                          png: directory.appendingPathComponent("cursor-card-opened.png"))
+                cursor.attentionNotice = nil
+            }
             // The cards that are not a command's, for review (DemoFixtures.cursorOtherCards).
             cursor.cursorCardsSeen(DemoFixtures.cursorOtherCards, now: now)
             try at(scale: siteScale) {
