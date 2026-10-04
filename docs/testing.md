@@ -136,6 +136,14 @@ E2E_ALLOW_PREFS=1 scripts/e2e-cursor.sh build/Notchmeter.app   # presses the not
 
 **What neither can do** is Cursor itself: that Cursor obeys those answers, and that its own Run prompt, mode-switch card and plan card are read and pressed in a real window. That was done by hand on Cursor 3.23.12 on 2026-10-03 ([docs/hooks.md](hooks.md#cursor) records what was pressed and what was not), and is worth repeating after a Cursor update that changes its chat: in a scratch folder, with both of Cursor's switches on, ask the agent to switch to Plan mode and make a plan of two or three shell commands; press Switch, then Build, on the notch; answer the held commands Allow, Deny and Answer in Cursor; press Run on the card that last one brings up. The agent's own summary of the turn says which commands ran and which was denied.
 
+**A card the app does not recognise**, or a Cursor version that draws one differently, is recorded with [`scripts/cursor-capture.swift`](../scripts/cursor-capture.swift) before any code is changed, so the fix starts from what Cursor really draws:
+
+```bash
+swift scripts/cursor-capture.swift cards.jsonl 600 "Skip,Run;Skip,Switch;apple,banana,cherry"
+```
+
+Each `;`-separated group names the labels that mark one card: its buttons, or the options of a question you asked the agent to pose with words of your own choosing. While it runs, whenever a group's labels are on screen it writes the smallest part of the window's tree that holds them, two levels up, as one JSON line (roles, labels, values, states, the actions each control takes), once per shape. It presses nothing and writes nothing else of the window: no sidebar, no editor, no other chat. A line becomes a fixture in [CursorAccessibilityTests.swift](../Tests/NotchmeterTests/CursorAccessibilityTests.swift) once its text is replaced with made-up words. It needs the Accessibility permission for the app the terminal runs in.
+
 ## Reading a provider from the terminal
 
 ```bash

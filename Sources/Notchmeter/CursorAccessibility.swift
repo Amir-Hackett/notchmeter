@@ -218,13 +218,9 @@ enum CursorCards {
     /// of life by a moment. An editor window naming a workspace none of several candidates is in belongs to none
     /// of them; the Agents window is every workspace's, and there the latest event decides.
     static func session(for card: CursorCard, among sessions: [AgentSession]) -> String? {
-        var candidates = sessions.filter { $0.tool == .cursor && $0.host == nil }
-        if card.blocksTurn {
-            let inTurn = candidates.filter { $0.isWorking || $0.isWaiting }
-            if !inTurn.isEmpty { candidates = inTurn }
-        }
+        let candidates = candidates(for: card, among: sessions)
         if candidates.count <= 1 { return candidates.first?.id }
-        if let chat = card.chat {
+        if let chat = card.chat.flatMap(chatName) {
             // Cursor's own name for the chat is the row's `sessionName` (CursorChatNames); its title is a prompt's.
             let named = candidates.filter { $0.sessionName == chat || $0.title == chat }
             if named.count == 1 { return named[0].id }
@@ -234,6 +230,30 @@ enum CursorCards {
         if let best = inWorkspace.max(by: { $0.lastEvent < $1.lastEvent }) { return best.id }
         guard card.chat != nil || card.window == agentsWindowTitle else { return nil }
         return candidates.max(by: { $0.lastEvent < $1.lastEvent })?.id
+    }
+
+    /// The chats on this Mac a card could belong to: Cursor's, and for a card that holds a turn, the ones in a turn.
+    static func candidates(for card: CursorCard, among sessions: [AgentSession]) -> [AgentSession] {
+        let local = sessions.filter { $0.tool == .cursor && $0.host == nil }
+        guard card.blocksTurn else { return local }
+        let inTurn = local.filter { $0.isWorking || $0.isWaiting }
+        return inTurn.isEmpty ? local : inTurn
+    }
+
+    /// A chat's name as a row would hold it: the header's words cleaned the way Cursor's own name for the chat is
+    /// when it is read from Cursor's database (CursorChatNames.name), so the two compare equal.
+    static func chatName(_ header: String) -> String? {
+        Hook.title(fromPrompt: header)
+    }
+
+    /// The chats whose names are worth reading for a card: several could own it, its window names the chat, and no
+    /// row carries that name yet. Empty when one candidate settles it, the window names no chat, or a row is
+    /// already known by the name. With Cursor's names read for these, the card goes to the chat it is in, not to
+    /// whichever was heard from last (UsageStore.cursorCardsSeen).
+    static func unnamedCandidates(for card: CursorCard, among sessions: [AgentSession]) -> [AgentSession] {
+        let candidates = candidates(for: card, among: sessions)
+        guard candidates.count > 1, let chat = card.chat.flatMap(chatName) else { return [] }
+        return candidates.contains { $0.sessionName == chat || $0.title == chat } ? [] : candidates
     }
 
     static let agentsWindowTitle = "Cursor Agents"

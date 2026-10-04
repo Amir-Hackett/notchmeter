@@ -196,6 +196,14 @@ import Testing
         #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find NB screener code"), among: named) == "x")
         #expect(CursorCards.session(for: run("Cursor Agents"), among: two) == "y")
 
+        // Whose names are worth reading: several chats could own the card, its window names the chat, and no row
+        // carries that name yet.
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Some other name"), among: two).map(\.id) == ["x", "y"])
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Find NB screener code"), among: two).isEmpty, "a row already has it")
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents"), among: two).isEmpty, "the window names no chat")
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Anything"), among: [two[0]]).isEmpty, "one candidate needs no name")
+        #expect(CursorCards.chatName("  Three   echoes\nplan ") == "Three echoes", "cleaned as a name read from Cursor is")
+
         // A plan card holds no turn, so an idle chat can own one.
         let plan = CursorCard(kind: .plan, window: "enrollhere", heading: "p", options: [.init(label: "Build", path: [0])])
         #expect(CursorCards.session(for: plan, among: [session("i", "enrollhere", 1, working: false), session("w", "tools", 5)]) == "i")
@@ -459,6 +467,14 @@ import Testing
         func release() { lock.withLock { _released += 1 } }
     }
 
+    /// What a stand-in for the chat-name read was asked for.
+    final class Asked: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _ids: [[String]] = []
+        var ids: [[String]] { lock.withLock { _ids } }
+        func record(_ ids: Set<String>) { lock.withLock { _ids.append(ids.sorted()) } }
+    }
+
     let t0 = Date(timeIntervalSince1970: 1_800_000_000)
 
     @MainActor
@@ -518,6 +534,71 @@ import Testing
         store.cursorCardsSeen([card], now: t0.addingTimeInterval(4))
         #expect(store.cursorCards[key("c2")]?.count == 1)
         #expect(store.cursorCards[key("c1")] == nil)
+    }
+
+    @Test @MainActor func aCardInTheAgentsWindowGoesToTheChatItsHeaderNames() async {
+        // Two chats in a turn at once, and the Agents window, whose title names no workspace. The card is the first
+        // chat's; the second spoke last. Cursor's own chat names settle it, read once when the card first shows.
+        let suite = "NotchmeterTests.CursorCardStore.names"
+        let (store, _, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prompt(store, "aaaa-1111", project: "one", at: 0)
+        prompt(store, "bbbb-2222", project: "two", at: 1)
+        let asked = Asked()
+        store.cursorChatNameReader = { ids in
+            asked.record(ids)
+            return ["aaaa-1111": "Holiday greeting line", "bbbb-2222": "Usage export"]
+        }
+        var card = run("Cursor Agents")
+        card.chat = "Holiday greeting line"
+
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        #expect(store.cursorCards.isEmpty, "not put on the chat heard from last while the names are being read")
+        await until { store.sessions.sessions[key("aaaa-1111")]?.sessionName != nil }
+        #expect(asked.ids == [["aaaa-1111", "bbbb-2222"]], "one read, for the chats that could own the card")
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+        #expect(store.cursorCards[key("aaaa-1111")]?.count == 1, "the chat the window names")
+        #expect(store.cursorCards[key("bbbb-2222")] == nil)
+        #expect(store.sessions.sessions[key("aaaa-1111")]?.isWaiting == true)
+        #expect(store.sessions.sessions[key("bbbb-2222")]?.isWorking == true)
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(4))
+        #expect(asked.ids.count == 1, "and the names are not read again for the same card")
+    }
+
+    @Test @MainActor func aChatCursorHasNotNamedYetFallsBackToTheOneHeardFromLast() async {
+        let suite = "NotchmeterTests.CursorCardStore.unnamed"
+        let (store, _, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prompt(store, "aaaa-1111", project: "one", at: 0)
+        prompt(store, "bbbb-2222", project: "two", at: 1)
+        let asked = Asked()
+        store.cursorChatNameReader = { ids in
+            asked.record(ids)
+            return [:]
+        }
+        var card = run("Cursor Agents")
+        card.chat = "New Agent"
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        await until { asked.ids.count == 1 }
+        try? await Task.sleep(for: .milliseconds(50))
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+        #expect(store.cursorCards[key("bbbb-2222")]?.count == 1, "no name to go by: the chat heard from last, as before")
+
+        // With titles off nothing of a chat's name is read, so there is nothing to wait for.
+        let quiet = "NotchmeterTests.CursorCardStore.titlesoff"
+        let (silent, _, quietDefaults) = self.store(quiet)
+        defer { quietDefaults.removePersistentDomain(forName: quiet) }
+        silent.prefs.sessionTitles = false
+        prompt(silent, "aaaa-1111", project: "one", at: 0)
+        prompt(silent, "bbbb-2222", project: "two", at: 1)
+        let never = Asked()
+        silent.cursorChatNameReader = { ids in
+            never.record(ids)
+            return [:]
+        }
+        silent.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        #expect(silent.cursorCards[key("bbbb-2222")]?.count == 1)
+        #expect(never.ids.isEmpty)
     }
 
     @Test @MainActor func cursorsWindowsAreReadOnlyWhileAChatIsInATurn() {
