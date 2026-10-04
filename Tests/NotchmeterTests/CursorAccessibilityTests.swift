@@ -674,6 +674,9 @@ import Testing
             gate?.wait()
             return seen
         }
+        /// Whether a read came back whole, to stand for one Cursor fell behind on.
+        var whole = true
+        func read() -> (cards: [CursorCard], whole: Bool) { (scan(), whole) }
         func scanForPlan() -> [CursorCard] { lock.withLock { _planReads += 1; return _cards } }
         func press(_ card: CursorCard, option: String) -> CursorPressResult {
             lock.withLock { _pressed.append(card.kind.rawValue + ":" + option) }
@@ -772,32 +775,71 @@ import Testing
     }
 
     /// The app opens the notch on a card that starts a wait and closes it when the chat's cards have gone; the store
-    /// says when each happens.
+    /// says what each read of Cursor's window changed, in one call.
     @Test @MainActor func theStoreSaysWhenACardStartsAWaitAndWhenAChatsCardsHaveGone() async {
         let suite = "NotchmeterTests.CursorCardStore.opens"
         let (store, ui, defaults) = store(suite)
         defer { defaults.removePersistentDomain(forName: suite) }
-        var startedFor: [String] = []
-        var ended: [String] = []
-        store.cursorCardStarted = { startedFor.append($0.id) }
-        store.cursorCardsEnded = { ended.append($0) }
+        var changes: [(started: [String], ended: [String])] = []
+        store.cursorCardsChanged = { started, ended in changes.append((started.map(\.id), ended)) }
+        prompt(store, "c1", project: "proj")
+        prompt(store, "c2", project: "other", at: 1)
+        let card = run("proj"), second = run("other", "make test")
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        #expect(changes.count == 1 && changes[0].started == [key("c1")] && changes[0].ended.isEmpty)
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+        #expect(changes.count == 1, "once for the wait, not once a read")
+
+        // One chat's card leaves as another's arrives: one change, so the panel moves from one to the other.
+        store.cursorCardsSeen([second], now: t0.addingTimeInterval(4))
+        #expect(changes.count == 2 && changes[1].started == [key("c2")] && changes[1].ended == [key("c1")])
+
+        // A card out of Cursor's tree for a read and back is the same card: the wait is a wait again, and nothing
+        // opens on it a second time.
+        store.cursorCardsSeen([], now: t0.addingTimeInterval(5))
+        #expect(changes.count == 3 && changes[2].started.isEmpty && changes[2].ended == [key("c2")])
+        store.cursorCardsSeen([second], now: t0.addingTimeInterval(6))
+        #expect(store.cursorCards[key("c2")] == [second])
+        #expect(store.sessions.sessions[key("c2")]?.isWaiting == true)
+        #expect(changes.count == 3, "no second opening for a card that only flickered")
+        // The same command asked for again later is a new wait.
+        store.cursorCardsSeen([], now: t0.addingTimeInterval(7))
+        store.cursorCardsSeen([second], now: t0.addingTimeInterval(7 + UsageStore.cursorCardFlicker + 1))
+        #expect(changes.last?.started == [key("c2")])
+
+        // Pressed from the notch: the chat's cards end with the press, not with a later read.
+        let before = changes.count
+        ui.cards = [second]
+        store.pressCursorCard(second, option: "Run", sessionID: key("c2"))
+        await until { changes.count > before }
+        #expect(changes.last?.ended == [key("c2")] && changes.last?.started.isEmpty == true)
+        #expect(store.cursorCards[key("c2")] == nil)
+    }
+
+    /// A read Cursor fell behind on comes back short of cards that are still on screen. It is waited out, so the card
+    /// keeps its row and the notch stays as it is; a window that never reads whole is taken as it is after three.
+    @Test @MainActor func aReadCursorDidNotAnswerInTimeDoesNotTakeACardOffItsRow() async {
+        let suite = "NotchmeterTests.CursorCardStore.short"
+        let (store, ui, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         prompt(store, "c1", project: "proj")
         let card = run("proj")
-        store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
-        #expect(startedFor == [key("c1")])
-        store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
-        #expect(startedFor == [key("c1")], "once for the wait, not once a read")
-        #expect(ended.isEmpty)
-        store.cursorCardsSeen([], now: t0.addingTimeInterval(4))
-        #expect(ended == [key("c1")])
-
-        // Pressed from the notch: the card and the chat's cards end with the press, not with a later read.
         ui.cards = [card]
-        store.cursorCardsSeen([card], now: t0.addingTimeInterval(5))
-        #expect(startedFor.count == 2)
-        store.pressCursorCard(card, option: "Run", sessionID: key("c1"))
-        await until { ended.count == 2 }
-        #expect(store.cursorCards[key("c1")] == nil)
+        await store.readCursorCards()
+        #expect(store.cursorCards[key("c1")] == [card])
+        ui.cards = []
+        ui.whole = false
+        await store.readCursorCards()
+        await store.readCursorCards()
+        #expect(store.cursorCards[key("c1")] == [card], "two short reads are waited out")
+        ui.whole = true
+        ui.cards = [card]
+        await store.readCursorCards()
+        #expect(store.cursorCards[key("c1")] == [card])
+        ui.cards = []
+        ui.whole = false
+        for _ in 0..<UsageStore.cursorShortReadLimit { await store.readCursorCards() }
+        #expect(store.cursorCards[key("c1")] == nil, "a window that never reads whole is believed in the end")
     }
 
     @Test func theEndToEndStandInReadsItsCardsFromAFileAndAPressTakesTheCardOut() throws {
@@ -814,10 +856,13 @@ import Testing
         #expect(ui.press(cards[0], option: "Run") == .pressed)
         #expect(ui.scan().map(\.kind) == [.question], "the pressed card is gone, as Cursor's is")
         #expect(ui.press(cards[0], option: "Run") == .gone)
-        // Only beside the oracle: an ordinary launch is never pointed at a file of cards.
-        #expect(FileCursorUI.path(arguments: ["Notchmeter", "--e2e-cursor-cards", "/tmp/c.json"], oracle: nil) == nil)
-        #expect(FileCursorUI.path(arguments: ["Notchmeter", "--e2e-cursor-cards", "/tmp/c.json"], oracle: "/tmp/o.jsonl") == "/tmp/c.json")
-        #expect(FileCursorUI.path(arguments: ["Notchmeter"], oracle: "/tmp/o.jsonl") == nil)
+        // Only beside the oracle's own launch argument, and only once the oracle is writing: an ordinary launch is
+        // never pointed at a file of cards, nor one with NOTCHMETER_ORACLE left set, nor one whose oracle file would not open.
+        let both = ["Notchmeter", "--e2e-oracle", "/tmp/o.jsonl", "--e2e-cursor-cards", "/tmp/c.json"]
+        #expect(FileCursorUI.path(arguments: both, oracleActive: true) == "/tmp/c.json")
+        #expect(FileCursorUI.path(arguments: both, oracleActive: false) == nil)
+        #expect(FileCursorUI.path(arguments: ["Notchmeter", "--e2e-cursor-cards", "/tmp/c.json"], oracleActive: true) == nil)
+        #expect(FileCursorUI.path(arguments: ["Notchmeter", "--e2e-oracle", "/tmp/o.jsonl"], oracleActive: true) == nil)
     }
 
     @Test @MainActor func aQuestionCardIsAWaitOnItsRow() {

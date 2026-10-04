@@ -331,10 +331,21 @@ final class UsageStore {
     @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
     /// A request ended (answered, passed back, overtaken or timed out), by id; wired to NotchActions.promptEnded.
     @ObservationIgnored var promptEnded: (String) -> Void = { _ in }
-    /// One of Cursor's own cards began a wait on a chat (cursorCardsSeen), and a chat's cards have all gone, by
-    /// session id; wired by the app delegate, which opens the panel on the card and closes it again.
-    @ObservationIgnored var cursorCardStarted: (AgentSession) -> Void = { _ in }
-    @ObservationIgnored var cursorCardsEnded: (String) -> Void = { _ in }
+    /// What one read of Cursor's window changed (cursorCardsSeen): the chats on which a card began a wait, and the
+    /// chats, by session id, whose cards have all gone. One call for both, so a card leaving one chat as another's
+    /// arrives is one change to the panel and not a close and an open racing each other. Wired by the app
+    /// delegate, which opens the panel on the card and closes it again.
+    @ObservationIgnored var cursorCardsChanged: (_ started: [AgentSession], _ ended: [String]) -> Void = { _, _ in }
+    /// When each card last left a row, by card id, and how soon after that the same card coming back is the same
+    /// card seen again and no new wait to open the panel on: Cursor redraws its chat as it streams, and a card can
+    /// be out of its tree for a read. Kept for that long only.
+    @ObservationIgnored private var cursorCardLeft: [String: Date] = [:]
+    static let cursorCardFlicker: TimeInterval = 3
+    /// Reads of Cursor's window in a row that came back short (CursorUIControlling.read), and how many are waited
+    /// out before one is taken as it is: a read Cursor fell behind on must not take a card off its row, and a
+    /// window that never reads whole must not freeze the rows either.
+    @ObservationIgnored private var cursorShortReads = 0
+    static let cursorShortReadLimit = 3
     /// The socket replies parked on a decision, by request id. Only `decide` writes to one, which is what makes
     /// the request id a nonce: a line on the socket can start a request but never settle one (HookSocket.swift).
     @ObservationIgnored private var pendingReplies: [String: HookSocket.Reply] = [:]
@@ -2747,9 +2758,15 @@ extension UsageStore {
         let count = cursorPressCount
         let ui = cursorUI
         cursorTreeAsked = true
-        let cards = await Task.detached(priority: .utility) { ui.scan() }.value
+        let read = await Task.detached(priority: .utility) { ui.read() }.value
         guard count == cursorPressCount else { return }
-        cursorCardsSeen(cards)
+        if read.whole {
+            cursorShortReads = 0
+        } else {
+            cursorShortReads += 1
+            guard cursorShortReads >= Self.cursorShortReadLimit else { return }
+        }
+        cursorCardsSeen(read.cards)
     }
 
     /// Tells Cursor the app has stopped reading its windows, once per spell of reading; also on quit.
@@ -2798,11 +2815,16 @@ extension UsageStore {
             applyAwake()
         }
         withdrawWaiting(ended)
-        for id in before.keys where bySession[id] == nil { cursorCardsEnded(id) }
+        // A card that left a moment ago and is back is the same card (cursorCardFlicker): the wait is a wait again,
+        // and the panel is not opened on it a second time, least of all after it was closed by hand.
+        cursorCardLeft = cursorCardLeft.filter { now.timeIntervalSince($0.value) < Self.cursorCardFlicker }
+        let fresh = started.filter { cursorCardLeft[$0.1.id] == nil }.map(\.0)
+        for (id, list) in before where bySession[id] == nil { for card in list { cursorCardLeft[card.id] = now } }
+        let gone = before.keys.filter { bySession[$0] == nil }
+        // Before the notices below, so a panel this opens on the card is already open when the attention setting
+        // is asked what to do about the wait, as a request's is.
+        if !fresh.isEmpty || !gone.isEmpty { cursorCardsChanged(fresh, gone) }
         for (session, card) in started {
-            // Before the notice below, so a panel this opens on the card is already open when the attention
-            // setting is asked what to do about the wait, as a request's is.
-            cursorCardStarted(session)
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
                 deliverSessionEvent(.waiting(blocking: true, kind: card.kind == .run ? .permission : .question), session)

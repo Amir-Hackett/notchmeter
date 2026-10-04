@@ -435,6 +435,7 @@
 "In the pill" = "In the pill";
 "In the side notch" = "In the side notch";
 "Included usage" = "Included usage";
+"Monthly usage" = "Monthly usage";
 "inferred" = "inferred";
 "Inner ring" = "Inner ring";
 "Install" = "Install";
@@ -868,6 +869,7 @@
 "per day since %@" = "per day since %@";
 "Dashboard" = "Dashboard";
 "%@ so far, no limit set" = "%@ so far, no limit set";
+"%@ so far this cycle" = "%@ so far this cycle";
 "Today's spend" = "Today's spend";
 "%1$@ of a usual %2$@ day" = "%1$@ of a usual %2$@ day";
 "Heading for ~%ld%% today" = "Heading for ~%ld%% today";

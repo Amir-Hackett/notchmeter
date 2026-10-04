@@ -410,6 +410,57 @@ import Testing
         #expect(CursorProvider.parsePeriodUsage(Data("<html>".utf8)) == nil)
         #expect(CursorProvider.epochMillis("1770000000") == Date(timeIntervalSince1970: 1_770_000_000))
         #expect(CursorProvider.epochMillis("soon") == nil)
+
+        // A seat with no allowance of the plan's own, whatever the plan: what Cursor says the seat has spent this
+        // cycle (its page's "Your monthly usage") is the cycle's line, against the member's own limit where one is set.
+        let reset = Date(timeIntervalSince1970: 1_800_000_000)
+        let bare = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: reset,
+                                    note: "Enterprise plan has nothing for Cursor to meter yet", periodDuration: 31 * 86_400)
+        let monthly = CursorProvider.applying(enterprise, to: [bare])[0]
+        #expect(monthly.label == "Monthly usage")
+        #expect(monthly.note == "$164.74 so far, no limit set")
+        #expect(monthly.amountUSD == 164.74 && monthly.usedFraction == nil)
+        #expect(monthly.resetsAt == reset && monthly.periodDuration == 31 * 86_400, "the summary's own cycle is kept")
+        let capped = try #require(CursorProvider.parsePeriodUsage(Data(#"{"spendLimitUsage":{"limitType":"user","individualUsed":16474,"individualLimit":50000}}"#.utf8)))
+        let against = CursorProvider.applying(capped, to: [bare])[0]
+        #expect(against.note == "$164.74 of $500")
+        #expect(abs((against.usedFraction ?? 0) - 0.329) < 0.001, "a limit the team set for the member is a real meter")
+        // Nothing spent yet says nothing: a 0 beside "no limit set" would read the same on a free seat.
+        let fresh = try #require(CursorProvider.parsePeriodUsage(Data(#"{"spendLimitUsage":{"limitType":"user","individualUsed":0}}"#.utf8)))
+        #expect(CursorProvider.applying(fresh, to: [bare]) == [bare])
+    }
+
+    /// The same line where Cursor publishes no cycle figure for the seat at all: the export's events since the cycle
+    /// began, each at the cost Cursor gave it.
+    @Test func theCyclesSpendIsSummedFromTheExportWhereCursorPublishesNone() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let now = start.addingTimeInterval(3 * 86_400)
+        let reset = start.addingTimeInterval(31 * 86_400)
+        func event(_ offset: TimeInterval, _ dollars: Double) -> CursorProvider.UsageEvent {
+            CursorProvider.UsageEvent(timestamp: start.addingTimeInterval(offset), model: "m", tokens: TokenBreakdown(), costUSD: dollars)
+        }
+        let events = [event(-3600, 5), event(60, 1.25), event(2 * 86_400, 2.5)]
+        let unmetered = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: reset,
+                                    note: "Enterprise plan has nothing for Cursor to meter yet", periodDuration: 31 * 86_400)
+        #expect(CursorProvider.cycleStart(of: [unmetered]) == start)
+        let read = start.addingTimeInterval(-86_400)
+        let summed = CursorProvider.withCycleSpend([unmetered], events: events, from: read, cycleStart: start, now: now)[0]
+        #expect(summed.label == "Monthly usage")
+        #expect(summed.note == "$3.75 so far this cycle", "the hour before the cycle began is last cycle's")
+        #expect(summed.amountUSD == 3.75 && summed.usedFraction == nil)
+        #expect(summed.source == .localEstimate, "worked out here, not published")
+
+        // Left alone: a read that began after the cycle did (the sum would be short), no cycle start, nothing
+        // spent in the cycle, a cycle already over, a window Cursor filled, and a window with a figure of its own.
+        #expect(CursorProvider.withCycleSpend([unmetered], events: events, from: start.addingTimeInterval(60), cycleStart: start, now: now) == [unmetered])
+        #expect(CursorProvider.withCycleSpend([unmetered], events: events, from: read, cycleStart: nil, now: now) == [unmetered])
+        #expect(CursorProvider.withCycleSpend([unmetered], events: [event(-3600, 5)], from: read, cycleStart: start, now: now) == [unmetered])
+        #expect(CursorProvider.withCycleSpend([unmetered], events: events, from: read, cycleStart: start, now: reset.addingTimeInterval(1)) == [unmetered])
+        let filled = LimitWindow(id: "included", label: .key("Monthly usage"), usedFraction: nil, resetsAt: reset, note: "$164.74 so far, no limit set", amountUSD: 164.74)
+        #expect(CursorProvider.withCycleSpend([filled], events: events, from: read, cycleStart: start, now: now) == [filled])
+        let metered = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: 0.125, resetsAt: reset, note: "$2.50 of $20")
+        #expect(CursorProvider.withCycleSpend([metered], events: events, from: read, cycleStart: start, now: now) == [metered])
+        #expect(CursorProvider.cycleStart(of: [metered]) == nil)
     }
 
     /// Grok Bot is a window only where the seat has one: a paid weekly allowance, or a trial still running.

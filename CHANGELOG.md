@@ -6,8 +6,9 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 ### Cursor
 
-- When Cursor shows one of its own cards, a Run prompt, a mode switch, an approval or a question, the notch opens on that card by itself, with its buttons, and stays until the card is answered, in the notch or in Cursor. Before, the card was only on the chat's row, so the notch had to be opened all the way to reach Run. It needs *Mirror Cursor's cards*. A panel that is already open keeps the card on its row, and a call you handed back with *Answer in Cursor* does not open the notch again.
+- When Cursor shows one of its own cards, a Run prompt, a mode switch, an approval or a question, the notch opens on that card by itself, with its buttons, and stays open until the card is answered, in the notch or in Cursor, or you close it. It does not take the keyboard from the app you are typing in. Before, the card was only on the chat's row, so the notch had to be opened all the way to reach Run. It needs *Mirror Cursor's cards*. A panel that is already open keeps the card on its row, a request waiting for Allow or Deny keeps the panel, and a call you handed back with *Answer in Cursor* does not open the notch again.
 - Pressing a button on one of Cursor's cards no longer makes the row jump. The card used to stay beside the note that said what was pressed for up to a second, a line taller, and then drop. It now leaves with the note, and its buttons are held while the press is on its way.
+- On a seat with no published limit (an Enterprise seat billed on-demand, for one), the Cursor card shows the cycle's spend so far as *Monthly usage*, the figure Cursor's own page calls *Your monthly usage*: Cursor's number where it publishes one, against the member's spend limit where the team set one, and otherwise the usage export added up since the cycle began. A seat with an allowance already shows its cycle against the limit and is unchanged.
 
 ## [0.9.16](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.16) — 2026-10-04
 

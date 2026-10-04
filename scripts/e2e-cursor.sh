@@ -51,6 +51,8 @@ swiftc -O scripts/notch-press.swift -o "$PRESS"
 defaults delete "$DOMAIN" 2>/dev/null || true
 defaults write "$DOMAIN" welcomed -bool true
 defaults write "$DOMAIN" hookOfferShown -bool true
+# Nor the usage card offered once after an update: one of the app's own windows, which holds the panel closed.
+defaults write "$DOMAIN" offerShareCardAfterUpdate -bool false
 defaults write "$DOMAIN" cursorRequireApproval -bool true
 # The buttons are found by their English labels, whatever language the Mac speaks.
 defaults write "$DOMAIN" AppleLanguages -array en
@@ -156,8 +158,8 @@ answered "an MCP call, allowed" beforeMCPExecution ',"tool_name":"search","tool_
 # One of Cursor's own cards (0.9.17), through the stand-in for its window: the notch opens on the card by itself,
 # with no click to open it, Run is pressed on the notch, the press takes the card out of "Cursor's window", and
 # the notch closes with it.
-opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "notification" and o.get("cards") == ["notice"]'
-closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "notification"'
+opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "cursorCard" and o.get("cards") == ["notice"]'
+closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "cursorCard"'
 pressed='o["event"] == "decision" and o.get("source") == "cursorCard" and o.get("session") == "cursor:e2e-card" and o.get("behavior") == "pressed"'
 opened_before="$(count "$opened")"; closed_before="$(count "$closed")"
 printf '{"conversation_id":"e2e-card","hook_event_name":"beforeSubmitPrompt","cursor_version":"e2e","workspace_roots":["%s"],"prompt":"e2e card"}' "$WORK/card-proj" \

@@ -418,6 +418,7 @@
 "In the pill" = "ピル内";
 "In the side notch" = "サイドノッチ内";
 "Included usage" = "プラン内利用";
+"Monthly usage" = "月間利用";
 "inferred" = "推定";
 "Inner ring" = "内側のリング";
 "Install" = "インストール";
@@ -851,6 +852,7 @@
 "per day since %@" = "%@以降の1日あたり";
 "Dashboard" = "ダッシュボード";
 "%@ so far, no limit set" = "現在 %@、上限なし";
+"%@ so far this cycle" = "今サイクルは現在 %@";
 "Today's spend" = "今日の支出";
 "%1$@ of a usual %2$@ day" = "通常の1日 %2$@ のうち %1$@";
 "Heading for ~%ld%% today" = "今日は約%ld%%のペース";

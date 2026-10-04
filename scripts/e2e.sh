@@ -73,6 +73,9 @@ trap cleanup EXIT
 defaults delete "$DOMAIN" 2>/dev/null || true
 defaults write "$DOMAIN" welcomed -bool true
 defaults write "$DOMAIN" hookOfferShown -bool true
+# Nor is the usage card the app offers once after an update, which a Mac with a week of spend behind it gets twenty
+# seconds into this launch: it is one of the app's own windows, and while one is up the panel opens for nothing.
+defaults write "$DOMAIN" offerShareCardAfterUpdate -bool false
 defaults write "$DOMAIN" quietNudgeSeconds -int "$QUIET"
 defaults write "$DOMAIN" mutedNudgeProjects -array muted-proj
 
@@ -261,8 +264,8 @@ expect_none "a command that worked between failures ends the run" "$stuck and o.
 
 # One of Cursor's own cards (0.9.17). A card that starts a wait goes on its chat's row and the notch opens on that
 # card alone, to stay; answered in Cursor (the card leaves its window), the notch closes with it.
-opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "notification" and o.get("cards") == ["notice"]'
-closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "notification"'
+opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "cursorCard" and o.get("cards") == ["notice"]'
+closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "cursorCard"'
 opened_before="$(count "$opened")"; closed_before="$(count "$closed")"
 cursor e2e-card card-proj beforeSubmitPrompt
 cards '[{"kind":"run","window":"card-proj","heading":"ls -la","options":["Skip","Run"]}]'

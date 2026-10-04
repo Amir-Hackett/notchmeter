@@ -355,6 +355,10 @@ enum CursorPressResult: String, Sendable {
 protocol CursorUIControlling: Sendable {
     var trusted: Bool { get }
     func scan() -> [CursorCard]
+    /// The same read with whether it was whole. Cursor's main thread answers each element within half a second or
+    /// not at all, and a read it fell behind on is short of cards that are still on screen, which is not the same
+    /// as a window with none (UsageStore.readCursorCards).
+    func read() -> (cards: [CursorCard], whole: Bool)
     /// A read for Build, which may be the first in a while: Chromium builds its tree only once asked, so a read
     /// that finds no plan card is taken again a few times before it is believed.
     func scanForPlan() -> [CursorCard]
@@ -365,6 +369,7 @@ protocol CursorUIControlling: Sendable {
 
 extension CursorUIControlling {
     func scanForPlan() -> [CursorCard] { scan() }
+    func read() -> (cards: [CursorCard], whole: Bool) { (scan(), true) }
     func release() {}
 }
 
@@ -421,16 +426,26 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         (attribute(app, kAXWindowsAttribute) as? [AXUIElement]) ?? []
     }
 
-    func scan() -> [CursorCard] {
-        guard trusted, let app = application() else { return [] }
+    func scan() -> [CursorCard] { read().cards }
+
+    func read() -> (cards: [CursorCard], whole: Bool) {
+        guard trusted, let app = application() else { return ([], true) }
+        var listed: CFTypeRef?
+        let health = Health()
+        if AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &listed) == .cannotComplete { health.timedOut = true }
         var cards: [CursorCard] = []
-        for window in windows(of: app) {
+        for window in (listed as? [AXUIElement]) ?? [] {
             var budget = Self.nodeBudget
             let title = attribute(window, kAXTitleAttribute) as? String ?? ""
-            let tree = snapshot(window, depth: 0, budget: &budget)
+            let tree = snapshot(window, depth: 0, budget: &budget, health: health)
             cards += CursorCards.detect(in: tree, title: title)
         }
-        return cards
+        return (cards, !health.timedOut)
+    }
+
+    /// Whether a read met an element Cursor did not answer for in time (`kAXErrorCannotComplete`).
+    private final class Health {
+        var timedOut = false
     }
 
     func press(_ card: CursorCard, option: String) -> CursorPressResult {
@@ -478,10 +493,11 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
     }
 
     /// An attribute the element lacks comes back as an error value, which is no String, Bool or array.
-    private func read(_ element: AXUIElement) -> Read {
+    private func read(_ element: AXUIElement, health: Health? = nil) -> Read {
         var values: CFArray?
-        guard AXUIElementCopyMultipleAttributeValues(element, Self.nodeAttributes, [], &values) == .success,
-              let values = values as? [Any], values.count == 7 else { return Read() }
+        let answered = AXUIElementCopyMultipleAttributeValues(element, Self.nodeAttributes, [], &values)
+        if answered == .cannotComplete { health?.timedOut = true }
+        guard answered == .success, let values = values as? [Any], values.count == 7 else { return Read() }
         var read = Read()
         read.role = values[0] as? String ?? ""
         read.enabled = values[4] as? Bool ?? true
@@ -501,15 +517,16 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         var byPath: [[Int]: AXUIElement] = [:]
     }
 
-    private func snapshot(_ element: AXUIElement, depth: Int, budget: inout Int, path: [Int]? = nil, buttons: Buttons? = nil) -> CursorAXNode {
+    private func snapshot(_ element: AXUIElement, depth: Int, budget: inout Int, path: [Int]? = nil, buttons: Buttons? = nil,
+                          health: Health? = nil) -> CursorAXNode {
         budget -= 1
-        let read = read(element)
+        let read = read(element, health: health)
         var node = CursorAXNode(role: read.role, label: nil, enabled: read.enabled, code: read.code)
         if read.role == "AXButton", let path { buttons?.byPath[path] = element }
         guard depth < Self.depthLimit, budget > 0, !Self.skippedRoles.contains(read.role) else { return node }
         for (index, child) in read.children.enumerated() {
             guard budget > 0 else { break }
-            node.children.append(snapshot(child, depth: depth + 1, budget: &budget, path: path.map { $0 + [index] }, buttons: buttons))
+            node.children.append(snapshot(child, depth: depth + 1, budget: &budget, path: path.map { $0 + [index] }, buttons: buttons, health: health))
         }
         node.label = read.label ?? (read.role == "AXButton" ? Self.text(in: node) : nil)
         return node
@@ -536,8 +553,8 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
 /// A stand-in for Cursor's window, for the end-to-end scripts (docs/testing.md): the cards are whatever a JSON file
 /// says, and a press takes its card out of the file, as Cursor's own card goes when its button is pressed. It lets
 /// a run see what the app does with a card (the row, the wait, the notch opening on it and closing after it)
-/// without a Cursor to draw one. `--e2e-cursor-cards <path>`, honoured only beside the oracle, so no ordinary
-/// launch reads cards from a file.
+/// without a Cursor to draw one. `--e2e-cursor-cards <path>`, honoured only beside the `--e2e-oracle` argument and
+/// only once the oracle is writing (the app delegate checks), so no ordinary launch reads cards from a file.
 final class FileCursorUI: CursorUIControlling, @unchecked Sendable {
     struct Entry: Codable, Equatable {
         var kind: String
@@ -556,9 +573,11 @@ final class FileCursorUI: CursorUIControlling, @unchecked Sendable {
         url = URL(fileURLWithPath: path)
     }
 
-    /// The launch argument's file, when the oracle is on too.
-    static func path(arguments: [String] = CommandLine.arguments, oracle: String? = Oracle.path()) -> String? {
-        guard oracle != nil, let index = arguments.firstIndex(of: "--e2e-cursor-cards"), index + 1 < arguments.count else { return nil }
+    /// The launch argument's file, when the oracle's own launch argument is there too and the oracle is writing.
+    /// The environment's NOTCHMETER_ORACLE alone does not count: a variable left set must not point a launch at a file.
+    static func path(arguments: [String] = CommandLine.arguments, oracleActive: Bool = Oracle.shared.isActive) -> String? {
+        guard oracleActive, arguments.contains("--e2e-oracle"),
+              let index = arguments.firstIndex(of: "--e2e-cursor-cards"), index + 1 < arguments.count else { return nil }
         return arguments[index + 1]
     }
 

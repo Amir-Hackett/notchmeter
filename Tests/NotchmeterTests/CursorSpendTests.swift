@@ -269,6 +269,75 @@ import Testing
     }
 
     /// An account that was read and billed nothing is not an account nobody read.
+    /// The cycle's spend so far, on every kind of seat. One with an allowance already says it against its limit and
+    /// gains nothing; one with no published limit gets the *Monthly usage* line, Cursor's own figure where it
+    /// publishes one and the export's sum since the cycle began where it does not; one whose team set a member
+    /// limit gets a real meter; a free seat that has spent nothing is left as it was.
+    @Test func theCyclesSpendIsOnTheCardForEveryKindOfSeat() async throws {
+        let iso = ISO8601DateFormatter()
+        let start = iso.string(from: Self.midday.addingTimeInterval(-10 * 86_400)), end = iso.string(from: Self.midday.addingTimeInterval(20 * 86_400))
+        let enterprise = Data("""
+        {"billingCycleStart":"\(start)","billingCycleEnd":"\(end)","membershipType":"enterprise","limitType":"team","isUnlimited":false,
+         "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null}},"teamUsage":{"onDemand":{"enabled":true,"used":0,"limit":null}}}
+        """.utf8)
+        // Ten dollars in this cycle, fifty in the one before it.
+        let export = Self.events([(offset: -3600, cents: 400, model: "m"), (offset: -2 * 86_400.0, cents: 600, model: "m"), (offset: -12 * 86_400.0, cents: 5000, model: "m")])
+        func answer(summary: Data, period: (Int, Data), export: Data) -> @Sendable (URL, Int) -> (Int, Data) {
+            { url, _ in
+                switch url {
+                case CursorProvider.summaryURL: (200, summary)
+                case CursorProvider.periodUsageURL: period
+                case CursorProvider.teamsURL: (200, Data("{}".utf8))
+                case CursorProvider.usageEventsURL: (200, export)
+                default: (404, Data())
+                }
+            }
+        }
+        func included(_ reading: UsageReading) throws -> LimitWindow { try #require(reading.windows.first { $0.id == "included" }) }
+
+        // No limit, and Cursor says what the seat has spent: its figure, to the cent, with Today's spend still leading.
+        let published = (200, Data(#"{"spendLimitUsage":{"limitType":"user","individualUsed":30267,"totalSpend":30267}}"#.utf8))
+        try await withCursor("monthly-published", answer: answer(summary: enterprise, period: published, export: export)) { provider, _, _, _ in
+            let reading = try await provider.fetch()
+            #expect(reading.windows.first?.id == "spend_today")
+            let window = try included(reading)
+            #expect(window.label == "Monthly usage")
+            #expect(window.note == "$302.67 so far, no limit set")
+            #expect(window.amountUSD == 302.67 && window.usedFraction == nil)
+            #expect(window.source == .vendorEndpoint)
+        }
+        // No limit, and Cursor publishes no cycle figure: the export since the cycle began.
+        try await withCursor("monthly-summed", answer: answer(summary: enterprise, period: (404, Data()), export: export)) { provider, _, _, _ in
+            let window = try included(try await provider.fetch())
+            #expect(window.label == "Monthly usage")
+            #expect(window.note == "$10 so far this cycle", "not the fifty dollars of the cycle before")
+            #expect(window.source == .localEstimate)
+        }
+        // A limit the team set for the member: a real meter, which leads, and Today's spend yields to it.
+        let capped = (200, Data(#"{"spendLimitUsage":{"limitType":"user","individualUsed":30267,"individualLimit":50000}}"#.utf8))
+        try await withCursor("monthly-capped", answer: answer(summary: enterprise, period: capped, export: export)) { provider, _, _, _ in
+            let reading = try await provider.fetch()
+            #expect(reading.windows.first?.id == "included")
+            #expect(reading.windows.first?.note == "$302.67 of $500")
+            #expect(abs((reading.windows.first?.usedFraction ?? 0) - 0.605) < 0.001)
+        }
+        // A seat with an allowance already says the cycle's spend against it, and is not asked twice.
+        try await withCursor("monthly-pro", answer: answer(summary: Self.summary, period: published, export: export)) { provider, _, _, exchange in
+            let window = try included(try await provider.fetch())
+            #expect(window.label == "Included usage")
+            #expect(window.note == "$2.50 of $20")
+            #expect(exchange.ask(CursorProvider.periodUsageURL) == nil)
+        }
+        // A free seat that has spent nothing is left as it was.
+        let free = Data(#"{"membershipType":"free","individualUsage":{"plan":{"enabled":false,"used":0,"limit":0}}}"#.utf8)
+        let nothing = try JSONSerialization.data(withJSONObject: ["usageEventsDisplay": [Any]()])
+        try await withCursor("monthly-free", answer: answer(summary: free, period: (200, Data(#"{"spendLimitUsage":{"limitType":"user","individualUsed":0}}"#.utf8)), export: nothing)) { provider, _, _, _ in
+            let window = try included(try await provider.fetch())
+            #expect(window.label == "Included usage")
+            #expect(window.amountUSD == nil)
+        }
+    }
+
     @Test func anEmptyExportSaysSoRatherThanClaimingNothingWasRead() async throws {
         try await withCursor("empty", answer: Self.answering { _ in (200, Data(#"{"usageEventsDisplay":[]}"#.utf8)) }) { provider, history, defaults, _ in
             _ = try await provider.fetch()

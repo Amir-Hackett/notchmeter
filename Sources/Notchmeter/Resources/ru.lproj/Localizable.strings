@@ -435,6 +435,7 @@
 "In the pill" = "В капсуле";
 "In the side notch" = "В боковом вырезе";
 "Included usage" = "Включено в тариф";
+"Monthly usage" = "Использование за месяц";
 "inferred" = "оценка";
 "Inner ring" = "Внутреннее кольцо";
 "Install" = "Установить";
@@ -868,6 +869,7 @@
 "per day since %@" = "в день · начало: %@";
 "Dashboard" = "Сводка";
 "%@ so far, no limit set" = "Пока %@, лимит не задан";
+"%@ so far this cycle" = "Пока %@ за этот цикл";
 "Today's spend" = "Расходы за сегодня";
 "%1$@ of a usual %2$@ day" = "%1$@ при обычных %2$@ в день";
 "Heading for ~%ld%% today" = "Прогноз на сегодня: ~%ld%%";
