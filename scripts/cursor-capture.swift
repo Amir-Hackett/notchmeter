@@ -7,8 +7,10 @@
 // a question whose options you chose yourself, "Skip,Switch" for the mode card, "Skip,Run" for the Run prompt. While
 // it runs, whenever the elements labelled with a group's words are on screen it writes the smallest part of the
 // window's tree that holds them, two levels up, as one JSON line: roles, subroles, labels, values, enabled and
-// selected states and the actions each control takes. Nothing outside that part of the window is written: no
-// sidebar, no editor, no other chat. A shape already written for a group is not written again.
+// selected states, the actions each element takes (a thing Cursor draws as plain text can still take a press) and
+// the names Cursor's own page gives it (its CSS classes, which is where a picked choice shows when no state
+// says so). Nothing outside that part of the window is written: no sidebar, no editor, no other chat. A shape
+// already written for a group is not written again, so a card whose state changes is written once per state.
 //
 // It reads Cursor's windows through the Accessibility API and presses nothing. It needs the Accessibility
 // permission for the app the terminal runs in (Cursor itself for its integrated terminal), and says so and stops
@@ -56,8 +58,11 @@ final class Node {
     var enabled = true
     var selected: Bool?
     var actions: [String] = []
+    var classes: [String] = []
     var children: [Node] = []
     weak var parent: Node?
+    /// Kept so the part of the tree that is written can be asked for more than the whole window is (`detail`).
+    var element: AXUIElement?
 
     /// The words a control or a run of text is known by.
     var label: String {
@@ -77,6 +82,7 @@ final class Node {
         if !enabled { out["enabled"] = false }
         if let selected { out["selected"] = selected }
         if !actions.isEmpty { out["actions"] = actions }
+        if !classes.isEmpty { out["classes"] = classes }
         if !children.isEmpty { out["children"] = children.map(\.json) }
         return out
     }
@@ -94,6 +100,7 @@ let interactive: Set<String> = ["AXButton", "AXPopUpButton", "AXRadioButton", "A
 func read(_ element: AXUIElement, depth: Int, budget: inout Int) -> Node {
     budget -= 1
     let node = Node()
+    node.element = element
     node.role = attribute(element, kAXRoleAttribute) as? String ?? ""
     node.subrole = attribute(element, kAXSubroleAttribute) as? String
     node.title = attribute(element, kAXTitleAttribute) as? String
@@ -116,6 +123,20 @@ func read(_ element: AXUIElement, depth: Int, budget: inout Int) -> Node {
         node.children.append(read)
     }
     return node
+}
+
+/// What is asked only of the elements about to be written, a few hundred at most and not a window's thousands:
+/// the actions of every one of them, whatever its role, and its classes on Cursor's page.
+func detail(_ node: Node) {
+    if let element = node.element {
+        if node.actions.isEmpty {
+            var names: CFArray?
+            AXUIElementCopyActionNames(element, &names)
+            node.actions = (names as? [String]) ?? []
+        }
+        node.classes = ((attribute(element, "AXDOMClassList") as? [String]) ?? []).map { String($0.prefix(textLimit)) }
+    }
+    node.children.forEach(detail)
 }
 
 /// A label without its keyboard hint ("Switch ⌘⏎" → "switch"), as Notchmeter's CursorCards.normalized reads it.
@@ -186,6 +207,7 @@ while Date() < deadline {
             guard found.count >= min(group.count, 2), var top = commonAncestor(anchors) else { continue }
             for _ in 0..<2 { if let parent = top.parent, parent.count <= subtreeLimit { top = parent } }
             guard top.count <= subtreeLimit else { continue }
+            detail(top)
             let tree = top.json
             guard let shape = try? JSONSerialization.data(withJSONObject: tree, options: [.sortedKeys]),
                   written[index, default: []].insert(String(decoding: shape, as: UTF8.self)).inserted else { continue }

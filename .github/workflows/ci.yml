@@ -62,10 +62,12 @@ jobs:
 
       - name: The hands-on end-to-end script parses and its helper typechecks
         # scripts/e2e-cursor.sh presses the notch's own buttons, which needs an Accessibility grant no runner has,
-        # so it is run on a Mac (docs/testing.md); this keeps it and scripts/notch-press.swift from rotting unseen.
+        # so it is run on a Mac (docs/testing.md); this keeps it and scripts/notch-press.swift from rotting unseen,
+        # and the recorder of Cursor's cards with them (scripts/cursor-capture.swift), which needs the same grant.
         run: |
           bash -n scripts/e2e-cursor.sh
           swiftc -typecheck scripts/notch-press.swift
+          swiftc -typecheck scripts/cursor-capture.swift
 
       - name: Zip the app bundle
         run: ditto -c -k --keepParent build/Notchmeter.app build/Notchmeter.zip
