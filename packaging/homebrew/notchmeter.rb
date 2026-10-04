@@ -13,8 +13,8 @@
 # `brew install --cask --no-quarantine notchmeter` (docs/release.md, "Testing an unsigned build"). The published
 # release is notarised and needs neither.
 cask "notchmeter" do
-  version "0.9.14"
-  sha256 "39cbe97469b2512aa21d3c3f5f3261a797d245df5c1d6fa25fe4c8eba4b72332"
+  version "0.9.15"
+  sha256 "b0046d4fec399dd0c3ec7afbb84bf12efd466d916e770e381fd9233f3e3932a5"
 
   url "https://github.com/Amir-Hackett/notchmeter/releases/download/v#{version}/Notchmeter.dmg"
   name "Notchmeter"
