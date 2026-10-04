@@ -1,7 +1,7 @@
 # Permissions
 
-Two optional features ask for a permission each: *Readouts › Auto* for Accessibility, and a click on a session row
-for Automation of that session's terminal. A copy that has never had Auto picked and never had a row clicked is
+Three optional features ask for a permission: *Readouts › Auto* and *Mirror Cursor's cards* for Accessibility, and a
+click on a session row for Automation of that session's terminal. A copy that has never had Auto picked and never had a row clicked is
 never asked anything, at launch or otherwise.
 
 Finding sessions without the hook (0.9.0, [docs/hooks.md](hooks.md#sessions-found-without-the-hook)) asks for nothing: it
@@ -41,6 +41,30 @@ menu-heavy app (Chrome, Xcode) would run into them.
   the Repair button offers it again whenever you want it.
 - **Seeing what it read.** `--menu-bar` prints every menu bar extra and which of them Auto counts
   ([docs/testing.md](testing.md#seeing-what-auto-measured)). It reads nothing the feature does not already read.
+
+## Accessibility, also for *Mirror Cursor's cards*
+
+*Mirror Cursor's cards* (Settings › Cursor, off by default, 0.9.15) shows Cursor's Run prompt and its mode-switch
+card on the session's row, presses the button you pick, and presses Build on a plan's card when you press Build on
+the row ([docs/hooks.md](hooks.md#cursor)).
+
+- **What it reads.** Cursor's own windows only (bundle `com.todesktop.230313mzl4w4u92`): the role, label and title
+  of its elements, enough to recognise a card by its buttons. It keeps a card's heading (at most 160 characters; a
+  Run card's is the command), the chat's name where the window shows one, and the button labels, in memory and
+  nothing else, and logs none of it.
+- **What it writes.** `AXManualAccessibility` on Cursor's application element, which makes an Electron app build
+  its accessibility tree, and `AXPress` on the one button you picked, after re-reading the card to make sure it
+  has not changed. Nothing else, in Cursor or anywhere. Turning the switch off, or quitting Notchmeter, sets
+  `AXManualAccessibility` back to false.
+- **What Cursor does about it.** Asked for its tree, Cursor takes the asker for a screen reader: its editor's status
+  bar shows *Screen Reader Optimized* while the tree is on (Cursor 3.23.12). `"editor.accessibilitySupport": "off"`
+  in Cursor's settings keeps the editor as it was; the cards are read either way.
+- **When it reads.** Once a second, only while the switch is on, the permission is granted, a Cursor chat on this
+  Mac is in a turn (working, or waiting on a card) and the Mac is awake and unlocked; and when you press Build on a
+  plan's row, which reads until it finds that plan's card, four times at most. Each read stops after 20,000 elements and is one message to Cursor per element (about 0.1 s for
+  the two windows of a short chat). An idle or finished chat's row is never a reason to read.
+- **Without it.** Cursor's cards stay in Cursor, the switch's caption says Accessibility is needed, and a plan
+  row's Build opens the plan in Cursor instead of pressing anything.
 
 No other part of Notchmeter uses the Accessibility API. It never asks for Screen Recording, the microphone, the
 camera, Full Disk Access, Contacts, Calendars or Location; the screen-share check is a yes/no from the window

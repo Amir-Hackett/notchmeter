@@ -4,9 +4,19 @@
 # quiet-turn nudge, a muted project's nudge, and a session's back-off after a nudge it went on from by itself; and since
 # 0.9.13 every assistant's task list through its own hook command (Cursor's from a transcript the run writes under
 # ~/.cursor/projects and removes), the compaction and the model another assistant reports, and a turn nobody typed.
+# Since 0.9.15 Cursor's own: a plan on the row from `CreatePlan` before it is built, the statuses of the plan file
+# the run writes under ~/.cursor/plans and removes, a change to that file with no hook, a Build, and *Require notch
+# approval* at its three edges that need no hand on the notch: off (nothing printed), on with no app running, and
+# on with nobody answering (both hand the call back to Cursor's own prompt). The answers themselves, pressed on
+# the notch, are scripts/e2e-cursor.sh.
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
+#
+# On a Mac where Cursor is in use: for the two minutes of the run *Require notch approval* is on in the real
+# preferences, which Cursor's own hook reads, so a command a real Cursor chat runs meanwhile is held or handed to
+# Cursor's own prompt. The exit trap puts the setting back; a run killed with SIGKILL leaves it on, and
+# `defaults delete com.amirhackett.notchmeter cursorRequireApproval` takes it off.
 set -euo pipefail
 
 APP="${1:-build/Notchmeter.app}"
@@ -28,6 +38,8 @@ fi
 WORK="$(mktemp -d)"
 # Cursor's transcripts live under ~/.cursor/projects; the app reads none anywhere else, so the run's one goes there.
 CURSOR_PROJECT="$HOME/.cursor/projects/notchmeter-e2e-$$"
+# And its plan files under ~/.cursor/plans, where the app reads none anywhere else either.
+CURSOR_PLAN="$HOME/.cursor/plans/notchmeter_e2e_$$.plan.md"
 ORACLE="$WORK/oracle.jsonl"
 BACKUP="$WORK/prefs.plist"
 defaults export "$DOMAIN" "$BACKUP" 2>/dev/null || true
@@ -35,12 +47,23 @@ APP_PID=""
 
 cleanup() {
   if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true; fi
+  if [ -n "${HELD_PID:-}" ]; then kill "$HELD_PID" 2>/dev/null || true; fi
+  # What the run put under ~/.cursor goes first, so nothing below can leave it behind; the two folders go too when
+  # the run made them and they are empty again.
+  rm -rf "$CURSOR_PROJECT"
+  rm -f "$CURSOR_PLAN"
+  if [ -n "$MADE_PROJECTS" ]; then rmdir "$HOME/.cursor/projects" 2>/dev/null || true; fi
+  if [ -n "$MADE_PLANS" ]; then rmdir "$HOME/.cursor/plans" 2>/dev/null || true; fi
+  if [ -n "$MADE_CURSOR" ]; then rmdir "$HOME/.cursor" 2>/dev/null || true; fi
   defaults delete "$DOMAIN" 2>/dev/null || true
-  if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP"; fi
+  if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP" || echo "e2e: could not put the preferences back from $BACKUP" >&2; fi
   if [ -n "${KEEP_ORACLE:-}" ]; then cp "$ORACLE" "$KEEP_ORACLE" 2>/dev/null || true; fi
   rm -rf "$WORK"
-  rm -rf "$CURSOR_PROJECT"
 }
+MADE_CURSOR=""; MADE_PROJECTS=""; MADE_PLANS=""
+[ -d "$HOME/.cursor" ] || MADE_CURSOR=1
+[ -d "$HOME/.cursor/projects" ] || MADE_PROJECTS=1
+[ -d "$HOME/.cursor/plans" ] || MADE_PLANS=1
 trap cleanup EXIT
 
 # A first launch shows the Welcome and the hook offer; neither is under test. The quiet spell is the floor of its
@@ -52,6 +75,21 @@ defaults write "$DOMAIN" quietNudgeSeconds -int "$QUIET"
 defaults write "$DOMAIN" mutedNudgeProjects -array muted-proj
 
 mkdir -p "$WORK/loud-proj" "$WORK/muted-proj"
+
+# Cursor's *Require notch approval*, before the app is up. Off, the hook holds nothing and prints nothing, so
+# Cursor's own flow decides. On with no app to ask, the call is handed to Cursor's own prompt, never left to run.
+held_shell() { # conversation, command
+  printf '{"conversation_id":"%s","hook_event_name":"beforeShellExecution","cursor_version":"e2e","workspace_roots":["%s"],"cwd":"%s","command":"%s"}' \
+    "$1" "$WORK/loud-proj" "$WORK/loud-proj" "$2" | "$BIN" --hook --tool cursor
+}
+out="$(held_shell e2e-approve 'echo off')"
+[ -z "$out" ] && echo "ok: with Require notch approval off the hook prints nothing" || { echo "FAIL: approval off printed: $out" >&2; exit 1; }
+defaults write "$DOMAIN" cursorRequireApproval -bool true
+# The shortest hold the setting allows, so the unanswered call below comes back inside the run.
+defaults write "$DOMAIN" promptHoldSeconds -int 15
+out="$(held_shell e2e-approve 'echo closed')"
+[ "$out" = '{"permission":"ask"}' ] && echo "ok: with the app closed a held call is handed to Cursor's own prompt" \
+  || { echo "FAIL: app closed printed: $out" >&2; exit 1; }
 "$BIN" --e2e-oracle "$ORACLE" --no-prompt >"$WORK/app.log" 2>&1 &
 APP_PID=$!
 
@@ -157,6 +195,51 @@ wait_for "Cursor's plan, read from its transcript" "$planned and o.get(\"todos\"
 todo_line '{"merge":true,"todos":[{"id":"1","status":"completed"},{"id":"3","status":"cancelled"}]}'
 cursor_event afterAgentResponse
 wait_for "and a merge by id, read from where the last read ended" "$planned and o.get(\"todos\") == {\"done\": 1, \"total\": 2}" 1 10
+
+# Cursor's plan (0.9.15): on the row before it is built, then the plan file's statuses, a change to that file with no
+# hook, and a Build.
+PLAN_TRANSCRIPT="$CURSOR_PROJECT/agent-transcripts/e2e-plan/e2e-plan.jsonl"
+mkdir -p "$(dirname "$PLAN_TRANSCRIPT")" "$(dirname "$CURSOR_PLAN")"
+plan_event() { # event, extra JSON members
+  printf '{"conversation_id":"e2e-plan","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"],"transcript_path":"%s"%s}' \
+    "$1" "$WORK/loud-proj" "$PLAN_TRANSCRIPT" "${2:-}" | "$BIN" --hook --tool cursor --event "$1" >/dev/null
+}
+plan_file() { # status of a, b, c
+  printf -- '---\nname: notchmeter e2e %s\noverview: A plan the end-to-end run wrote.\ntodos:\n  - id: a\n    content: "One: first"\n    status: %s\n  - id: b\n    content: Second\n    status: %s\n  - id: c\n    content: Third\n    status: %s\nisProject: false\n---\n\n# E2E\n' \
+    "$$" "$1" "$2" "$3" >"$CURSOR_PLAN"
+}
+its_plan='o["event"] == "session" and o.get("action") == "plan" and o.get("session") == "e2e-plan"'
+printf '{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"notchmeter e2e %s","overview":"A plan the end-to-end run wrote.","todos":[{"id":"a","content":"One: first"},{"id":"b","content":"Second"},{"id":"c","content":"Third"}]}}]}}\n' "$$" >>"$PLAN_TRANSCRIPT"
+plan_event beforeSubmitPrompt ',"composer_mode":"plan","prompt":"plan it"'
+wait_for "Cursor's plan is on the row before it is built" "$its_plan and o.get(\"source\") == \"transcript\" and o.get(\"todos\") == {\"done\": 0, \"total\": 3}" 1 10
+wait_for "and its mode is the prompt's" "$heard and o.get(\"session\") == \"e2e-plan\" and o.get(\"composerMode\") == \"plan\"" 1 5
+plan_file completed pending pending
+plan_event afterAgentResponse
+wait_for "the plan file's statuses reach the row" "$its_plan and o.get(\"source\") == \"plan\" and o.get(\"todos\") == {\"done\": 1, \"total\": 3}" 1 10
+plan_event stop ',"status":"completed"'
+# The turn's last hook has been read before the file changes, so the read that sees the change is the app's own
+# look at the file's date, not a hook's.
+wait_for "the turn ended" "$heard and o.get(\"session\") == \"e2e-plan\" and o.get(\"name\") == \"Stop\"" 1 10
+sleep 2
+plan_file completed completed pending
+wait_for "a plan file changed with no hook is read again" "$its_plan and o.get(\"todos\") == {\"done\": 2, \"total\": 3}" 1 15
+plan_event beforeSubmitPrompt ',"composer_mode":"agent","prompt":"E2E\n\nImplement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself."'
+wait_for "a Build is a Build, in Agent mode" "$heard and o.get(\"session\") == \"e2e-plan\" and o.get(\"planBuild\") is True and o.get(\"composerMode\") == \"agent\"" 1 10
+
+# *Require notch approval* with nobody at the notch: the call is held, the app's own hold runs out, and the hook
+# hands the call to Cursor's own prompt. Nothing runs on silence.
+cursor e2e-approve loud-proj beforeSubmitPrompt
+held_shell e2e-approve 'echo held' >"$WORK/held.out" &
+HELD_PID=$!
+wait_for "a shell command is held for the notch" "$heard and o.get(\"session\") == \"e2e-approve\" and o.get(\"request\") == \"permission\"" 1 10
+# The app's hold is 15 seconds; a hook still waiting well past it is a failure, not something to sit out.
+for _ in $(seq 1 45); do kill -0 "$HELD_PID" 2>/dev/null || break; sleep 1; done
+if kill -0 "$HELD_PID" 2>/dev/null; then echo "FAIL: the held hook was still waiting 45 s on" >&2; exit 1; fi
+wait "$HELD_PID" || true
+HELD_PID=""
+[ "$(cat "$WORK/held.out")" = '{"permission":"ask"}' ] && echo "ok: unanswered, the held call goes to Cursor's own prompt" \
+  || { echo "FAIL: the unanswered call printed: $(cat "$WORK/held.out")" >&2; exit 1; }
+wait_for "and the app says it passed it back" 'o["event"] == "decision" and o.get("session") == "cursor:e2e-approve" and o.get("behavior") == "pass"' 1 5
 
 # A compaction another assistant reports, start and end.
 hook codex '{"hook_event_name":"PreCompact","session_id":"e2e-codex","cwd":"'"$WORK"'/loud-proj","model":"gpt-5.5","trigger":"auto"}'

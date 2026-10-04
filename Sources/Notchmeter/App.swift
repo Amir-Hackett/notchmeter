@@ -391,6 +391,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyCenter.shared.unregisterAll()
         localAPI?.stop()
         store.stopListeningForHooks()
+        // Cursor is told the app has stopped reading its windows, or it would go on believing a screen reader is there.
+        store.cursorUI.release()
         awake.apply(hold: false)
         // The drain log's appends are asynchronous on its serial queue, and GCD does not run what is still queued
         // when the process exits, so the row for a reading adopted in the last moments before quit was lost until
@@ -1155,6 +1157,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         facts.tools = ToolID.allCases.map { ($0.displayName, Probe.describe(store.status($0)).replacingOccurrences(of: "\n", with: " ")) }
         facts.hook = HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ")
         facts.statusline = HookSettings.statuslineStatus().text
+        let cursorHook = HookSettings.status(vendor: .cursor)
+        var cursor = CursorCapabilities.Inputs()
+        cursor.version = CursorCapabilities.installedVersion()
+        if case .notInstalled = cursorHook {} else { cursor.hookInstalled = true }
+        if case .installed = cursorHook { cursor.hookCurrent = true }
+        cursor.readsSessions = prefs.readsSessions(of: .cursor)
+        cursor.answersFromNotch = prefs.answersFromNotch(.cursor)
+        cursor.requireApproval = prefs.cursorRequireApproval
+        cursor.mirrorCards = prefs.cursorControl
+        cursor.trusted = AXIsProcessTrusted()
+        cursor.running = CursorCapabilities.running
+        facts.cursor = CursorCapabilities.line(cursor)
         facts.localAPI = localAPI?.isRunning == true
         facts.debugLogging = prefs.debugLogging
         return facts

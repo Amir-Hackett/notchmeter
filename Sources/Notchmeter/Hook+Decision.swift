@@ -405,6 +405,9 @@ extension Hook {
             }
         }
 
+        /// What a held Cursor call prints when the notch did not answer it: Cursor's own prompt decides.
+        static let cursorDefer = #"{"permission":"ask"}"#
+
         /// What the command prints for `event` given the app's reply and the payload it read: Claude Code's
         /// `PermissionRequest` decision (the shape Codex and Copilot's PascalCase event document too; *Allow always*
         /// adds `updatedPermissions` with the one suggestion chosen, `offeredEntry(at:payload:)`), or a
@@ -432,6 +435,14 @@ extension Hook {
             case ("Elicitation", .elicitation(let answer)):
                 guard let output = elicitationOutput(answer, payload: payload) else { return nil }
                 object = output
+            // Cursor's flat contract (cursor.com/docs/agent/hooks), never Claude's `hookSpecificOutput`. Only an
+            // explicit answer prints; a pass prints nothing and Cursor's own flow decides.
+            case (let event, .allow) where Cursor.decisionEvents.contains(event),
+                 (let event, .allowAlways) where Cursor.decisionEvents.contains(event):
+                object = ["permission": "allow"]
+            case (let event, .deny(let message)) where Cursor.decisionEvents.contains(event):
+                object = ["permission": "deny", "user_message": message ?? deniedMessage,
+                          "agent_message": "The user denied this from Notchmeter."]
             default:
                 return nil
             }

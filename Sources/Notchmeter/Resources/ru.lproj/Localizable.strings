@@ -155,6 +155,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "Ассистент, который включён и установлен, но пока не имеет ни показаний, ни расходов, ни сессий, не показывается на панели и кольцах, пока они не появятся; последний видимый ассистент никогда не скрывается. Пока какой-либо ассистент скрыт, панель заканчивается строкой «Добавить инструмент», которая открывает этот раздел.";
 "Answer from the notch" = "Отвечать из выреза";
 "Answer in the terminal" = "Отвечать в терминале";
+"Answer in Cursor" = "Отвечать в Cursor";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Ассистенты, которым пока нечего показать, не отображаются на панели. Открывает Настройки › Ассистенты, где в строке каждого указано, чего он ждёт.";
 "Automation" = "Автоматизация";
 "Check again" = "Проверить снова";
@@ -183,6 +184,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "Возвращать запрос в терминал через";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Возвращает запрос в терминал, который спрашивает как обычно; Escape делает то же самое.";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Возвращает запрос в Cursor, который показывает собственный запрос; Escape делает то же самое.";
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
 "Hooks" = "Хуки";
 "Idle" = "Бездействует";
@@ -915,8 +917,6 @@
 "%1$ld of %2$ld done" = "Сделано %1$ld из %2$ld";
 "Task list" = "Список задач";
 "Untitled task" = "Задача без названия";
-"Claude Code's task list for this session; click to show it" = "Список задач Claude Code для этой сессии; щёлкните, чтобы показать";
-"Claude Code's task list for this session" = "Список задач Claude Code для этой сессии";
 "Subagent %ld" = "Субагент %ld";
 "How full this session's context window is, from its status line" = "Насколько заполнено окно контекста этой сессии, по её строке состояния";
 "In progress" = "В работе";
@@ -984,7 +984,6 @@
 "Off for every assistant under Assistants › Sessions." = "Выключено для всех ассистентов в разделе «Ассистенты › Сессии».";
 "Its sessions are not read." = "Его сессии не читаются.";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code отвечает из выреза только с записями хука версии 0.7.0: раздел хука выше показывает «Исправить» (или «Добавить»), пока их нет.";
-"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "У Cursor нет события, на которое можно ответить: его подтверждения всегда даются в самом Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Хук Gemini CLI только сообщает: на его запросы разрешений всегда отвечают в терминале.";
 /* 0.9.0: the Gemini CLI, Antigravity and Kimi Code pages (SettingsWindow loginNote, readingsNote, noAnswerNote) */
 "The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written." = "Вход Google, который Gemini CLI хранит в ~/.gemini/oauth_creds.json. Только чтение: никогда не обновляется и не записывается.";
@@ -1317,3 +1316,31 @@
 "Notchmeter's catalog of %@" = "каталог Notchmeter от %@";
 "this build's table of %@" = "таблица этой сборки от %@";
 "a family guess" = "оценка по семейству моделей";
+
+"This session's task list; click to show it" = "Список задач этой сессии; нажмите, чтобы показать";
+"This session's task list" = "Список задач этой сессии";
+"The plan file is gone" = "Файла плана больше нет";
+"Cursor or the Accessibility permission is unavailable; nothing was pressed" = "Cursor или разрешение Универсального доступа недоступны; ничего не нажато";
+"Mode" = "Режим";
+"Mirror Cursor's cards" = "Отражать карточки Cursor";
+"Background" = "Фон";
+"Cursor asks to switch mode" = "Cursor просит сменить режим";
+"Open this plan in Cursor" = "Открыть этот план в Cursor";
+"The mode this Cursor chat runs in" = "Режим, в котором работает этот чат Cursor";
+"Build" = "Build";
+"Press Build on this plan in Cursor" = "Нажать Build для этого плана в Cursor";
+"Cursor's plan is ready to build" = "План Cursor готов к сборке";
+"Opened in Cursor: its Build card is not on screen, so press Build there" = "Открыто в Cursor: карточки Build нет на экране, нажмите Build там";
+"Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "Нужен Универсальный доступ: Системные настройки › Конфиденциальность и безопасность › Универсальный доступ › Notchmeter.";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "Пока это включено, во время хода Cursor принимает Notchmeter за программу чтения с экрана, и его редактор показывает Screen Reader Optimized. Чтобы редактор остался прежним, задайте editor.accessibilitySupport значение off в настройках Cursor.";
+"View Plan" = "View Plan";
+"A Cursor background agent" = "Фоновый агент Cursor";
+"Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Открыто в Cursor: включите «Отражать карточки Cursor», чтобы собирать из выреза";
+"Pressed %@ in Cursor" = "В Cursor нажато %@";
+"Require notch approval for every command" = "Требовать подтверждения в вырезе для каждой команды";
+"Pressed %@, but Cursor's card is still showing" = "Нажато %@, но карточка Cursor всё ещё видна";
+"Cursor's card changed before the press; nothing was pressed" = "Карточка Cursor изменилась до нажатия; ничего не нажато";
+"Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Каждая команда оболочки и каждый вызов MCP в Cursor ждут Разрешить или Запретить в вырезе, даже те, что список разрешённого Cursor выполнил бы без вопроса. Без ответа Cursor показывает свой запрос; без ответа ничего не запускается.";
+"Presses this button on Cursor's card" = "Нажимает эту кнопку на карточке Cursor";
+"Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Показывает карточки Cursor с Run, сменой режима и планом в строке сессии и нажимает выбранную кнопку. Читает окна Cursor через Универсальный доступ, никогда не экран.";
+"Cursor is waiting to run a command" = "Cursor ждёт, чтобы выполнить команду";

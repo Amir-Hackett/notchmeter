@@ -104,6 +104,16 @@ struct SessionsCard: View {
         var denials: [Stamped<Denial>] = []
         /// Whether the session runs in a git worktree.
         var worktree = false
+        /// Cursor's composer mode when it is not plain Agent (Plan, Ask…), and whether it is a background agent.
+        var mode: String? = nil
+        var background = false
+        /// The Cursor plan the task list comes from, and where it stands (View Plan, Build).
+        var plan: PlanMark? = nil
+
+        struct PlanMark: Equatable, Sendable {
+            let file: String
+            let state: CursorPlanState
+        }
 
         enum Note: Equatable, Sendable {
             case waitingForAnswer, doneJump, justFinished
@@ -196,6 +206,10 @@ struct SessionsCard: View {
                 : session.idleTeammates
             row.denials = session.denials
             row.worktree = session.worktree
+            // Plain Agent needs no chip, and a cloud agent's mode ("background") is the Background chip itself.
+            row.mode = session.composerMode.flatMap { $0 == "agent" || $0 == "background" ? nil : $0 }
+            row.background = session.background || session.composerMode == "background"
+            if let file = session.planFile { row.plan = Row.PlanMark(file: file, state: session.planState) }
             return row
         }
         return (rows, max(0, sessions.count - cap))
@@ -386,7 +400,12 @@ struct SessionsCard: View {
                                        },
                                        open: Set(Disclosure.allCases.filter { store.openSessionLists.contains(Self.listKey(row.id, $0)) }),
                                        toggle: { toggle(row.id, $0) }, embedded: embedded,
-                                       advice: lines.onRow[row.id]?.map(\.text) ?? [])
+                                       advice: lines.onRow[row.id]?.map(\.text) ?? [],
+                                       planAction: { plan, action in store.cursorPlanAction(plan.file, action, sessionID: row.id) },
+                                       cursorCards: store.cursorCards[row.id] ?? [],
+                                       cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: row.id) },
+                                       cursorNote: store.cursorActionNotes[row.id],
+                                       hideDetails: store.hidesFigures || !prefs.sessionTitles)
                         }
                     }
                 }
@@ -514,6 +533,14 @@ private struct SessionRow: View {
     /// The advice lines this row carries instead of the sheet drawing them (AdvicePlacement.sessionLines), read
     /// after the row's own value.
     var advice: [String] = []
+    /// View Plan or Build on the row's Cursor plan (UsageStore.cursorPlanAction).
+    var planAction: (SessionsCard.Row.PlanMark, CursorPlanAction) -> Void = { _, _ in }
+    /// Cursor's own cards on this session (UsageStore.cursorCards), the press for one of their buttons, and what
+    /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons.
+    var cursorCards: [CursorCard] = []
+    var cursorPress: (CursorCard, String) -> Void = { _, _ in }
+    var cursorNote: String? = nil
+    var hideDetails = false
 
     /// A row holding a request keeps it: the request is answered from its own card.
     private var removable: Bool { session?.pending == nil }
@@ -551,6 +578,15 @@ private struct SessionRow: View {
             }
             if open.contains(.denials), !row.denials.isEmpty {
                 denialList.padding(.leading, SessionRow.textInset)
+            }
+            ForEach(cursorCards, id: \.id) { card in
+                CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) })
+                    .padding(.leading, SessionRow.textInset)
+            }
+            if let note = cursorNote {
+                Text(note).font(.caption2.weight(.medium)).foregroundStyle(Caption.style)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, SessionRow.textInset)
             }
         }
         .padding(.vertical, 4)
@@ -615,7 +651,7 @@ private struct SessionRow: View {
 
     private var hasExtras: Bool {
         row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 || row.compaction != nil || row.model != nil
-            || !row.teammates.isEmpty || !row.denials.isEmpty
+            || !row.teammates.isEmpty || !row.denials.isEmpty || row.mode != nil || row.background || row.plan != nil
     }
 
     /// The turn's clock, or while the pointer is on the row, the control that removes it (the hover's exit is
@@ -746,15 +782,41 @@ private struct SessionRow: View {
                 let value = L("%1$ld of %2$ld done", todos.done, todos.total)
                 if todos.hasContent {
                     disclosure(.todos, symbol: "checklist", text: counts, label: L("Task list"), value: value,
-                               help: L("Claude Code's task list for this session; click to show it"))
+                               help: L("This session's task list; click to show it"))
                 } else {
                     // The words are hidden (titles off, or the screen shared): the counts stand alone, not as a
                     // control that would open onto nothing.
                     ExtraChip(symbol: "checklist", text: counts, chevron: nil)
-                        .help(L("Claude Code's task list for this session"))
+                        .help(L("This session's task list"))
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(L("Task list"))
                         .accessibilityValue(value)
+                }
+            }
+            if let mode = row.mode {
+                ExtraChip(symbol: mode == "plan" ? "list.bullet.clipboard" : mode == "ask" ? "questionmark.bubble" : "slider.horizontal.3",
+                          text: mode.capitalized, chevron: nil)
+                    .help(L("The mode this Cursor chat runs in"))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(L("Mode"))
+                    .accessibilityValue(mode.capitalized)
+            }
+            if row.background {
+                ExtraChip(symbol: "cloud", text: L("Background"), chevron: nil)
+                    .help(L("A Cursor background agent"))
+            }
+            if let plan = row.plan {
+                Button { planAction(plan, .view) } label: {
+                    ExtraChip(symbol: "doc.text", text: L("View Plan"), chevron: nil)
+                }
+                .buttonStyle(.plain)
+                .help(L("Open this plan in Cursor"))
+                if plan.state == .ready {
+                    Button { planAction(plan, .build) } label: {
+                        ExtraChip(symbol: "hammer", text: L("Build"), chevron: nil)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("Press Build on this plan in Cursor"))
                 }
             }
             if !row.teammates.isEmpty {

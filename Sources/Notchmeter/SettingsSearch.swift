@@ -133,6 +133,10 @@ enum SettingsSearch {
         if tool == .claude { add(.hook, L("Claude Code status line"), L("Install status line…")) }
         add(.sessions, L("Read its sessions"))
         if tool.hasAnswerableHook { add(.sessions, L("Answer from the notch")) }
+        if tool == .cursor {
+            add(.sessions, L("Require notch approval for every command"))
+            add(.sessions, L("Mirror Cursor's cards"))
+        }
         add(.notifications, L("Notify about its limits"), L("Notify when it waits or finishes a turn"))
         add(.sources, L("Sources"))
         add(.sourcesDetail, L("Where each window comes from"), L("Login"), L("Readings"))

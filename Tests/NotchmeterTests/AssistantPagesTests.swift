@@ -92,7 +92,7 @@ import Testing
 
     /// The page offers *Answer from the notch* only where the hook has an event to answer.
     @Test func onlyAnAssistantWhoseHookCanBeAnsweredOffersIt() {
-        #expect(ToolID.allCases.filter(\.hasAnswerableHook) == [.claude, .codex, .copilot])
+        #expect(ToolID.allCases.filter(\.hasAnswerableHook) == [.claude, .codex, .cursor, .copilot])
     }
 
     // MARK: - Session reading
@@ -455,7 +455,8 @@ import Testing
         // The app-wide switch comes first in the window's order; on a page that has its own, the page's is found.
         #expect(try lands("Answer from the notch").pane == .assistants)
         #expect(try lands("Answer from the notch", from: .agent(.codex)).pane == .agent(.codex))
-        #expect(try lands("Answer from the notch", from: .agent(.cursor)).pane == .assistants, "Cursor's page has none to find")
+        #expect(try lands("Answer from the notch", from: .agent(.cursor)).pane == .agent(.cursor), "Cursor's held commands are answered from its page")
+        #expect(try lands("Mirror Cursor's cards").pane == .agent(.cursor))
         #expect(try lands("Read its sessions", from: .agent(.cursor)).sections.count == ToolID.allCases.count)
         #expect(try lands("Notify about its limits").pane == .agent(.claude))
         #expect(try lands("Where each window comes from", from: .agent(.copilot)).pane == .agent(.copilot))
@@ -465,7 +466,9 @@ import Testing
     /// switch where the assistant cannot report spend, and each second read on its own assistant alone.
     @Test func aPageIndexesOnlyTheRowsItDraws() {
         func titles(_ tool: ToolID) -> Set<String> { Set(SettingsSearch.agentEntries(tool).map(\.title)) }
-        #expect(!titles(.cursor).contains(L("Answer from the notch")))
+        #expect(titles(.cursor).contains(L("Answer from the notch")))
+        #expect(titles(.cursor).contains(L("Mirror Cursor's cards")))
+        #expect(!titles(.codex).contains(L("Mirror Cursor's cards")))
         #expect(!titles(.antigravity).contains(L("Answer from the notch")))
         #expect(!titles(.gemini).contains(L("Answer from the notch")))
         #expect(!titles(.kimi).contains(L("Answer from the notch")))

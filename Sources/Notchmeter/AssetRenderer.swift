@@ -109,6 +109,19 @@ enum AssetRenderer {
                 try write(panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image,
                           png: directory.appendingPathComponent("sessions-assistants.png"))
             }
+            // Cursor answered from the notch (0.9.15), the Sessions card alone for the README and the site: a plan
+            // ready to build, a plan being built with a command waiting on Cursor's Run card, and a mode switch
+            // (DemoFixtures.cursorNotch). The cards go on as the app puts them on, with no banner sent for them.
+            let (cursor, cursorPrefs) = DemoFixtures.store(now: now, moment: .cursorNotch)
+            cursorPrefs.notifyWaiting = false
+            cursorPrefs.cursorControl = true
+            cursor.hookInstalledTools = [.cursor]
+            cursor.openSessionLists = [SessionsCard.listKey(SessionTracker.key(tool: .cursor, session: DemoFixtures.cursorNotchChats.building, host: nil), .todos)]
+            cursor.cursorCardsSeen(DemoFixtures.cursorNotchCards, now: now)
+            try at(scale: siteScale) {
+                try write(panelCrop(SessionsCard(store: cursor, prefs: cursorPrefs, actions: actions), prefs: cursorPrefs).image,
+                          png: directory.appendingPathComponent("cursor-notch.png"))
+            }
             // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
             // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
             // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.

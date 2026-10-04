@@ -439,7 +439,10 @@ import Testing
         #expect(HookSettings.repair(older, vendor: .copilot, executable: executable).added == ["PermissionRequest"])
         let untimed: [String: Any] = ["type": "command", "command": "'\(executable)' --hook --tool copilot --event PermissionRequest"]
         #expect(!HookVendor.copilot.isCurrent(handler: untimed, element: untimed, event: "PermissionRequest"), "Copilot's default is 30 s, which would cancel the command before the user answers")
-        #expect(HookVendor.cursor.decidingEvents.isEmpty)
+        #expect(HookVendor.cursor.decidingEvents == ["beforeShellExecution", "beforeMCPExecution"], "only the two calls Cursor waits on, never preToolUse whose ask it ignores")
+        let cursor = HookVendor.cursor.handler(command: "'\(executable)' --hook --tool cursor", event: "beforeShellExecution")
+        #expect(NSDictionary(dictionary: cursor) == NSDictionary(dictionary: ["command": "'\(executable)' --hook --tool cursor", "timeout": 600]),
+                "Cursor's flat entry with the ceiling, and no `type`")
         #expect(HookVendor.gemini.decidingEvents.isEmpty)
         #expect(HookVendor.kimi.decidingEvents.isEmpty, "Kimi Code has no permission event to hold")
     }

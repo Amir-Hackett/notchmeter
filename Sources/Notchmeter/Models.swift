@@ -347,6 +347,71 @@ enum JSON {
         }
     }
 
+    /// A counter (tokens, requests): a finite, non-negative whole number inside the range a Double holds exactly,
+    /// from a JSON number or a string of digits; nil for anything else, never a trap on an out-of-range value. A
+    /// JSON `true` is no count of one, and `"0x10"` is no sixteen.
+    static func count(_ value: Any?) -> Int? {
+        let parsed: Double?
+        if let text = value as? String {
+            let digits = text.trimmingCharacters(in: .whitespaces)
+            parsed = digits.range(of: #"^\d+(\.0+)?$"#, options: .regularExpression) == nil ? nil : Double(digits)
+        } else if let value = value as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() {
+            parsed = nil
+        } else {
+            parsed = number(value)
+        }
+        guard let number = parsed, number.isFinite, number >= 0, number <= 9_007_199_254_740_992, number.rounded(.down) == number else { return nil }
+        return Int(number)
+    }
+
+    /// An amount written as text ("$1,234.56", "-$0.05", "0.5 (included)", "on-demand: $0.12"): the one number in
+    /// it, its thousands separators dropped, read through Decimal so the text is not rounded on the way in. It is
+    /// negative only for a minus written against the amount itself ("-$0.05", "−3.10"), not for a hyphen earlier in
+    /// the words. nil when the text holds no number, more than one ("$1 + $2"), one not written as a number is
+    /// ("1.2.3", "$1,2"), or one that is part of something else: a name ("claude-4"), a unit or a multiplier
+    /// ("5¢", "$1.2k", "12%"). Digits are never joined across what stood between them, and never rescaled by a guess.
+    static func money(_ text: String) -> Double? {
+        let scalars = Array(text.unicodeScalars)
+        func isDigit(_ i: Int) -> Bool { scalars.indices.contains(i) && scalars[i].isASCII && ("0"..."9").contains(Character(scalars[i])) }
+        func isWordy(_ i: Int) -> Bool { scalars.indices.contains(i) && (CharacterSet.alphanumerics.contains(scalars[i]) || scalars[i] == "_") }
+        var numbers: [(text: String, start: Int, end: Int)] = []
+        var index = 0
+        while index < scalars.count {
+            guard isDigit(index) || (scalars[index] == "." && isDigit(index + 1)) else { index += 1; continue }
+            let start = index
+            var run = ""
+            // Digits, and a comma or a point only where a digit follows it: a full stop ending a sentence is not the number's.
+            while index < scalars.count, isDigit(index) || ((scalars[index] == "," || scalars[index] == ".") && isDigit(index + 1)) {
+                run.unicodeScalars.append(scalars[index])
+                index += 1
+            }
+            numbers.append((run, start, index))
+        }
+        guard numbers.count == 1, numbers[0].text.range(of: wellFormedAmount, options: .regularExpression) != nil else { return nil }
+        // What follows the number at once must not make it something else.
+        let end = numbers[0].end
+        if isWordy(end) || (scalars.indices.contains(end) && ["%", "¢", "‰"].contains(String(scalars[end]))) { return nil }
+        // What stands before it: an optional currency sign, before that an optional minus, each against the next.
+        var before = numbers[0].start - 1
+        let currency: Set<String> = ["$", "€", "£", "¥"]
+        if scalars.indices.contains(before), currency.contains(String(scalars[before])) { before -= 1 }
+        var negative = false
+        let minus: Set<String> = ["-", "\u{2212}", "\u{2013}"]
+        if scalars.indices.contains(before), minus.contains(String(scalars[before])) {
+            // A hyphen that joins the number to a word ("claude-4") makes it part of a name.
+            if isWordy(before - 1) { return nil }
+            negative = true
+            before -= 1
+        }
+        if isWordy(before) { return nil }
+        guard let decimal = Decimal(string: numbers[0].text.replacingOccurrences(of: ",", with: ""), locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+        let value = NSDecimalNumber(decimal: negative ? -decimal : decimal).doubleValue
+        return value.isFinite ? value : nil
+    }
+
+    /// Digits with an optional fraction, the whole part either unbroken or in groups of three after the first.
+    private static let wellFormedAmount = #"^(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?$"#
+
     static func fraction(_ percent: Double) -> Double {
         min(max(percent / 100, 0), 1)
     }

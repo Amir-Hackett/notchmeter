@@ -155,6 +155,7 @@
 "An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane." = "Un assistant activé et installé mais sans relevé, sans dépense ni session reste hors du panneau et des anneaux jusqu'à ce qu'il en ait un ; le dernier assistant visible n'est jamais masqué. Tant qu'un assistant est masqué, le panneau se termine par une ligne Ajouter un outil qui ouvre cette section.";
 "Answer from the notch" = "Répondre depuis l'encoche";
 "Answer in the terminal" = "Répondre dans le terminal";
+"Answer in Cursor" = "Répondre dans Cursor";
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Les assistants qui n'ont encore rien à afficher restent hors du panneau. Ouvre Réglages › Assistants, où la ligne de chacun indique ce qu'il attend.";
 "Automation" = "Automatisation";
 "Check again" = "Vérifier à nouveau";
@@ -183,6 +184,7 @@
 "Grok Bot" = "Grok Bot";
 "Hand a request back to the terminal after" = "Rendre une demande au terminal après";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Renvoie la demande au terminal, qui la pose comme d'habitude ; Échap fait de même.";
+"Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Renvoie la demande à Cursor, qui affiche sa propre invite ; Échap fait de même.";
 "Hide assistants with nothing to show" = "Masquer les assistants sans rien à afficher";
 "Hooks" = "Hooks";
 "Idle" = "Inactif";
@@ -915,8 +917,6 @@
 "%1$ld of %2$ld done" = "%1$ld sur %2$ld faites";
 "Task list" = "Liste de tâches";
 "Untitled task" = "Tâche sans titre";
-"Claude Code's task list for this session; click to show it" = "La liste de tâches de Claude Code pour cette session ; cliquez pour l'afficher";
-"Claude Code's task list for this session" = "La liste de tâches de Claude Code pour cette session";
 "Subagent %ld" = "Sous-agent %ld";
 "How full this session's context window is, from its status line" = "Le remplissage de la fenêtre de contexte de cette session, d'après sa ligne d'état";
 "In progress" = "En cours";
@@ -984,7 +984,6 @@
 "Off for every assistant under Assistants › Sessions." = "Désactivé pour tous les assistants sous Assistants › Sessions.";
 "Its sessions are not read." = "Ses sessions ne sont pas lues.";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code ne répond depuis l'encoche qu'avec les entrées de hook 0.7.0 : la section du hook ci-dessus affiche Réparer (ou Ajouter) tant qu'il ne les a pas.";
-"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor n'a aucun événement auquel on puisse répondre : ses approbations se donnent toujours dans Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Le hook de Gemini CLI ne fait que signaler : ses demandes d'autorisation se règlent toujours dans le terminal.";
 /* 0.9.0: the Gemini CLI, Antigravity and Kimi Code pages (SettingsWindow loginNote, readingsNote, noAnswerNote) */
 "The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written." = "L'identifiant Google que Gemini CLI conserve dans ~/.gemini/oauth_creds.json. Lecture seule : jamais rafraîchi ni écrit.";
@@ -1317,3 +1316,31 @@
 "Notchmeter's catalog of %@" = "le catalogue de Notchmeter du %@";
 "this build's table of %@" = "la table de cette version du %@";
 "a family guess" = "une estimation par famille";
+
+"This session's task list; click to show it" = "La liste de tâches de cette session ; cliquer pour l’afficher";
+"This session's task list" = "La liste de tâches de cette session";
+"The plan file is gone" = "Le fichier du plan a disparu";
+"Cursor or the Accessibility permission is unavailable; nothing was pressed" = "Cursor ou l’autorisation Accessibilité n’est pas disponible ; rien n’a été pressé";
+"Mode" = "Mode";
+"Mirror Cursor's cards" = "Refléter les cartes de Cursor";
+"Background" = "Arrière-plan";
+"Cursor asks to switch mode" = "Cursor demande à changer de mode";
+"Open this plan in Cursor" = "Ouvrir ce plan dans Cursor";
+"The mode this Cursor chat runs in" = "Le mode de ce chat Cursor";
+"Build" = "Build";
+"Press Build on this plan in Cursor" = "Appuyer sur Build pour ce plan dans Cursor";
+"Cursor's plan is ready to build" = "Le plan de Cursor est prêt à construire";
+"Opened in Cursor: its Build card is not on screen, so press Build there" = "Ouvert dans Cursor : sa carte Build n’est pas à l’écran, appuyez donc sur Build là-bas";
+"Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "Nécessite Accessibilité : Réglages Système › Confidentialité et sécurité › Accessibilité › Notchmeter.";
+"While this is on, Cursor takes Notchmeter for a screen reader during a turn and its editor shows Screen Reader Optimized. To keep the editor as it is, set editor.accessibilitySupport to off in Cursor's settings." = "Tant que ce réglage est activé, Cursor prend Notchmeter pour un lecteur d'écran pendant un tour et son éditeur affiche Screen Reader Optimized. Pour garder l'éditeur tel quel, réglez editor.accessibilitySupport sur off dans les réglages de Cursor.";
+"View Plan" = "View Plan";
+"A Cursor background agent" = "Un agent d’arrière-plan de Cursor";
+"Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Ouvert dans Cursor : activez « Refléter les cartes de Cursor » pour construire depuis l’encoche";
+"Pressed %@ in Cursor" = "%@ pressé dans Cursor";
+"Require notch approval for every command" = "Exiger l’approbation dans l’encoche pour chaque commande";
+"Pressed %@, but Cursor's card is still showing" = "%@ pressé, mais la carte de Cursor est toujours affichée";
+"Cursor's card changed before the press; nothing was pressed" = "La carte de Cursor a changé avant l’appui ; rien n’a été pressé";
+"Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Chaque commande shell et chaque appel MCP de Cursor attend Autoriser ou Refuser dans l’encoche, y compris ceux que la liste autorisée de Cursor exécuterait sans demander. Sans réponse, Cursor affiche sa propre demande ; rien ne s’exécute sur un silence.";
+"Presses this button on Cursor's card" = "Appuie sur ce bouton de la carte de Cursor";
+"Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Affiche les cartes Run, changement de mode et plan de Cursor sur la ligne de la session et appuie sur le bouton choisi. Lit les fenêtres de Cursor via l’Accessibilité, jamais l’écran.";
+"Cursor is waiting to run a command" = "Cursor attend pour exécuter une commande";

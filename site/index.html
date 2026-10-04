@@ -222,11 +222,27 @@
   <div class="wrap">
     <div class="split">
       <figure class="shot">
+        <img src="img/cursor-notch.png" alt="The Sessions card with three Cursor chats. One asks to switch to Plan Mode, with Skip and Switch on its row. One is building a plan, its task list open at one of three done, with Cursor's Run prompt on the row: the command, Skip and Run. One has a plan ready, with its Plan mode chip, View Plan and Build.">
+      </figure>
+      <div>
+        <h2>Cursor, answered from the notch</h2>
+        <p>Cursor works differently from the other assistants. Its hooks report no task list, no plan and no event that says it is waiting for you, so Notchmeter reads the rest from Cursor itself. A plan appears on its chat's row when Cursor creates it, before it is built, with its to-dos, <em>View Plan</em> and <em>Build</em>, and the turn that builds it is named for the plan.</p>
+        <p>Two switches on Cursor's page in Settings, both off until you turn them on, let you answer it. <em>Require notch approval for every command</em> holds each shell command and MCP call for Allow or Deny in the notch; one nobody answers goes back to Cursor's own prompt, so nothing is allowed for you unanswered. <em>Mirror Cursor's cards</em> puts Cursor's own Run prompt and its switch-to-Plan-Mode card on the row, in Cursor's words, and presses the button you pick in Cursor.</p>
+        <p>The mirror reads Cursor's windows through the Accessibility permission, never the screen, while a Cursor chat is in a turn and when you press Build. While it is on, Cursor's editor shows <em>Screen Reader Optimized</em> unless you turn that off in Cursor's settings.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="split">
+      <figure class="shot">
         <img src="img/signal-rings.png" alt="The rings a moment apart: above, Claude Code, Codex and Cursor each waiting on you, every ring blue with a white dot; below, each one's turn just finished, the same blue with a tick on every ring.">
       </figure>
       <div>
         <h2>It says when an assistant wants you</h2>
-        <p>When Claude Code stops for a permission prompt or a question, the rings take the blue that means <em>needs you, not running out</em>, and a white dot says which readout it is — with a count when more than one session is waiting. A turn ending gets the same blue and a tick, for ninety seconds, on every ring with a hook. Claude Code, Codex, Gemini CLI, Copilot and OpenCode report a wait, because each documents an event that means the agent is asking you. Kimi Code documents none, so its ring never claims one. Cursor has no hook event for a wait either, so its ring shows the tick, and a turn gone quiet for 45 seconds with nothing running as a wait worded <em>may be</em>, rather than claiming one it cannot see.</p>
+        <p>When Claude Code stops for a permission prompt or a question, the rings take the blue that means <em>needs you, not running out</em>, and a white dot says which readout it is — with a count when more than one session is waiting. A turn ending gets the same blue and a tick, for ninety seconds, on every ring with a hook. Claude Code, Codex, Gemini CLI, Copilot and OpenCode report a wait, because each documents an event that means the agent is asking you. Kimi Code documents none, so its ring never claims one. Cursor has no hook event for a wait either, so its ring shows the tick, and a turn gone quiet for 45 seconds with nothing running as a wait worded <em>may be</em>, rather than claiming one it cannot see; with either of Cursor's two switches on, a held command or one of Cursor's own cards is a wait it can see, and says so.</p>
         <p>Colour is never the only carrier. The dot and the tick stay if you turn the colour off, the cap on a ring's end keeps saying a window is nearly gone, and every readout has a VoiceOver label.</p>
       </div>
     </div>
@@ -294,7 +310,7 @@
           <li>One status read per tool, on that tool's own saved login</li>
           <li>Reads your local Claude Code transcripts, Codex's session logs and OpenCode's database for the cost figures</li>
           <li>Keeps everything on the Mac it runs on</li>
-          <li>Asks for Accessibility only if you set Readouts to Auto</li>
+          <li>Asks for Accessibility only if you set Readouts to Auto or mirror Cursor's cards</li>
         </ul>
       </div>
       <div class="gap-card dim">

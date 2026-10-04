@@ -159,8 +159,27 @@ final class UsageStore {
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
     @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
     /// Each Cursor transcript followed for its task list, by path, and the ones being read now (followCursorPlan).
-    @ObservationIgnored private var cursorPlans: [String: (key: String, follower: CursorPlanFollower)] = [:]
+    /// `cursorPlanAgain` is a conversation whose transcript changed while its read was already running; one coalesced
+    /// read follows when the current one finishes, so a `TodoWrite` that lands mid-read is not left until a later event.
+    @ObservationIgnored private var cursorPlans: [String: FollowedCursorPlan] = [:]
+    /// Whose `~/.cursor` the plan and transcript paths are checked against; a test's is a folder of its own.
+    @ObservationIgnored var cursorHome: URL = Paths.home
     @ObservationIgnored private var cursorPlanReads: Set<String> = []
+    @ObservationIgnored private var cursorPlanAgain: [String: (sessionID: String, host: String?)] = [:]
+    /// Cursor's own cards on screen, by session (CursorAccessibility), while *Mirror Cursor's cards* is on.
+    private(set) var cursorCards: [String: [CursorCard]] = [:]
+    /// What the last View Plan, Build or card press on a session came to, for the row's note; each is taken down
+    /// `cursorNoteLife` after it was put up (noteCursorAction).
+    private(set) var cursorActionNotes: [String: String] = [:]
+    @ObservationIgnored private var cursorNoteClears: [String: Task<Void, Never>] = [:]
+    static let cursorNoteLife: Duration = .seconds(20)
+    @ObservationIgnored var cursorUI: CursorUIControlling = LiveCursorUI()
+    @ObservationIgnored private var cursorWatch: Task<Void, Never>?
+    @ObservationIgnored private var cursorPressing: Set<String> = []
+    /// The row each card on screen was first put on, by card: which chat spoke last changes while a card waits.
+    @ObservationIgnored private var cursorCardOwners: [String: String] = [:]
+    /// Cursor's windows were read since *Mirror Cursor's cards* was last off, so Cursor is owed a `release`.
+    @ObservationIgnored private var cursorTreeAsked = false
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
     /// the last read said of each session, the files' fingerprint at that read and when it was taken, and whether
@@ -665,6 +684,7 @@ final class UsageStore {
         startTick()
         startResetTimer()
         startOpenCodeWatch()
+        startCursorWatch()
         observeEnvironment()
         observeDetection()
         startCoworkWatch()
@@ -2012,6 +2032,15 @@ final class UsageStore {
             return
         }
         var message = message
+        // A Build whose payload named no plan: the plan this chat's transcript made names the turn.
+        if message.planBuild, message.title == nil, message.tool == .cursor, let sessionID = message.sessionID {
+            let key = SessionTracker.key(tool: .cursor, session: sessionID, host: message.host)
+            if let name = cursorPlans.values.first(where: { $0.key == key })?.follower.planName,
+               let title = Hook.title(fromPrompt: "Build: " + name) {
+                message.title = title
+                message.harnessTurn = false
+            }
+        }
         if !prefs.sessionTitles {
             message.title = nil
             message.todos = message.todos?.withoutContent()
@@ -2023,7 +2052,7 @@ final class UsageStore {
         // Settled before the request can be dropped below: with answering from the notch off, the request is the
         // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
         let waitKind = message.waitKind
-        if message.request != nil, !prefs.answersFromNotch(message.tool) {
+        if message.request != nil, !prefs.answersFromNotch(message.tool) || (message.tool == .cursor && !prefs.cursorRequireApproval) {
             reply?.answer(nil)
             message.request = nil
         }
@@ -2250,43 +2279,121 @@ final class UsageStore {
     /// while titles are on and the screen is not shared, checked again when the read comes back; a store with no
     /// Cursor provider (a test's) has no database to read.
     /// Reads what Cursor added to the conversation's transcript since the last event, off the main actor, and puts
-    /// the task list it replays on the conversation's row (CursorPlans). One read per transcript at a time; an event
-    /// that arrives during one is covered by the next, since every read takes up where the last ended.
+    /// the task list it replays on the conversation's row (CursorPlans). One read per transcript at a time. An event
+    /// that arrives during one is remembered and read once the current read finishes. A plan file whose tasks match
+    /// the transcript overlays the statuses Cursor's plan UI is showing.
     func followCursorPlan(_ message: Hook.Message) {
         guard message.agentID == nil, let sessionID = message.sessionID, let path = message.transcriptPath,
-              let url = CursorPlans.transcript(path), !cursorPlanReads.contains(path) else { return }
+              let url = CursorPlans.transcript(path, home: cursorHome) else { return }
+        if cursorPlanReads.contains(path) {
+            cursorPlanAgain[path] = (sessionID, message.host)
+            return
+        }
         cursorPlanReads.insert(path)
         // A transcript whose conversation the panel no longer follows (dismissed, aged out) is let go.
         cursorPlans = cursorPlans.filter { sessions.sessions[$0.value.key] != nil }
         let follower = cursorPlans[path]?.follower ?? CursorPlanFollower()
+        let home = cursorHome
+        let named = message.planFile.flatMap { CursorPlanFiles.allowed($0, home: home) }
+        let heardFirst = sessions.sessions[SessionTracker.key(tool: .cursor, session: sessionID, host: message.host)]?.started
+        let lead = Self.planFileLead
         Task { [weak self] in
-            let (read, changed) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool) in
+            let (read, changed, grew, modified) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool, Bool, Date?) in
                 var follower = follower
-                let changed = follower.read(url)
-                return (follower, changed)
+                let start = follower.offset
+                var changed = follower.read(url)
+                // A plan file last written before the conversation began is another conversation's, whatever it is
+                // called. The conversation began no later than its first hook event or its transcript's creation,
+                // whichever is earlier, less `planFileLead`: Cursor writes a first turn's plan file a moment before
+                // it creates the transcript (0.2 to 0.9 s on three plans, 3.23.12).
+                let created = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.creationDate] as? Date
+                let began = [created, heardFirst].compactMap { $0 }.min()?.addingTimeInterval(-lead)
+                var stamp: Date?
+                if let plan = named ?? follower.planFile.flatMap({ CursorPlanFiles.allowed($0, home: home) })
+                    ?? CursorPlanFiles.match(name: follower.planName, ids: Set(follower.items.map(\.id)), since: began, home: home) {
+                    // The date is taken before the read, so a write that lands between the two is seen as a change.
+                    stamp = Self.modified(plan.path)
+                    changed = follower.readPlanFile(plan) || changed
+                }
+                let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value ?? 0
+                return (follower, changed, follower.offset > start && size > follower.offset, stamp)
             }.value
-            self?.cursorPlanRead(read, changed: changed, path: path, sessionID: sessionID, host: message.host)
+            self?.cursorPlanRead(read, changed: changed, grew: grew, planFileModified: modified, path: path, sessionID: sessionID, host: message.host)
         }
     }
 
-    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, path: String, sessionID: String, host: String?) {
+    /// One transcript being followed: its session, the list replayed so far, and when its plan file was last seen
+    /// changed, so a change no hook announced is seen too (refreshChangedCursorPlans).
+    private struct FollowedCursorPlan {
+        var key: String
+        var sessionID: String
+        var host: String?
+        var follower: CursorPlanFollower
+        var planFileModified: Date?
+        /// When a plan with no file yet was last looked for, so the look is every `planFileSearchEvery`, not every tick.
+        var planFileSearched: Date?
+    }
+
+    static let planFileSearch: TimeInterval = 30
+    /// How long before a conversation's first trace its plan file may have been written and still be its own.
+    static let planFileLead: TimeInterval = 120
+    static let planFileSearchEvery: TimeInterval = 5
+
+    private nonisolated static func modified(_ path: String) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+    }
+
+    /// A plan file that changed with no hook to say so (a to-do ticked in Cursor's plan editor between turns) has
+    /// its chat's list read again. One `stat` per followed plan, on the once-a-second loop the card watch runs on.
+    /// A plan the transcript named whose file was not there yet is looked for again for `planFileSearch` after
+    /// the chat was last heard from, should Cursor write the file after the event that announced the plan.
+    func refreshChangedCursorPlans(now: Date = Date()) {
+        guard prefs.readsSessions(of: .cursor) else { return }
+        for (path, entry) in cursorPlans where !cursorPlanReads.contains(path) {
+            if entry.follower.planFile == nil {
+                // Each look lists ~/.cursor/plans and reads its plans, so it is taken every few seconds, not every tick.
+                guard entry.follower.planName != nil, let heard = sessions.sessions[entry.key]?.lastEvent,
+                      now.timeIntervalSince(heard) < Self.planFileSearch,
+                      now.timeIntervalSince(entry.planFileSearched ?? .distantPast) >= Self.planFileSearchEvery else { continue }
+                cursorPlans[path]?.planFileSearched = now
+            } else {
+                guard let file = entry.follower.planFile, let modified = Self.modified(file), modified != entry.planFileModified else { continue }
+            }
+            var message = Hook.Message(event: "afterAgentResponse", needsInput: false, sessionID: entry.sessionID, host: entry.host, tool: .cursor)
+            message.transcriptPath = path
+            followCursorPlan(message)
+        }
+    }
+
+    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, grew: Bool, planFileModified: Date?, path: String, sessionID: String, host: String?) {
         cursorPlanReads.remove(path)
         let key = SessionTracker.key(tool: .cursor, session: sessionID, host: host)
         // Dismissed while the read was on: the plan must not bring the row back.
         guard sessions.sessions[key] != nil else {
             cursorPlans[path] = nil
+            cursorPlanAgain[path] = nil
             return
         }
-        cursorPlans[path] = (key, follower)
-        guard changed, prefs.readsSessions(of: .cursor) else { return }
-        var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
-        message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
-        Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": "transcript",
-                                       "todos": ["done": follower.plan.done, "total": follower.plan.total]])
-        var tracker = sessions
-        _ = tracker.apply(message, now: Date())
-        sessions = tracker
-        pruneOpenSessionLists()
+        // A plan made after the one this transcript was known by: its file and its built mark are not the row's.
+        let replaced = cursorPlans[path].map { follower.plansCreated > $0.follower.plansCreated } ?? false
+        cursorPlans[path] = FollowedCursorPlan(key: key, sessionID: sessionID, host: host, follower: follower, planFileModified: planFileModified,
+                                               planFileSearched: cursorPlans[path]?.planFileSearched)
+        if changed || replaced, prefs.readsSessions(of: .cursor) {
+            Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": follower.planFile == nil ? "transcript" : "plan",
+                                           "todos": ["done": follower.plan.done, "total": follower.plan.total]])
+            // Set on the session, not sent to it as an event: a file read is no sign of life from the chat, so its
+            // clock, its state and a compaction under way stay as they were.
+            var tracker = sessions
+            tracker.cursorPlan(key, todos: prefs.sessionTitles ? follower.plan : follower.plan.withoutContent(), planFile: follower.planFile, replaced: replaced)
+            sessions = tracker
+            pruneOpenSessionLists()
+        }
+        // One follow-up, whether a hook arrived during the read or the transcript grew after this read started.
+        guard grew || cursorPlanAgain[path] != nil else { return }
+        let again = cursorPlanAgain.removeValue(forKey: path) ?? (sessionID, host)
+        var message = Hook.Message(event: "afterAgentResponse", needsInput: false, sessionID: again.sessionID, host: again.host, tool: .cursor)
+        message.transcriptPath = path
+        followCursorPlan(message)
     }
 
     func lookUpCursorNames(now: Date = Date()) {
@@ -2345,6 +2452,9 @@ final class UsageStore {
         // Since 0.9.13: the model another assistant names (an id, never words of the session's), and a turn nobody typed.
         if let model = message.reportedModel { facts["reportedModel"] = model }
         if message.harnessTurn { facts["harnessTurn"] = true }
+        // Since 0.9.15, Cursor's: the chat's mode (one of Cursor's own ids) and a turn that is a plan's Build.
+        if let mode = message.composerMode { facts["composerMode"] = mode }
+        if message.planBuild { facts["planBuild"] = true }
         if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
         // The 0.11 events: a trigger, a model id and its source, the MCP server's name, a tool's name, the kind of
@@ -2575,5 +2685,157 @@ final class UsageStore {
         guard prefs.enabledTools.contains(tool) else { return .off }
         if let cached { return .ready(cached) }
         return .waiting
+    }
+}
+
+// MARK: Cursor's own cards (CursorAccessibility)
+
+extension UsageStore {
+    /// Whether the app reads Cursor's windows: *Mirror Cursor's cards* on, Cursor's sessions read, the permission
+    /// granted, someone at the screen, and a Cursor chat on this Mac in a turn. A card that holds a turn can only
+    /// be on screen during one, and a read is a few thousand messages to Cursor's main thread (0.4 s for the two
+    /// windows of a small chat on Cursor 3.23.12), so an idle chat's row costs nothing however long it stays.
+    var cursorWatchWanted: Bool {
+        prefs.cursorControl && prefs.readsSessions(of: .cursor) && !sessionInactive && !screenLocked && cursorUI.trusted
+            && sessions.all.contains { $0.tool == .cursor && $0.host == nil && ($0.isWorking || $0.isWaiting) }
+    }
+
+    /// One read of Cursor's windows a second while wanted, off the main actor; nothing at all otherwise. Turning
+    /// the setting off hands Cursor's accessibility tree back (CursorUIControlling.release). The same loop looks
+    /// at each followed plan file's date, whatever the setting (refreshChangedCursorPlans).
+    func startCursorWatch() {
+        cursorWatch?.cancel()
+        cursorWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                self.refreshChangedCursorPlans()
+                if self.cursorWatchWanted {
+                    let ui = self.cursorUI
+                    self.cursorTreeAsked = true
+                    let cards = await Task.detached(priority: .utility) { ui.scan() }.value
+                    self.cursorCardsSeen(cards)
+                } else {
+                    if !self.cursorCards.isEmpty { self.cursorCardsSeen([]) }
+                    if !self.prefs.cursorControl { self.releaseCursorTree() }
+                }
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
+    /// Tells Cursor the app has stopped reading its windows, once per spell of reading; also on quit.
+    func releaseCursorTree() {
+        guard cursorTreeAsked else { return }
+        cursorTreeAsked = false
+        let ui = cursorUI
+        Task.detached(priority: .utility) { ui.release() }
+    }
+
+    /// The cards a read found that hold a turn, put on their sessions' rows: the session's wait lights at once
+    /// (SessionTracker.cursorCardShown) and the card's going ends it. A plan card waits for nobody and its buttons
+    /// are the row's own View Plan and Build, which read the plan from its file, so it is not put on a row; Build
+    /// finds it with a read of its own (cursorPlanAction).
+    func cursorCardsSeen(_ cards: [CursorCard], now: Date = Date()) {
+        var bySession: [String: [CursorCard]] = [:]
+        var owners: [String: String] = [:]
+        for card in cards where card.blocksTurn {
+            let kept = cursorCardOwners[card.id].flatMap { sessions.sessions[$0] == nil ? nil : $0 }
+            guard let id = kept ?? CursorCards.session(for: card, among: sessions.all) else { continue }
+            owners[card.id] = id
+            bySession[id, default: []].append(card)
+        }
+        cursorCardOwners = owners
+        let before = cursorCards
+        guard bySession != before else { return }
+        cursorCards = bySession
+        var tracker = sessions
+        var started: [(AgentSession, CursorCard)] = []
+        var ended: [String] = []
+        for (id, list) in bySession {
+            guard let card = list.first, before[id] == nil else { continue }
+            if let session = tracker.cursorCardShown(id, now: now) { started.append((session, card)) }
+        }
+        for id in before.keys where bySession[id] == nil {
+            if tracker.cursorCardGone(id, now: now) { ended.append(id) }
+        }
+        if tracker != sessions {
+            sessions = tracker
+            applyAwake()
+        }
+        withdrawWaiting(ended)
+        for (session, card) in started {
+            Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
+            if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
+                deliverSessionEvent(.waiting(blocking: true, kind: card.kind == .modeSwitch ? .question : .permission), session)
+            }
+        }
+    }
+
+    /// Presses one of a card's buttons in Cursor, after re-reading the same card; the row says what came of it.
+    func pressCursorCard(_ card: CursorCard, option: String, sessionID: String) {
+        guard prefs.cursorControl, !cursorPressing.contains(card.id) else { return }
+        cursorPressing.insert(card.id)
+        let ui = cursorUI
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { ui.press(card, option: option) }.value
+            guard let self else { return }
+            self.cursorPressing.remove(card.id)
+            self.noteCursorAction(Self.note(for: result, option: option), for: sessionID)
+            Oracle.shared.emit("decision", ["source": "cursorCard", "kind": card.kind.rawValue, "behavior": result.rawValue, "session": sessionID])
+            if result == .unavailable { CursorPlanOpener.activateCursor() }
+        }
+    }
+
+    /// View Plan opens the plan in Cursor. Build presses the plan card's Build when *Mirror Cursor's cards* can
+    /// find exactly that card; otherwise the plan opens in Cursor, where its own Build button is, and the row says so.
+    func cursorPlanAction(_ file: String, _ action: CursorPlanAction, sessionID: String) {
+        switch action {
+        case .view:
+            if !CursorPlanOpener.open(file) { noteCursorAction(L("The plan file is gone"), for: sessionID) }
+        case .build:
+            guard prefs.cursorControl, cursorUI.trusted else {
+                _ = CursorPlanOpener.open(file)
+                // With the switch on, what is missing is the permission, and the note says which.
+                noteCursorAction(prefs.cursorControl
+                    ? L("Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter.")
+                    : L("Opened in Cursor: turn on Mirror Cursor's cards to build from the notch"), for: sessionID)
+                return
+            }
+            let name = CursorPlanFiles.allowed(file).flatMap(CursorPlanFiles.call(in:))?.name
+            let ui = cursorUI
+            cursorTreeAsked = true
+            Task { [weak self] in
+                let cards = await Task.detached(priority: .userInitiated) { ui.scanForPlan() }.value
+                guard let self else { return }
+                if let card = CursorCards.planCard(named: name, in: cards), let build = CursorCards.buildOption(of: card) {
+                    self.pressCursorCard(card, option: build.label, sessionID: sessionID)
+                } else {
+                    _ = CursorPlanOpener.open(file)
+                    self.noteCursorAction(L("Opened in Cursor: its Build card is not on screen, so press Build there"), for: sessionID)
+                }
+            }
+        }
+    }
+
+    /// Puts what a press or plan action came to under the session's row, and takes it down again after a while:
+    /// "Pressed Run in Cursor" is news for the moment after the press, not a standing fact about the session.
+    func noteCursorAction(_ note: String, for sessionID: String) {
+        cursorActionNotes[sessionID] = note
+        cursorNoteClears[sessionID]?.cancel()
+        cursorNoteClears[sessionID] = Task { [weak self] in
+            try? await Task.sleep(for: Self.cursorNoteLife)
+            guard !Task.isCancelled, let self else { return }
+            self.cursorActionNotes[sessionID] = nil
+            self.cursorNoteClears[sessionID] = nil
+        }
+    }
+
+    nonisolated static func note(for result: CursorPressResult, option: String) -> String {
+        switch result {
+        case .pressed: L("Pressed %@ in Cursor", option)
+        case .stillShown: L("Pressed %@, but Cursor's card is still showing", option)
+        case .gone: L("Cursor's card changed before the press; nothing was pressed")
+        case .unavailable: L("Cursor or the Accessibility permission is unavailable; nothing was pressed")
+        }
     }
 }

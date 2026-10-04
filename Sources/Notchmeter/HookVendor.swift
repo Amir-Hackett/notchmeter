@@ -105,7 +105,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         // only way to tell. A process launch per shell command, file edit and model step is the price.
         case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd",
                        "beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
-                       "afterFileEdit", "afterAgentThought", "afterAgentResponse", "preCompact"]
+                       "afterFileEdit", "afterAgentThought", "afterAgentResponse", "preCompact", "postToolUseFailure"]
         case .gemini: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd", "AfterTool", "PreCompress"]
         case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd",
                         "postToolUse", "preCompact"]
@@ -121,14 +121,19 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// its `PreToolUse` matched to `AskUserQuestion` and (since 0.11) its `Elicitation`, whose form the notch
     /// answers when a click can (Hook+Elicitation.swift) and hands to the terminal at once when it cannot; Codex's
     /// `PermissionRequest`; Copilot's PascalCase `PermissionRequest`, which documents the same decision shape.
-    /// Cursor has no event that waits for the user, Gemini CLI's hook is observability only, and Kimi Code has no
-    /// permission event at all, so none of the three has one. OpenCode's plugin reports its permission requests and
-    /// their answers but does not answer them, so it has none either (docs/hooks.md, *OpenCode*).
+    /// Cursor's two are `beforeShellExecution` and `beforeMCPExecution`, which it waits on for every call and
+    /// whose flat `permission` it obeys; they hold a call only with *Require notch approval* on
+    /// (Hook.Cursor.decisionEvents). Gemini CLI's hook is observability only and Kimi Code has no permission
+    /// event at all, so neither has one. OpenCode's plugin reports its permission requests and their answers but
+    /// does not answer them, so it has none either (docs/hooks.md, *OpenCode*).
     var decidingEvents: Set<String> {
         switch self {
         case .claude: ["PermissionRequest", "PreToolUse", "Elicitation"]
         case .codex, .copilot: ["PermissionRequest"]
-        case .cursor, .gemini, .kimi, .opencode: []
+        // Synchronous with the 600 s ceiling so *Require notch approval* can hold a call; with it off the command
+        // prints nothing and is back in milliseconds (Hook.Cursor.decisionEvents).
+        case .cursor: Hook.Cursor.decisionEvents
+        case .gemini, .kimi, .opencode: []
         }
     }
 
@@ -209,6 +214,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// out, so five seconds is a ceiling the command, which exits in milliseconds, never comes near.
     func handler(command: String, event: String) -> [String: Any] {
         if decidingEvents.contains(event) {
+            if self == .cursor { return ["command": command, "timeout": Self.decisionTimeout] }
             return ["type": "command", "command": command, timeoutKey: Self.decisionTimeout]
         }
         switch self {
@@ -250,7 +256,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         if handler["async"] as? Bool == true { return false }
         if let timeout = (handler[timeoutKey] as? NSNumber)?.intValue {
             if timeout < Self.decisionTimeout { return false }
-        } else if self == .copilot {
+        } else if self == .copilot || self == .cursor {
+            // Copilot's default is 30 s; Cursor documents none, so an entry without one could be cut short.
             return false
         }
         return true
@@ -282,8 +289,9 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
 
 extension ToolID {
     /// Whether this assistant's hook has an event the notch can answer (`HookVendor.decidingEvents`): Claude Code,
-    /// Codex and Copilot today. Its Settings page offers *Answer from the notch* only then, and says why not
-    /// otherwise, rather than offering a switch that could never do anything.
+    /// Codex, Copilot and, since 0.9.15, Cursor, whose page adds *Require notch approval* under it. Its Settings
+    /// page offers *Answer from the notch* only then, and says why not otherwise, rather than offering a switch
+    /// that could never do anything.
     var hasAnswerableHook: Bool {
         HookVendor.vendor(for: self).map { !$0.decidingEvents.isEmpty } ?? false
     }
