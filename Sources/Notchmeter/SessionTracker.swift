@@ -1261,11 +1261,7 @@ struct SessionTracker: Equatable, Sendable {
             .sorted { $0.request.since > $1.request.since }
     }
 
-    /// Ends the request `requestID`, because the app answered it or handed it back to the terminal. A decision
-    /// the assistant acts on puts the session back to work, since nothing else will say so until its next event;
-    /// a pass leaves it waiting, because the terminal is now asking. Returns the session the request stood on, or
-    /// nil when no session holds that id: a decision can only land on a request the tracker is showing.
-    @discardableResult
+
     /// A Cursor chat's task list as its transcript and plan file give it (UsageStore.cursorPlanRead), with the
     /// plan's file and whether the list is no longer the plan the row knew. It is a reading of files, not an event
     /// from the chat, so nothing else about the session moves: not its clock, its state, nor a compaction under
@@ -1284,6 +1280,11 @@ struct SessionTracker: Equatable, Sendable {
         sessions[id] = session
     }
 
+    /// Ends the request `requestID`, because the app answered it or handed it back to the terminal. A decision
+    /// the assistant acts on puts the session back to work, since nothing else will say so until its next event;
+    /// a pass leaves it waiting, because the terminal is now asking. Returns the session the request stood on, or
+    /// nil when no session holds that id: a decision can only land on a request the tracker is showing.
+    @discardableResult
     mutating func resolve(requestID: String, resumes: Bool, now: Date) -> AgentSession? {
         guard let entry = sessions.first(where: { $0.value.pending?.id == requestID }) else { return nil }
         var session = entry.value
