@@ -2,6 +2,15 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.16](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.16) — 2026-10-04
+
+### Cursor
+
+- A question Cursor asks shows on its chat's row with its choices, so the row and the notch say the chat is waiting for you. **Answer in Cursor** brings Cursor forward; the question itself is answered there. It needs *Mirror Cursor's cards*.
+- When Cursor asks you to approve something that is not a command, a file written outside the workspace for one, the row says *Cursor is waiting for your approval* and what the approval is for. It used to say *waiting to run a command* with no command under it.
+- A Cursor chat in which five commands or edits fail in a row, with none working between them, says *May be stuck*, as a Claude Code session does.
+- With several Cursor chats working at once in Cursor's Agents window, a mirrored card goes on the row of the chat the window names, once Cursor has named that chat. It used to go to whichever chat spoke last.
+
 ## [0.9.15](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.15) — 2026-10-03
 
 ### Cursor in the notch
