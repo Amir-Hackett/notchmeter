@@ -15,7 +15,7 @@
 // It reads Cursor's windows through the Accessibility API and presses nothing. It needs the Accessibility
 // permission for the app the terminal runs in (Cursor itself for its integrated terminal), and says so and stops
 // when that is missing. While it runs Cursor is asked for its accessibility tree, which shows *Screen Reader
-// Optimized* in the editor; it hands the tree back when it ends.
+// Optimized* in the editor; it hands the tree back when it ends, and when it is stopped with Ctrl-C or killed.
 import AppKit
 import ApplicationServices
 
@@ -46,7 +46,6 @@ guard let cursor = NSRunningApplication.runningApplications(withBundleIdentifier
 }
 let application = AXUIElementCreateApplication(cursor.processIdentifier)
 AXUIElementSetMessagingTimeout(application, 1)
-AXUIElementSetAttributeValue(application, "AXManualAccessibility" as CFString, kCFBooleanTrue)
 
 final class Node {
     var role = ""
@@ -180,6 +179,24 @@ guard let opened = FileHandle(forWritingAtPath: outPath) else {
     exit(2)
 }
 handle = opened
+
+// Asked for only once nothing is left that can stop the run before it starts, and handed back however the run ends:
+// a recording is usually stopped with Ctrl-C once the card is in the file, and Cursor would otherwise stay
+// *Screen Reader Optimized* until it is restarted.
+func handBack() {
+    AXUIElementSetAttributeValue(application, "AXManualAccessibility" as CFString, kCFBooleanFalse)
+}
+let stops: [DispatchSourceSignal] = [SIGINT, SIGTERM, SIGHUP].map { number in
+    signal(number, SIG_IGN)
+    let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
+    source.setEventHandler {
+        handBack()
+        exit(130)
+    }
+    source.resume()
+    return source
+}
+AXUIElementSetAttributeValue(application, "AXManualAccessibility" as CFString, kCFBooleanTrue)
 let stamp = ISO8601DateFormatter()
 var written: [Int: Set<String>] = [:]
 var lines = 0
@@ -223,6 +240,7 @@ while Date() < deadline {
     }
     Thread.sleep(forTimeInterval: 0.7)
 }
-AXUIElementSetAttributeValue(application, "AXManualAccessibility" as CFString, kCFBooleanFalse)
+handBack()
+stops.forEach { $0.cancel() }
 try? handle.close()
 print("cursor-capture: wrote \(lines) shapes to \(outPath)")
