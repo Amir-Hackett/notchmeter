@@ -8,7 +8,7 @@
 # the run writes under ~/.cursor/plans and removes, a change to that file with no hook, a Build, and *Require notch
 # approval* at its three edges that need no hand on the notch: off (nothing printed), on with no app running, and
 # on with nobody answering (both hand the call back to Cursor's own prompt). The answers themselves, pressed on
-# the notch, are scripts/e2e-cursor.sh.
+# the notch, are scripts/e2e-cursor.sh. And a Cursor chat's run of failed commands, which may be stuck.
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
@@ -225,6 +225,32 @@ plan_file completed completed pending
 wait_for "a plan file changed with no hook is read again" "$its_plan and o.get(\"todos\") == {\"done\": 2, \"total\": 3}" 1 15
 plan_event beforeSubmitPrompt ',"composer_mode":"agent","prompt":"E2E\n\nImplement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself."'
 wait_for "a Build is a Build, in Agent mode" "$heard and o.get(\"session\") == \"e2e-plan\" and o.get(\"planBuild\") is True and o.get(\"composerMode\") == \"agent\"" 1 10
+
+# A run of failed commands. Cursor has no batch boundary: a command that ends sends afterShellExecution whether it
+# worked or not, and one that exited with an error sends postToolUseFailure for Shell straight after (3.23.12). Four
+# that failed with one that worked among them is no run; five in a row may be stuck, said once. beforeShellExecution
+# is left out: *Require notch approval* is on for this run and would hold each one.
+stuck_event() { # conversation, event, extra JSON members
+  printf '{"conversation_id":"%s","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"]%s}' "$1" "$2" "$WORK/loud-proj" "${3:-}" \
+    | "$BIN" --hook --tool cursor --event "$2" >/dev/null
+}
+failed_command() { # conversation
+  stuck_event "$1" afterShellExecution ',"command":"false","output":"","duration":12.5,"sandbox":true'
+  stuck_event "$1" postToolUseFailure ',"tool_name":"Shell","tool_input":{"command":"false"},"error_message":"exit 1","failure_type":"error","is_interrupt":false,"duration":12.5'
+}
+stuck='o["event"] == "session" and o.get("action") == "trouble" and o.get("kind") == "stuck"'
+stuck_event e2e-unstuck beforeSubmitPrompt ',"prompt":"make it pass"'
+for _ in 1 2 3; do failed_command e2e-unstuck; done
+stuck_event e2e-unstuck afterShellExecution ',"command":"true","output":"","duration":3,"sandbox":true'
+stuck_event e2e-unstuck afterAgentThought
+for _ in 1 2 3 4; do failed_command e2e-unstuck; done
+stuck_event e2e-stuck beforeSubmitPrompt ',"prompt":"make it pass"'
+for _ in 1 2 3 4 5 6; do failed_command e2e-stuck; done
+wait_for "five failed Cursor commands in a row may be stuck" "$stuck and o.get(\"session\") == \"cursor:e2e-stuck\"" 1 10
+wait_for "its last failure was heard" "$heard and o.get(\"session\") == \"e2e-stuck\" and o.get(\"failedTool\") == \"Shell\"" 6 10
+[ "$(count "$stuck and o.get(\"session\") == \"cursor:e2e-stuck\"")" -eq 1 ] && echo "ok: and it is said once" \
+  || { echo "FAIL: stuck was said more than once" >&2; exit 1; }
+expect_none "a command that worked between failures ends the run" "$stuck and o.get(\"session\") == \"cursor:e2e-unstuck\""
 
 # *Require notch approval* with nobody at the notch: the call is held, the app's own hold runs out, and the hook
 # hands the call to Cursor's own prompt. Nothing runs on silence.

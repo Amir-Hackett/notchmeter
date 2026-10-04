@@ -180,6 +180,13 @@ final class UsageStore {
     @ObservationIgnored private var cursorCardOwners: [String: String] = [:]
     /// Cursor's windows were read since *Mirror Cursor's cards* was last off, so Cursor is owed a `release`.
     @ObservationIgnored private var cursorTreeAsked = false
+    /// Cards whose chat's name was looked up among Cursor's own names, and the ones whose look-up is still out
+    /// (awaitsChatNames). A card is looked up once, and waits off the rows only while its look-up is out.
+    @ObservationIgnored private var cursorCardNamesTried: Set<String> = []
+    @ObservationIgnored private var cursorCardNameReads: Set<String> = []
+    /// Reads Cursor's own chat names for conversation ids; nil reads them from Cursor's state database. A test's is
+    /// a closure of its own.
+    @ObservationIgnored var cursorChatNameReader: (@Sendable (Set<String>) -> [String: String])?
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
     /// the last read said of each session, the files' fingerprint at that read and when it was taken, and whether
@@ -2131,8 +2138,10 @@ final class UsageStore {
            finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
-        if let trouble = outcome.trouble, prefs.notifySessionTrouble, prefs.notifiesSessions(of: tool) {
-            deliverSessionEvent(.trouble(trouble.trouble), trouble.session)
+        if let trouble = outcome.trouble {
+            // Said whatever the notices are set to, so a run can see the row's own state change (scripts/e2e.sh).
+            Oracle.shared.emit("session", ["action": "trouble", "session": trouble.session.id, "kind": trouble.trouble.name])
+            if prefs.notifySessionTrouble, prefs.notifiesSessions(of: tool) { deliverSessionEvent(.trouble(trouble.trouble), trouble.session) }
         }
         guard isShown(tool) else { return }
         if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
@@ -2738,8 +2747,14 @@ extension UsageStore {
     func cursorCardsSeen(_ cards: [CursorCard], now: Date = Date()) {
         var bySession: [String: [CursorCard]] = [:]
         var owners: [String: String] = [:]
+        // Forgotten once the card has gone, not on a read that came back with nothing at all: a read Cursor did not
+        // answer in time is empty too, and the card it missed must not be looked up again.
+        if !cards.isEmpty { cursorCardNamesTried.formIntersection(cards.map(\.id)) }
         for card in cards where card.blocksTurn {
             let kept = cursorCardOwners[card.id].flatMap { sessions.sessions[$0] == nil ? nil : $0 }
+            // A card whose window names its chat waits a moment for Cursor's own chat names when several chats
+            // could own it: a card stays on the row it is first put on, so the first row has to be the right one.
+            if kept == nil, awaitsChatNames(card) { continue }
             guard let id = kept ?? CursorCards.session(for: card, among: sessions.all) else { continue }
             owners[card.id] = id
             bySession[id, default: []].append(card)
@@ -2766,9 +2781,46 @@ extension UsageStore {
         for (session, card) in started {
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
-                deliverSessionEvent(.waiting(blocking: true, kind: card.kind == .modeSwitch ? .question : .permission), session)
+                deliverSessionEvent(.waiting(blocking: true, kind: card.kind == .run ? .permission : .question), session)
             }
         }
+    }
+
+    /// Whether a card has to wait for Cursor's own chat names before it is put on a row. In the Agents window,
+    /// whose title names no workspace, several chats in a turn at once can only be told apart by the chat's name in
+    /// the window's header, and a row carries Cursor's name for its chat only if it was read. So the names of the
+    /// chats that could own the card are read, once per card, and the card is placed on the next read of Cursor's
+    /// window. Only while titles may be read at all (CursorChatNames.allowed); otherwise, or when Cursor has no name
+    /// for the chat yet, the chat heard from last takes the card, as before.
+    private func awaitsChatNames(_ card: CursorCard) -> Bool {
+        if cursorCardNameReads.contains(card.id) { return true }
+        guard !cursorCardNamesTried.contains(card.id), CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures) else { return false }
+        let ids = Dictionary(CursorCards.unnamedCandidates(for: card, among: sessions.all).compactMap { session in
+            CursorChatNames.conversationID(of: session).map { (session.id, $0) }
+        }, uniquingKeysWith: { first, _ in first })
+        guard !ids.isEmpty else { return false }
+        let read: @Sendable (Set<String>) -> [String: String]
+        if let reader = cursorChatNameReader {
+            read = reader
+        } else if let database = (providers[.cursor] as? CursorProvider)?.stateDatabase {
+            read = { CursorChatNames.read(ids: $0, database: database) }
+        } else {
+            return false
+        }
+        cursorCardNamesTried.insert(card.id)
+        cursorCardNameReads.insert(card.id)
+        Task { [weak self] in
+            let names = await Task.detached(priority: .userInitiated) { read(Set(ids.values)) }.value
+            guard let self else { return }
+            self.cursorCardNameReads.remove(card.id)
+            guard CursorChatNames.allowed(titles: self.prefs.sessionTitles, hidesFigures: self.hidesFigures) else { return }
+            var tracker = self.sessions
+            for (key, id) in ids {
+                if let name = names[id] { tracker.name(key, name) }
+            }
+            self.sessions = tracker
+        }
+        return true
     }
 
     /// Presses one of a card's buttons in Cursor, after re-reading the same card; the row says what came of it.

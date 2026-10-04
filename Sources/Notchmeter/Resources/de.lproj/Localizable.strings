@@ -1098,6 +1098,7 @@
 "%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ komprimiert in %2$@ von selbst seinen Kontext: Das bisherige Gespräch wird durch eine Zusammenfassung ersetzt.";
 "%@ may be stuck" = "%@ hängt vielleicht fest";
 "%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "Bei %1$@ sind in %3$@ %2$ld Tool-Aufrufe in Folge fehlgeschlagen, ohne dass einer dazwischen gelang.";
+"%1$@ has had %2$ld commands fail in a row in %3$@, with no command or edit working between them." = "Bei %1$@ sind in %3$@ %2$ld Befehle in Folge fehlgeschlagen, ohne dass dazwischen ein Befehl oder eine Bearbeitung gelang.";
 "%@ was blocked" = "%@ wurde blockiert";
 "Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "Der Automodus hat in %2$@ einen %1$@-Aufruf abgelehnt. Die Sitzung läuft ohne ihn weiter.";
 "Needs input" = "Eingabe nötig";
@@ -1118,6 +1119,7 @@
 "%@ asks for input: answer in the terminal" = "%@ bittet um eine Eingabe: Antworte im Terminal";
 "An MCP server asks for input: answer in the terminal" = "Ein MCP-Server bittet um eine Eingabe: Antworte im Terminal";
 "May be stuck: %ld tool calls failed in a row" = "Hängt vielleicht fest: %ld Tool-Aufrufe in Folge fehlgeschlagen";
+"May be stuck: %ld commands failed in a row" = "Hängt vielleicht fest: %ld Befehle in Folge fehlgeschlagen";
 "Model" = "Modell";
 "%@, fell back by itself" = "%@, von selbst zurückgefallen";
 "The model this session runs on" = "Das Modell, mit dem diese Sitzung läuft";
@@ -1345,3 +1347,6 @@
 "Presses this button on Cursor's card" = "Drückt diese Taste auf der Karte von Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Zeigt die Run-, Moduswechsel- und Plankarten von Cursor in der Zeile der Sitzung und drückt die gewählte Taste. Liest die Fenster von Cursor über die Bedienungshilfen, nie den Bildschirm.";
 "Cursor is waiting to run a command" = "Cursor wartet darauf, einen Befehl auszuführen";
+"Cursor is asking a question" = "Cursor stellt eine Frage";
+"Cursor is waiting for your approval" = "Cursor wartet auf deine Freigabe";
+"Brings Cursor forward, where the question is answered" = "Holt Cursor nach vorn, wo die Frage beantwortet wird";

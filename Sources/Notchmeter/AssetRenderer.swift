@@ -122,6 +122,12 @@ enum AssetRenderer {
                 try write(panelCrop(SessionsCard(store: cursor, prefs: cursorPrefs, actions: actions), prefs: cursorPrefs).image,
                           png: directory.appendingPathComponent("cursor-notch.png"))
             }
+            // The cards that are not a command's, for review (DemoFixtures.cursorOtherCards).
+            cursor.cursorCardsSeen(DemoFixtures.cursorOtherCards, now: now)
+            try at(scale: siteScale) {
+                try write(panelCrop(SessionsCard(store: cursor, prefs: cursorPrefs, actions: actions), prefs: cursorPrefs).image,
+                          png: directory.appendingPathComponent("cursor-cards.png"))
+            }
             // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
             // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
             // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.

@@ -1,13 +1,19 @@
 import SwiftUI
 
 /// One of Cursor's own cards on its session's row (CursorAccessibility): what Cursor is asking, and the buttons it
-/// shows, in its words and order. The primary button (Run, Switch, Build) is filled, as Cursor fills it.
+/// shows, in its words and order. The primary button (Run, Switch, Build) is filled, as Cursor fills it. A question
+/// shows its choices as Cursor letters them and one button that brings Cursor forward, since it is answered there
+/// (CursorCard.choices says why).
 struct CursorCardView: View {
     let card: CursorCard
     let hideDetails: Bool
     let press: (String) -> Void
+    /// Brings Cursor forward for a card answered there.
+    var answerInCursor: () -> Void = {}
 
     static let primary: Set<String> = ["run", "switch", "build"]
+    /// The choices of a question a row shows; one with more ends in a mark that there are more.
+    static let choiceLimit = 6
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -21,11 +27,26 @@ struct CursorCardView: View {
             if !hideDetails || card.kind == .run, let heading = card.heading, heading != title {
                 Text(verbatim: heading).font(.caption2).foregroundStyle(Caption.style).lineLimit(2).truncationMode(.tail)
             }
+            if !hideDetails, !card.choices.isEmpty {
+                VStack(alignment: .leading, spacing: 1) {
+                    ForEach(Array(card.choices.prefix(Self.choiceLimit).enumerated()), id: \.offset) { _, choice in
+                        Text(verbatim: choice).lineLimit(1).truncationMode(.tail)
+                    }
+                    if card.choices.count > Self.choiceLimit { Text(verbatim: "…") }
+                }
+                .font(.caption2)
+                .foregroundStyle(Caption.style)
+            }
             HStack(spacing: 6) {
                 ForEach(card.options, id: \.self) { option in
                     Button(option.label) { press(option.label) }
                         .buttonStyle(PromptButtonStyle(filled: Self.primary.contains(option.label.lowercased())))
                         .accessibilityHint(L("Presses this button on Cursor's card"))
+                }
+                if card.kind == .question {
+                    Button(L("Answer in Cursor"), action: answerInCursor)
+                        .buttonStyle(PromptButtonStyle(filled: true))
+                        .accessibilityHint(L("Brings Cursor forward, where the question is answered"))
                 }
             }
         }
@@ -37,17 +58,19 @@ struct CursorCardView: View {
 
     private var title: String {
         switch card.kind {
-        case .run: L("Cursor is waiting to run a command")
+        case .run: card.command ? L("Cursor is waiting to run a command") : L("Cursor is waiting for your approval")
         case .modeSwitch: hideDetails ? L("Cursor asks to switch mode") : card.heading ?? L("Cursor asks to switch mode")
         case .plan: L("Cursor's plan is ready to build")
+        case .question: L("Cursor is asking a question")
         }
     }
 
     private var symbol: String {
         switch card.kind {
-        case .run: "terminal"
+        case .run: card.command ? "terminal" : "hand.raised"
         case .modeSwitch: "arrow.left.arrow.right"
         case .plan: "list.bullet.clipboard"
+        case .question: "questionmark.bubble"
         }
     }
 }

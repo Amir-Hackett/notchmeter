@@ -307,6 +307,9 @@ final class Notifier {
             } else {
                 (L("%@ is compacting", name), L("%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary.", name, project))
             }
+        // Cursor's run is of commands, and what it can vouch for between them is commands and edits (SessionTracker.apply).
+        case .trouble(.stuck(let failures)) where session.tool == .cursor:
+            (L("%@ may be stuck", name), L("%1$@ has had %2$ld commands fail in a row in %3$@, with no command or edit working between them.", name, failures, project))
         case .trouble(.stuck(let failures)):
             (L("%@ may be stuck", name), L("%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them.", name, failures, project))
         case .trouble(.blocked(let tool)):

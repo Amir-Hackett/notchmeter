@@ -111,6 +111,86 @@ import Testing
         #expect(wordsOnly.heading == "npm run deploy -- --prod")
     }
 
+    /// The question card as Cursor 3.23.12's editor window drew it on 2026-10-04, for a question with one answer and
+    /// for one with several alike: the choices are buttons, Skip and Continue are plain text.
+    func questionCard(_ question: String = "Which fruit?", _ choices: [String] = ["apple", "banana", "cherry"]) -> CursorAXNode {
+        let letters = Array("ABCDEFGH").map(String.init)
+        let lettered = zip(letters, choices).map { letter, choice in button("\(letter) \(choice)", [button(letter), text(choice)]) }
+        let other = button("\(letters[choices.count]) Other...", [button(letters[choices.count]), CursorAXNode(role: "AXTextArea", label: nil)])
+        return group([group([group([text(""), text("Questions"), group([text("")]), text("1"), text(" of "), text("1"), group([text("")]), group([text("")])]),
+                             group([group([text("1"), text(".")]), group([group([text(question)])])] + lettered + [other]),
+                             group([text("Skip"), text("Esc")]),
+                             group([text("Continue"), text("⏎")])]),
+                      group([group([text(""), group([text("1 background terminal")])])])])
+    }
+
+    @Test func theQuestionCardIsReadWithItsChoicesAndNothingToPress() throws {
+        let card = try #require(CursorCards.detect(in: group([questionCard()]), title: "proj").first)
+        #expect(card.kind == .question)
+        #expect(card.heading == "Which fruit?", "the question, not the card's own furniture or its numbering")
+        #expect(card.choices == ["A apple", "B banana", "C cherry", "D Other..."], "as Cursor letters them")
+        #expect(card.options.isEmpty, "Continue is no button in Cursor's tree, so nothing is offered to press")
+        #expect(card.blocksTurn)
+        #expect(CursorCards.detect(in: group([questionCard()]), title: "proj").count == 1)
+        let next = try #require(CursorCards.detect(in: group([questionCard("Which colours?", ["red", "green", "blue"])]), title: "proj").first)
+        #expect(next.id != card.id, "the next question is another card")
+        #expect(try #require(CursorCards.detect(in: group([questionCard("Which fruit?", ["apple", "pear"])]), title: "proj").first).id != card.id)
+
+        // The same words in a reply are no card: a question card is its three texts beside choices lettered from A.
+        let reply = group([text("On the "), text("Questions"), text(" card press "), text("Skip"), text(" or "), text("Continue"), button("Copy")])
+        #expect(CursorCards.detect(in: reply, title: "proj").isEmpty)
+        let unlettered = group([text("Questions"), button("apple"), button("banana"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: unlettered, title: "proj").isEmpty)
+        let fromB = group([text("Questions"), button("B banana"), button("C cherry"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: fromB, title: "proj").isEmpty, "the letters run from A")
+        let one = group([text("Questions"), button("A apple"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: one, title: "proj").isEmpty)
+
+        // Nor is a stretch of the chat that holds them with another of Cursor's buttons: the card is its choices alone.
+        let stretch = group([text("Questions"), button("A quick fix"), button("B tree notes"), button("Copy"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: stretch, title: "proj").isEmpty)
+
+        // Beside a Run card, each is its own.
+        let run = group([group([code(["$", " ", "ls"]), button("Skip"), button("Run")])])
+        #expect(Set(CursorCards.detect(in: group([questionCard(), run]), title: "proj").map(\.kind)) == [.question, .run])
+    }
+
+    @Test func anApprovalThatIsNotACommandSaysWhatItIsFor() throws {
+        // As Cursor 3.23.12 drew its approval for a file written outside the workspace (2026-10-04): the file in a
+        // button of its own, then the same Skip and Run a command gets.
+        let path = "/Users/x/notes/answers.txt"
+        let approval = group([group([group([button("Create \(path)", [text("Create"), text(" "), text(path)]), button("Skip"),
+                                            button("Run ⏎", [text("Run"), text("⏎")])])])])
+        let card = try #require(CursorCards.detect(in: approval, title: "proj").first)
+        #expect(card.kind == .run)
+        #expect(!card.command)
+        #expect(card.heading == "Create /Users/x/notes/answers.txt", "the button that is not an answer, punctuation and all")
+        #expect(card.options.map(\.label) == ["Skip", "Run"])
+
+        // Two files whose paths open alike past what a heading shows are two cards, so a press re-read against one
+        // cannot land on the other.
+        func long(_ name: String) -> CursorAXNode {
+            let long = "/Users/x/" + String(repeating: "deep/", count: 40) + name
+            return group([group([button("Create \(long)", [text("Create"), text(" "), text(long)]), button("Skip"), button("Run")])])
+        }
+        let first = try #require(CursorCards.detect(in: long("one.txt"), title: "proj").first)
+        let second = try #require(CursorCards.detect(in: long("two.txt"), title: "proj").first)
+        #expect(first.heading == second.heading)
+        #expect(first.id != second.id)
+        // A button of one word names no subject.
+        let bare = try #require(CursorCards.detect(in: group([group([button("Copy"), button("Skip"), button("Run")])]), title: "proj").first)
+        #expect(bare.heading == nil)
+        #expect(!bare.command)
+
+        let command = try #require(CursorCards.detect(in: group([group([code(["$", " ", "ls"]), button("Skip"), button("Run")])]), title: "proj").first)
+        #expect(command.command)
+        #expect(command.heading == "ls")
+        // Words and no command drawn: an approval headed by its words.
+        let words = try #require(CursorCards.detect(in: group([group([text("search_issues")]), button("Skip"), button("Run")]), title: "proj").first)
+        #expect(!words.command)
+        #expect(words.heading == "search_issues")
+    }
+
     @Test func theAgentsWindowNamesItsChat() throws {
         let header = button("Chat title. Upgrade process inquiry", [text("Chat title."), text("Upgrade process inquiry")])
         let window = group([group([button("New Chat"), button("manga-reader")]), header, group([text("ls"), button("Skip"), button("Run ⏎")])])
@@ -196,6 +276,14 @@ import Testing
         #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find NB screener code"), among: named) == "x")
         #expect(CursorCards.session(for: run("Cursor Agents"), among: two) == "y")
 
+        // Whose names are worth reading: several chats could own the card, its window names the chat, and no row
+        // carries that name yet.
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Some other name"), among: two).map(\.id) == ["x", "y"])
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Find NB screener code"), among: two).isEmpty, "a row already has it")
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents"), among: two).isEmpty, "the window names no chat")
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Anything"), among: [two[0]]).isEmpty, "one candidate needs no name")
+        #expect(CursorCards.chatName("  Three   echoes\nplan ") == "Three echoes", "cleaned as a name read from Cursor is")
+
         // A plan card holds no turn, so an idle chat can own one.
         let plan = CursorCard(kind: .plan, window: "enrollhere", heading: "p", options: [.init(label: "Build", path: [0])])
         #expect(CursorCards.session(for: plan, among: [session("i", "enrollhere", 1, working: false), session("w", "tools", 5)]) == "i")
@@ -257,6 +345,127 @@ import Testing
         #expect(tracker.sessions[key]?.isWorking == true)
         #expect(tracker.sessions[key]?.quietFalseAlarms == alarms, "a wait the card proved is no false alarm")
         #expect(tracker.sessions[key]?.cardWait == false)
+    }
+
+    /// Cursor has no batch boundary. What it sent on 2026-10-04 (3.23.12) for a command that exits with an error is
+    /// beforeShellExecution, afterShellExecution and then PostToolUseFailure for `Shell`; for one that works, the
+    /// first two alone. Five that failed with nothing working between them is a chat that may be stuck.
+    final class Feed {
+        var tracker: SessionTracker
+        var second = 1.0
+        var troubles = 0
+        let t0: Date
+        init(_ tracker: SessionTracker, t0: Date) {
+            self.tracker = tracker
+            self.t0 = t0
+        }
+        var now: Date { t0.addingTimeInterval(second) }
+        func send(_ event: String, failed tool: String? = nil, interrupt: Bool = false) {
+            var message = Hook.Message(event: event, needsInput: false, sessionID: "c1", tool: .cursor)
+            if let tool { message.toolFailure = ToolFailure(tool: tool, interrupt: interrupt) }
+            if tracker.apply(message, now: now).trouble != nil { troubles += 1 }
+            second += 1
+        }
+        func command(fails: Bool) {
+            send("beforeShellExecution")
+            send("afterShellExecution")
+            if fails { send("PostToolUseFailure", failed: "Shell") }
+        }
+    }
+
+    @Test func fiveFailedCommandsInARowMayBeStuckAndOneThatWorkedEndsIt() {
+        let feed = Feed(started(), t0: t0)
+        func stuck() -> Set<String> { feed.tracker.stuck(now: feed.now) }
+        func streak() -> Int? { feed.tracker.sessions[key]?.failureStreak }
+
+        // A file is created: the read before it fails, as it does every time, and is no part of a run.
+        feed.send("PostToolUseFailure", failed: "Read")
+        feed.send("afterFileEdit")
+        for _ in 0..<4 { feed.command(fails: true) }
+        #expect(stuck().isEmpty)
+        feed.command(fails: true)
+        #expect(stuck() == [key])
+        #expect(feed.troubles == 1)
+        feed.command(fails: true)
+        #expect(feed.troubles == 1, "news once, not once a failure")
+        #expect(streak() == 6)
+
+        // A command that worked is known to have by what is heard next not being its failure.
+        feed.command(fails: false)
+        feed.send("afterAgentThought")
+        #expect(stuck().isEmpty)
+        #expect(streak() == 0)
+
+        // Only a command's failure counts, heard straight after that command ended: not a read's or an edit's, whose
+        // successes Cursor does not report, not a second copy of the same failure, not a call denied before it ran.
+        for _ in 0..<6 { feed.send("PostToolUseFailure", failed: "Read") }
+        for _ in 0..<6 { feed.send("PostToolUseFailure", failed: "StrReplace") }
+        #expect(streak() == 0)
+        feed.command(fails: true)
+        for _ in 0..<5 { feed.send("PostToolUseFailure", failed: "Shell") }
+        #expect(streak() == 1, "a failure with no command's end before it is no part of a run")
+        feed.send("beforeShellExecution")
+        feed.send("PostToolUseFailure", failed: "Shell", interrupt: true)
+        #expect(streak() == 1)
+        // An edit that landed starts the count again.
+        for _ in 0..<3 { feed.command(fails: true) }
+        feed.send("afterFileEdit")
+        feed.command(fails: true)
+        #expect(streak() == 1)
+        // A command skipped on Cursor's card ends with no failure after it, and reads as one that worked.
+        for _ in 0..<3 { feed.command(fails: true) }
+        feed.command(fails: false)
+        feed.command(fails: true)
+        #expect(streak() == 1)
+        #expect(stuck().isEmpty)
+        #expect(feed.troubles == 1)
+        for _ in 0..<4 { feed.command(fails: true) }
+        #expect(stuck() == [key])
+        #expect(feed.troubles == 2, "a new run is news again")
+        feed.send("UserPromptSubmit")
+        #expect(stuck().isEmpty, "a new turn starts over")
+    }
+
+    /// A wait in the middle of a run is routine for Cursor: a turn gone quiet is shown as a possible wait, and with
+    /// *Mirror Cursor's cards* its own Run card is a wait before every command. The run is the same run after it.
+    @Test func aWaitInTheMiddleOfARunDoesNotMakeItNewsAgain() {
+        let feed = Feed(started(), t0: t0)
+        for _ in 0..<5 { feed.command(fails: true) }
+        #expect(feed.troubles == 1)
+
+        // A quiet spell shown as a possible wait (once a turn), and the turn going on by itself.
+        feed.second += 300
+        let nudged = feed.tracker.quietNudges(now: feed.now)
+        #expect(nudged.map(\.id) == [key])
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty, "the row says waiting while it waits")
+        feed.send("afterAgentThought")
+        #expect(feed.tracker.sessions[key]?.isWorking == true)
+        #expect(feed.tracker.stuck(now: feed.now) == [key], "and may be stuck again once it goes on")
+        #expect(feed.troubles == 1, "the same run, said once")
+
+        // Cursor's own Run card before the next command, answered, and the command fails too.
+        _ = feed.tracker.cursorCardShown(key, now: feed.now)
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty)
+        feed.command(fails: true)
+        #expect(feed.tracker.sessions[key]?.isWorking == true)
+        #expect(feed.tracker.stuck(now: feed.now) == [key])
+        #expect(feed.troubles == 1)
+
+        // A run that had gone stale and picks up again is news again.
+        feed.second += SessionTracker.stuckFor + 1
+        feed.send("afterAgentThought")
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty)
+        feed.command(fails: true)
+        #expect(feed.troubles == 2)
+    }
+
+    @Test func aChatThatReportsNoCommandsEndIsNeverCalledStuck() {
+        // A Cursor whose hooks say when a call failed and never when a command ended: nothing to weigh a run against.
+        let feed = Feed(started(), t0: t0)
+        for _ in 0..<8 { feed.send("PostToolUseFailure", failed: "Shell") }
+        #expect(feed.tracker.sessions[key]?.failureStreak == 0)
+        #expect(feed.tracker.stuck(now: feed.now).isEmpty)
+        #expect(feed.troubles == 0)
     }
 
     @Test func aWaitTheCardProvedIsSaidAsAWaitNotAMaybe() throws {
@@ -459,6 +668,14 @@ import Testing
         func release() { lock.withLock { _released += 1 } }
     }
 
+    /// What a stand-in for the chat-name read was asked for.
+    final class Asked: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _ids: [[String]] = []
+        var ids: [[String]] { lock.withLock { _ids } }
+        func record(_ ids: Set<String>) { lock.withLock { _ids.append(ids.sorted()) } }
+    }
+
     let t0 = Date(timeIntervalSince1970: 1_800_000_000)
 
     @MainActor
@@ -504,6 +721,21 @@ import Testing
         #expect(store.sessions.sessions[key("c1")]?.isWorking == true, "answered in Cursor: the turn goes on")
     }
 
+    @Test @MainActor func aQuestionCardIsAWaitOnItsRow() {
+        let suite = "NotchmeterTests.CursorCardStore.question"
+        let (store, ui, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prompt(store, "c1", project: "proj")
+        var question = CursorCard(kind: .question, window: "proj", heading: "Which fruit?", options: [])
+        question.choices = ["A apple", "B banana", "C Other..."]
+        store.cursorCardsSeen([question], now: t0.addingTimeInterval(3))
+        #expect(store.cursorCards[key("c1")] == [question])
+        #expect(store.sessions.sessions[key("c1")]?.isWaiting == true, "Cursor waits on the answer, and no hook says so")
+        store.cursorCardsSeen([], now: t0.addingTimeInterval(9))
+        #expect(store.sessions.sessions[key("c1")]?.isWorking == true)
+        #expect(ui.pressed.isEmpty, "a question is answered in Cursor; nothing of it is pressed from the notch")
+    }
+
     @Test @MainActor func aCardStaysOnTheRowItWasFirstPutOn() {
         let suite = "NotchmeterTests.CursorCardStore.sticky"
         let (store, _, defaults) = store(suite)
@@ -518,6 +750,79 @@ import Testing
         store.cursorCardsSeen([card], now: t0.addingTimeInterval(4))
         #expect(store.cursorCards[key("c2")]?.count == 1)
         #expect(store.cursorCards[key("c1")] == nil)
+    }
+
+    @Test @MainActor func aCardInTheAgentsWindowGoesToTheChatItsHeaderNames() async {
+        // Two chats in a turn at once, and the Agents window, whose title names no workspace. The card is the first
+        // chat's; the second spoke last. Cursor's own chat names settle it, read once when the card first shows.
+        let suite = "NotchmeterTests.CursorCardStore.names"
+        let (store, _, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prompt(store, "aaaa-1111", project: "one", at: 0)
+        prompt(store, "bbbb-2222", project: "two", at: 1)
+        let asked = Asked()
+        store.cursorChatNameReader = { ids in
+            asked.record(ids)
+            return ["aaaa-1111": "Holiday greeting line", "bbbb-2222": "Usage export"]
+        }
+        var card = run("Cursor Agents")
+        card.chat = "Holiday greeting line"
+
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        #expect(store.cursorCards.isEmpty, "not put on the chat heard from last while the names are being read")
+        await until { store.sessions.sessions[key("aaaa-1111")]?.sessionName != nil }
+        #expect(asked.ids == [["aaaa-1111", "bbbb-2222"]], "one read, for the chats that could own the card")
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+        #expect(store.cursorCards[key("aaaa-1111")]?.count == 1, "the chat the window names")
+        #expect(store.cursorCards[key("bbbb-2222")] == nil)
+        #expect(store.sessions.sessions[key("aaaa-1111")]?.isWaiting == true)
+        #expect(store.sessions.sessions[key("bbbb-2222")]?.isWorking == true)
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(4))
+        #expect(asked.ids.count == 1, "and the names are not read again for the same card")
+    }
+
+    @Test @MainActor func aChatCursorHasNotNamedYetFallsBackToTheOneHeardFromLast() async {
+        let suite = "NotchmeterTests.CursorCardStore.unnamed"
+        let (store, _, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prompt(store, "aaaa-1111", project: "one", at: 0)
+        prompt(store, "bbbb-2222", project: "two", at: 1)
+        let asked = Asked()
+        store.cursorChatNameReader = { ids in
+            asked.record(ids)
+            return [:]
+        }
+        var card = run("Cursor Agents")
+        card.chat = "New Agent"
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        #expect(store.cursorCards.isEmpty)
+        // The card is placed by the first read of the window after the look-up has come back, whenever that is.
+        await until {
+            store.cursorCardsSeen([card], now: t0.addingTimeInterval(3))
+            return !store.cursorCards.isEmpty
+        }
+        #expect(asked.ids.count == 1, "looked up once, however many reads of the window it took")
+        #expect(store.cursorCards[key("bbbb-2222")]?.count == 1, "no name to go by: the chat heard from last, as before")
+        // A read that came back with nothing (Cursor did not answer in time) does not have the card looked up again.
+        store.cursorCardsSeen([], now: t0.addingTimeInterval(4))
+        store.cursorCardsSeen([card], now: t0.addingTimeInterval(5))
+        #expect(asked.ids.count == 1)
+
+        // With titles off nothing of a chat's name is read, so there is nothing to wait for.
+        let quiet = "NotchmeterTests.CursorCardStore.titlesoff"
+        let (silent, _, quietDefaults) = self.store(quiet)
+        defer { quietDefaults.removePersistentDomain(forName: quiet) }
+        silent.prefs.sessionTitles = false
+        prompt(silent, "aaaa-1111", project: "one", at: 0)
+        prompt(silent, "bbbb-2222", project: "two", at: 1)
+        let never = Asked()
+        silent.cursorChatNameReader = { ids in
+            never.record(ids)
+            return [:]
+        }
+        silent.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
+        #expect(silent.cursorCards[key("bbbb-2222")]?.count == 1)
+        #expect(never.ids.isEmpty)
     }
 
     @Test @MainActor func cursorsWindowsAreReadOnlyWhileAChatIsInATurn() {

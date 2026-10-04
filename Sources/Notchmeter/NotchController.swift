@@ -45,6 +45,10 @@ final class NotchActions {
     /// A click on a session row: jump to the terminal the session's hook reported (TerminalJump.swift). Wired by
     /// the app delegate, which owns the executor; the view never activates another app itself.
     var jump: (AgentSession) -> Void = { _ in }
+    /// *Answer in Cursor* on a card that is answered there (a question Cursor asks): brings the chat's window
+    /// forward, or Cursor itself when the hook named no folder to find it by. A button of its own, so it is not
+    /// under *Jump to the terminal on click*, which is about a click on the row.
+    var answerInCursor: (AgentSession) -> Void = { _ in }
     /// The Sessions card's upgrade line under a row found without the hook: opens the hook's install flow for that
     /// assistant in Settings (AppDelegate.offerHook). It never installs anything itself.
     var offerHook: (ToolID) -> Void = { _ in }

@@ -449,6 +449,35 @@ import UserNotifications
         #expect(tracker.sessions["s"]?.idleTeammates.isEmpty ?? true)
     }
 
+    /// A wait in the middle of a run (a prompt answered in the terminal, which the next batch proves) does not make
+    /// the same run news again: the row says so again once the session goes on, and the notice was already sent.
+    @Test func aWaitInTheMiddleOfARunOfFailuresDoesNotAnnounceItAgain() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        var second = 1.0
+        var troubles: [SessionTrouble] = []
+        func fail(_ count: Int) {
+            for _ in 0..<count {
+                let outcome = tracker.apply(message("PostToolUseFailure") { $0.toolFailure = ToolFailure(tool: "Bash", interrupt: false) }, now: at(second))
+                if let trouble = outcome.trouble?.trouble { troubles.append(trouble) }
+                second += 1
+            }
+            let outcome = tracker.apply(message(Hook.batchEvent) { $0.batchSize = count }, now: at(second))
+            if let trouble = outcome.trouble?.trouble { troubles.append(trouble) }
+            second += 1
+        }
+        fail(5)
+        #expect(troubles == [.stuck(failures: 5)])
+        tracker.apply(Hook.Message(event: "Notification", needsInput: true, sessionID: "s", project: "app"), now: at(second))
+        #expect(tracker.sessions["s"]?.isWaiting == true)
+        #expect(tracker.stuck(now: at(second + 1)).isEmpty)
+        second += 2
+        fail(1)
+        #expect(tracker.sessions["s"]?.isWorking == true)
+        #expect(tracker.stuck(now: at(second)) == ["s"])
+        #expect(troubles == [.stuck(failures: 5)], "said once for the run")
+    }
+
     /// Five failed calls with none succeeding between them, across batches that each failed whole, is a session that
     /// may be stuck; the flag is news once, and a batch in which anything worked ends it.
     @Test func fiveFailuresInARowMayBeStuckAndABatchThatWorkedEndsIt() {
@@ -476,6 +505,7 @@ import UserNotifications
         #expect(troubles.count == 1, "news once, when the run reaches the threshold")
         fail(1, batchOf: 3)
         #expect(tracker.stuck(now: at(second)).isEmpty, "a batch in which anything worked is progress")
+
         #expect(tracker.sessions["s"]?.failureStreak == 0)
     }
 

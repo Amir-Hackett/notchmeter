@@ -8,8 +8,8 @@ enum CursorPlanAction: String, Sendable {
     case view, build
 }
 
-/// Cursor's own cards — a command waiting for Run, a mode-switch confirmation, a created plan's Build — have no
-/// hook event; they exist only in Cursor's window. With *Mirror Cursor's cards* on (Preferences.cursorControl) and
+/// Cursor's own cards — a command waiting for Run, a mode-switch confirmation, a created plan's Build, a question
+/// the agent asks — have no hook event; they exist only in Cursor's window. With *Mirror Cursor's cards* on (Preferences.cursorControl) and
 /// the Accessibility permission granted, the app reads Cursor's windows through the Accessibility API, never a
 /// screenshot, recognises those cards by their buttons, shows them on the session's row with the options Cursor
 /// shows, and presses the one chosen. Nothing is ever pressed without re-reading the same card first, and a
@@ -32,6 +32,8 @@ struct CursorCard: Equatable, Sendable, Identifiable {
         case modeSwitch
         /// A created plan: View Plan, Build.
         case plan
+        /// A question the agent asks (its AskQuestion tool): the choices, Skip and Continue.
+        case question
     }
 
     struct Option: Equatable, Sendable, Hashable {
@@ -49,13 +51,21 @@ struct CursorCard: Equatable, Sendable, Identifiable {
     /// The card's own words: the destination mode, the plan's name, the command; at most `CursorCards.headingLimit`.
     let heading: String?
     let options: [Option]
+    /// A question's choices as Cursor letters them ("A apple"), in its order. They are shown and not pressed: a
+    /// choice is picked and then sent with Continue, which Cursor draws as plain text and no button, and nothing in
+    /// its tree says which choices are picked or whether several may be, so the question is answered in Cursor.
+    var choices: [String] = []
+    /// Whether a Run card is for a command, which heads it. Cursor shows the same Skip and Run for other things it
+    /// wants approved, a file written outside the workspace for one, and the card then says what instead.
+    var command = true
     /// A hash of everything the card says, command included and uncut, so two commands that open with the same 160
     /// characters are two cards. Stable for the life of the process, which is all a card's `id` is compared within.
     var fingerprint = 0
 
     /// Stable while the same card is on screen, and different for the next one.
     var id: String {
-        [kind.rawValue, window, chat ?? "", heading ?? "", options.map(\.label).joined(separator: "|"), String(fingerprint)].joined(separator: "\u{1F}")
+        [kind.rawValue, window, chat ?? "", heading ?? "", options.map(\.label).joined(separator: "|"), choices.joined(separator: "|"),
+         String(fingerprint)].joined(separator: "\u{1F}")
     }
     /// Whether the card holds the turn until it is answered (a plan card waits for nobody).
     var blocksTurn: Bool { kind != .plan }
@@ -76,6 +86,14 @@ enum CursorCards {
         .plan: ([buildLabels, ["view plan", "minimize plan"]], []),
         .run: ([["run"], ["skip", "reject", "deny", "cancel"]], ["always run", "allow", "always allow", "allowlist", "add to allowlist", "run always", "run everything"]),
     ]
+    /// A question's card has no button but its choices (Cursor 3.23.12's live tree, 2026-10-04, the same for a
+    /// question with one answer and one with several): a header that reads "Questions", the question, one button
+    /// a choice titled by its letter and its words ("A apple", the last "D Other..." for an answer typed in), and
+    /// "Skip" and "Continue", each plain text in a group. So it is known by those three texts beside choices
+    /// lettered from A, and by no signature of buttons.
+    static let questionMarks: Set<String> = ["questions", "skip", "continue"]
+    /// A question card's own words, which are not the question.
+    static let questionChrome: Set<String> = ["questions", "of", "skip", "esc", "continue"]
     /// The words that head a plan's card, the plan's name on the line after them.
     static let planCardLabels = ["Created Plan", "Review Plan"]
     /// A plan card's Build on this Mac. "Build in Cloud" is another thing and is never pressed.
@@ -121,7 +139,8 @@ enum CursorCards {
     }
 
     private struct Gathered {
-        var buttons: [(label: String, path: [Int], enabled: Bool)] = []
+        /// `raw` is the button's words as Cursor has them, punctuation and all.
+        var buttons: [(label: String, raw: String, path: [Int], enabled: Bool)] = []
         var texts: [String] = []
         /// Each command drawn in the subtree, its runs joined as Cursor lays them out.
         var commands: [String] = []
@@ -136,7 +155,7 @@ enum CursorCards {
     private static func visit(_ node: CursorAXNode, path: [Int], title: String, found: inout [CursorCard]) -> Gathered {
         var gathered = Gathered()
         if node.role == "AXButton", let label = normalized(node.label) {
-            gathered.buttons.append((label, path, node.enabled))
+            gathered.buttons.append((label, (node.label ?? label).trimmingCharacters(in: .whitespacesAndNewlines), path, node.enabled))
         } else if node.role == "AXStaticText" || node.role == "AXHeading", let text = node.label?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
             gathered.texts.append(text)
         }
@@ -167,9 +186,33 @@ enum CursorCards {
             var hasher = Hasher()
             hasher.combine(gathered.commands)
             hasher.combine(gathered.texts)
-            found.append(CursorCard(kind: kind, window: title, heading: heading(kind, texts: gathered.texts, commands: gathered.commands), options: options,
-                                    fingerprint: hasher.finalize()))
+            var subject = heading(kind, texts: gathered.texts, commands: gathered.commands)
+            // A Run card with no command and no words of its own is an approval of something else, and the button
+            // that is not one of its answers says what: "Create /path/to/file" (Cursor 3.23.12, 2026-10-04). A
+            // button of one word ("Copy") names no subject. What such a card says is in its buttons, so they are
+            // part of what makes it this card and not the next: two files whose paths open alike are two cards,
+            // and a press re-read against one must not land on the other.
+            if kind == .run, gathered.commands.isEmpty {
+                hasher.combine(gathered.buttons.map(\.raw))
+                if subject == nil {
+                    subject = gathered.buttons.first { !wanted.contains($0.label.lowercased()) && $0.raw.contains(" ") }.flatMap { line($0.raw) }
+                }
+            }
+            var card = CursorCard(kind: kind, window: title, heading: subject, options: options, fingerprint: hasher.finalize())
+            card.command = kind != .run || !gathered.commands.isEmpty
+            found.append(card)
             gathered.kinds.insert(kind)
+            emitted = true
+        }
+        if !gathered.kinds.contains(.question), let choices = choices(of: gathered) {
+            var hasher = Hasher()
+            hasher.combine(gathered.texts)
+            hasher.combine(choices)
+            var card = CursorCard(kind: .question, window: title, heading: heading(.question, texts: gathered.texts, commands: []), options: [],
+                                  fingerprint: hasher.finalize())
+            card.choices = choices
+            found.append(card)
+            gathered.kinds.insert(.question)
             emitted = true
         }
         // A card's buttons and words are its own: an ancestor cannot pair them with another card's.
@@ -200,13 +243,36 @@ enum CursorCards {
             }
         // What Run would run, not the line the model wrote to describe it ("Run echo three").
         case .run: text = commands.first ?? texts.first
+        // The question, which is the first of the card's words that is not its own furniture or a number.
+        case .question: text = texts.first { !questionChrome.contains($0.lowercased()) && $0.contains(where: \.isLetter) }
         }
-        guard let text else { return nil }
-        // One line, and a mark where there was more: a command that goes on past what is shown must not read as whole.
+        return text.flatMap(line)
+    }
+
+    /// One line, and a mark where there was more: a command that goes on past what is shown must not read as whole.
+    private static func line(_ text: String) -> String? {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
         let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
         let cut = line.count > headingLimit
-        let more = cut || text.trimmingCharacters(in: .whitespacesAndNewlines).contains(where: \.isNewline)
-        return (cut ? String(line.prefix(headingLimit)) : line) + (more ? "…" : "")
+        return (cut ? String(line.prefix(headingLimit)) : line) + (cut || text.contains(where: \.isNewline) ? "…" : "")
+    }
+
+    /// The choices of a question card, when what was gathered is one: its three texts, and buttons that are its
+    /// choices and nothing else, two or more, lettered A, B and on in order. Every button, so that the card is the
+    /// card alone: a stretch of the chat that happens to hold those three words and a lettered button or two also
+    /// holds Cursor's other buttons, and is no question. A card drawn some other way is not recognised, which
+    /// leaves it where it was before, in Cursor. Cursor's own letters are kept, since they are how its card names
+    /// a choice.
+    private static func choices(of gathered: Gathered) -> [String]? {
+        guard questionMarks.isSubset(of: Set(gathered.texts.map { $0.lowercased() })) else { return nil }
+        let labels = gathered.buttons.map(\.raw)
+        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        guard (2...alphabet.count).contains(labels.count) else { return nil }
+        for (index, raw) in labels.enumerated() {
+            guard raw.count > 2, raw.first == alphabet[index], raw.dropFirst().first == " " else { return nil }
+        }
+        return labels.map { String($0.prefix(headingLimit)) }
     }
 
     /// The Cursor session a card belongs to. A card that holds a turn (Run, a mode switch) belongs to a chat that is
@@ -218,13 +284,9 @@ enum CursorCards {
     /// of life by a moment. An editor window naming a workspace none of several candidates is in belongs to none
     /// of them; the Agents window is every workspace's, and there the latest event decides.
     static func session(for card: CursorCard, among sessions: [AgentSession]) -> String? {
-        var candidates = sessions.filter { $0.tool == .cursor && $0.host == nil }
-        if card.blocksTurn {
-            let inTurn = candidates.filter { $0.isWorking || $0.isWaiting }
-            if !inTurn.isEmpty { candidates = inTurn }
-        }
+        let candidates = candidates(for: card, among: sessions)
         if candidates.count <= 1 { return candidates.first?.id }
-        if let chat = card.chat {
+        if let chat = card.chat.flatMap(chatName) {
             // Cursor's own name for the chat is the row's `sessionName` (CursorChatNames); its title is a prompt's.
             let named = candidates.filter { $0.sessionName == chat || $0.title == chat }
             if named.count == 1 { return named[0].id }
@@ -234,6 +296,30 @@ enum CursorCards {
         if let best = inWorkspace.max(by: { $0.lastEvent < $1.lastEvent }) { return best.id }
         guard card.chat != nil || card.window == agentsWindowTitle else { return nil }
         return candidates.max(by: { $0.lastEvent < $1.lastEvent })?.id
+    }
+
+    /// The chats on this Mac a card could belong to: Cursor's, and for a card that holds a turn, the ones in a turn.
+    static func candidates(for card: CursorCard, among sessions: [AgentSession]) -> [AgentSession] {
+        let local = sessions.filter { $0.tool == .cursor && $0.host == nil }
+        guard card.blocksTurn else { return local }
+        let inTurn = local.filter { $0.isWorking || $0.isWaiting }
+        return inTurn.isEmpty ? local : inTurn
+    }
+
+    /// A chat's name as a row would hold it: the header's words cleaned the way Cursor's own name for the chat is
+    /// when it is read from Cursor's database (CursorChatNames.name), so the two compare equal.
+    static func chatName(_ header: String) -> String? {
+        Hook.title(fromPrompt: header)
+    }
+
+    /// The chats whose names are worth reading for a card: several could own it, its window names the chat, and no
+    /// row carries that name yet. Empty when one candidate settles it, the window names no chat, or a row is
+    /// already known by the name. With Cursor's names read for these, the card goes to the chat it is in, not to
+    /// whichever was heard from last (UsageStore.cursorCardsSeen).
+    static func unnamedCandidates(for card: CursorCard, among sessions: [AgentSession]) -> [AgentSession] {
+        let candidates = candidates(for: card, among: sessions)
+        guard candidates.count > 1, let chat = card.chat.flatMap(chatName) else { return [] }
+        return candidates.contains { $0.sessionName == chat || $0.title == chat } ? [] : candidates
     }
 
     static let agentsWindowTitle = "Cursor Agents"

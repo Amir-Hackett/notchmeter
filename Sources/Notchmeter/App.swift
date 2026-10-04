@@ -279,6 +279,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, self.prefs.jumpToTerminal else { return }
             self.jumper.jump(session)
         }
+        actions.answerInCursor = { [weak self] session in
+            guard let self else { return }
+            if session.host == nil, let terminal = session.terminal, TerminalJump.resolve(terminal) != .none {
+                self.jumper.jump(session)
+            } else {
+                CursorPlanOpener.activateCursor()
+            }
+        }
         actions.offerHook = { [weak self] tool in self?.offerHook(for: tool) }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }

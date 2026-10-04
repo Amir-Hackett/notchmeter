@@ -404,6 +404,7 @@ struct SessionsCard: View {
                                        planAction: { plan, action in store.cursorPlanAction(plan.file, action, sessionID: row.id) },
                                        cursorCards: store.cursorCards[row.id] ?? [],
                                        cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: row.id) },
+                                       answerInCursor: { actions.answerInCursor($0) },
                                        cursorNote: store.cursorActionNotes[row.id],
                                        hideDetails: store.hidesFigures || !prefs.sessionTitles)
                         }
@@ -539,6 +540,8 @@ private struct SessionRow: View {
     /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons.
     var cursorCards: [CursorCard] = []
     var cursorPress: (CursorCard, String) -> Void = { _, _ in }
+    /// Brings Cursor forward for a card that is answered there (PanelActions.answerInCursor).
+    var answerInCursor: (AgentSession) -> Void = { _ in }
     var cursorNote: String? = nil
     var hideDetails = false
 
@@ -580,7 +583,8 @@ private struct SessionRow: View {
                 denialList.padding(.leading, SessionRow.textInset)
             }
             ForEach(cursorCards, id: \.id) { card in
-                CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) })
+                CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
+                               answerInCursor: { if let session { answerInCursor(session) } })
                     .padding(.leading, SessionRow.textInset)
             }
             if let note = cursorNote {
@@ -991,7 +995,9 @@ private struct SessionRow: View {
         case .justFinished: L("Just finished")
         case .mcpInput(let server?): L("%@ asks for input: answer in the terminal", server)
         case .mcpInput(nil): L("An MCP server asks for input: answer in the terminal")
-        case .mayBeStuck(let failures): L("May be stuck: %ld tool calls failed in a row", failures)
+        // Cursor's run is of commands (SessionTracker.apply): what else worked between them it does not say.
+        case .mayBeStuck(let failures):
+            row.tool == .cursor ? L("May be stuck: %ld commands failed in a row", failures) : L("May be stuck: %ld tool calls failed in a row", failures)
         }
     }
 

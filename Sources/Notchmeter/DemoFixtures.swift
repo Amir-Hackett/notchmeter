@@ -864,6 +864,17 @@ extension DemoFixtures {
                    options: [.init(label: "Skip", path: [0]), .init(label: "Switch", path: [1])]),
     ]
 
+    /// The same chats with the two cards that are not a command's (`cursor-cards.png`, for review): Cursor's approval
+    /// for a file written outside the workspace, and a question, which is shown with its choices and answered in Cursor.
+    static let cursorOtherCards: [CursorCard] = {
+        var approval = CursorCard(kind: .run, window: "api-server", heading: "Create /Users/me/notes/export-plan.md",
+                                  options: [.init(label: "Skip", path: [0]), .init(label: "Run", path: [1])])
+        approval.command = false
+        var question = CursorCard(kind: .question, window: "scout", heading: "Which queue should retries go through?", options: [])
+        question.choices = ["A The existing Redis queue", "B A new table in Postgres", "C Other..."]
+        return [approval, question]
+    }()
+
     static func everyAssistant(_ tracker: inout SessionTracker, now: Date) {
         func feed(_ tool: ToolID, _ ago: TimeInterval, _ json: String, event: String? = nil) {
             guard let message = Hook.message(from: Data(json.utf8), tool: tool, event: event, environment: [:], branch: { _ in "main" }, requestID: "demo") else { return }
