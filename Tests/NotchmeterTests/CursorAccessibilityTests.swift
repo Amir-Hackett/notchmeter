@@ -111,6 +111,67 @@ import Testing
         #expect(wordsOnly.heading == "npm run deploy -- --prod")
     }
 
+    /// The question card as Cursor 3.23.12's editor window drew it on 2026-10-04, for a question with one answer and
+    /// for one with several alike: the choices are buttons, Skip and Continue are plain text.
+    func questionCard(_ question: String = "Which fruit?", _ choices: [String] = ["apple", "banana", "cherry"]) -> CursorAXNode {
+        let letters = Array("ABCDEFGH").map(String.init)
+        let lettered = zip(letters, choices).map { letter, choice in button("\(letter) \(choice)", [button(letter), text(choice)]) }
+        let other = button("\(letters[choices.count]) Other...", [button(letters[choices.count]), CursorAXNode(role: "AXTextArea", label: nil)])
+        return group([group([group([text(""), text("Questions"), group([text("")]), text("1"), text(" of "), text("1"), group([text("")]), group([text("")])]),
+                             group([group([text("1"), text(".")]), group([group([text(question)])])] + lettered + [other]),
+                             group([text("Skip"), text("Esc")]),
+                             group([text("Continue"), text("⏎")])]),
+                      group([group([text(""), group([text("1 background terminal")])])])])
+    }
+
+    @Test func theQuestionCardIsReadWithItsChoicesAndNothingToPress() throws {
+        let card = try #require(CursorCards.detect(in: group([questionCard()]), title: "proj").first)
+        #expect(card.kind == .question)
+        #expect(card.heading == "Which fruit?", "the question, not the card's own furniture or its numbering")
+        #expect(card.choices == ["A apple", "B banana", "C cherry", "D Other..."], "as Cursor letters them")
+        #expect(card.options.isEmpty, "Continue is no button in Cursor's tree, so nothing is offered to press")
+        #expect(card.blocksTurn)
+        #expect(CursorCards.detect(in: group([questionCard()]), title: "proj").count == 1)
+        let next = try #require(CursorCards.detect(in: group([questionCard("Which colours?", ["red", "green", "blue"])]), title: "proj").first)
+        #expect(next.id != card.id, "the next question is another card")
+        #expect(try #require(CursorCards.detect(in: group([questionCard("Which fruit?", ["apple", "pear"])]), title: "proj").first).id != card.id)
+
+        // The same words in a reply are no card: a question card is its three texts beside choices lettered from A.
+        let reply = group([text("On the "), text("Questions"), text(" card press "), text("Skip"), text(" or "), text("Continue"), button("Copy")])
+        #expect(CursorCards.detect(in: reply, title: "proj").isEmpty)
+        let unlettered = group([text("Questions"), button("apple"), button("banana"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: unlettered, title: "proj").isEmpty)
+        let fromB = group([text("Questions"), button("B banana"), button("C cherry"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: fromB, title: "proj").isEmpty, "the letters run from A")
+        let one = group([text("Questions"), button("A apple"), text("Skip"), text("Continue")])
+        #expect(CursorCards.detect(in: one, title: "proj").isEmpty)
+
+        // Beside a Run card, each is its own.
+        let run = group([group([code(["$", " ", "ls"]), button("Skip"), button("Run")])])
+        #expect(Set(CursorCards.detect(in: group([questionCard(), run]), title: "proj").map(\.kind)) == [.question, .run])
+    }
+
+    @Test func anApprovalThatIsNotACommandSaysWhatItIsFor() throws {
+        // As Cursor 3.23.12 drew its approval for a file written outside the workspace (2026-10-04): the file in a
+        // button of its own, then the same Skip and Run a command gets.
+        let path = "/Users/x/notes/answers.txt"
+        let approval = group([group([group([button("Create \(path)", [text("Create"), text(" "), text(path)]), button("Skip"),
+                                            button("Run ⏎", [text("Run"), text("⏎")])])])])
+        let card = try #require(CursorCards.detect(in: approval, title: "proj").first)
+        #expect(card.kind == .run)
+        #expect(!card.command)
+        #expect(card.heading == "Create /Users/x/notes/answers.txt", "the button that is not an answer, punctuation and all")
+        #expect(card.options.map(\.label) == ["Skip", "Run"])
+
+        let command = try #require(CursorCards.detect(in: group([group([code(["$", " ", "ls"]), button("Skip"), button("Run")])]), title: "proj").first)
+        #expect(command.command)
+        #expect(command.heading == "ls")
+        // Words and no command drawn: an approval headed by its words.
+        let words = try #require(CursorCards.detect(in: group([group([text("search_issues")]), button("Skip"), button("Run")]), title: "proj").first)
+        #expect(!words.command)
+        #expect(words.heading == "search_issues")
+    }
+
     @Test func theAgentsWindowNamesItsChat() throws {
         let header = button("Chat title. Upgrade process inquiry", [text("Chat title."), text("Upgrade process inquiry")])
         let window = group([group([button("New Chat"), button("manga-reader")]), header, group([text("ls"), button("Skip"), button("Run ⏎")])])
@@ -265,6 +326,81 @@ import Testing
         #expect(tracker.sessions[key]?.isWorking == true)
         #expect(tracker.sessions[key]?.quietFalseAlarms == alarms, "a wait the card proved is no false alarm")
         #expect(tracker.sessions[key]?.cardWait == false)
+    }
+
+    /// Cursor has no batch boundary. What it sent on 2026-10-04 (3.23.12) for a command that exits with an error is
+    /// beforeShellExecution, afterShellExecution and then PostToolUseFailure for `Shell`; for one that works, the
+    /// first two alone. Five that failed with nothing working between them is a chat that may be stuck.
+    @Test func fiveFailedCommandsInARowMayBeStuckAndOneThatWorkedEndsIt() {
+        var tracker = started()
+        var second = 1.0
+        var troubles = 0
+        func send(_ event: String, failed tool: String? = nil, interrupt: Bool = false) {
+            var message = Hook.Message(event: event, needsInput: false, sessionID: "c1", tool: .cursor)
+            if let tool { message.toolFailure = ToolFailure(tool: tool, interrupt: interrupt) }
+            if tracker.apply(message, now: t0.addingTimeInterval(second)).trouble != nil { troubles += 1 }
+            second += 1
+        }
+        func command(fails: Bool) {
+            send("beforeShellExecution")
+            send("afterShellExecution")
+            if fails { send("PostToolUseFailure", failed: "Shell") }
+        }
+        func stuck() -> Set<String> { tracker.stuck(now: t0.addingTimeInterval(second)) }
+
+        // A file is created: the read before it fails, as it does every time, and is no part of a run.
+        send("PostToolUseFailure", failed: "Read")
+        send("afterFileEdit")
+        for _ in 0..<4 { command(fails: true) }
+        #expect(stuck().isEmpty)
+        command(fails: true)
+        #expect(stuck() == [key])
+        #expect(troubles == 1)
+        command(fails: true)
+        #expect(troubles == 1, "news once, not once a failure")
+        #expect(tracker.sessions[key]?.failureStreak == 6)
+
+        // A command that worked is known to have by what is heard next not being its failure.
+        command(fails: false)
+        send("afterAgentThought")
+        #expect(stuck().isEmpty)
+        #expect(tracker.sessions[key]?.failureStreak == 0)
+
+        // Failed reads never add up, an edit that landed starts the count again, and a call denied is no try.
+        for _ in 0..<6 { send("PostToolUseFailure", failed: "Read") }
+        #expect(tracker.sessions[key]?.failureStreak == 0)
+        for _ in 0..<4 { command(fails: true) }
+        send("afterFileEdit")
+        command(fails: true)
+        #expect(tracker.sessions[key]?.failureStreak == 1)
+        send("beforeShellExecution")
+        send("PostToolUseFailure", failed: "Shell", interrupt: true)
+        #expect(tracker.sessions[key]?.failureStreak == 1)
+        // A command skipped on Cursor's card ends with no failure after it, and reads as one that worked.
+        for _ in 0..<3 { command(fails: true) }
+        command(fails: false)
+        command(fails: true)
+        #expect(tracker.sessions[key]?.failureStreak == 1)
+        #expect(stuck().isEmpty)
+        #expect(troubles == 1)
+
+        // An edit that fails over and over counts as a command does.
+        for _ in 0..<5 { send("PostToolUseFailure", failed: "StrReplace") }
+        #expect(stuck() == [key])
+        send("UserPromptSubmit")
+        #expect(stuck().isEmpty, "a new turn starts over")
+    }
+
+    @Test func aChatThatReportsNoCommandsEndIsNeverCalledStuck() {
+        // A Cursor whose hooks say when a call failed and never when a command ended: nothing to weigh a run against.
+        var tracker = started()
+        for index in 0..<8 {
+            var message = Hook.Message(event: "PostToolUseFailure", needsInput: false, sessionID: "c1", tool: .cursor)
+            message.toolFailure = ToolFailure(tool: "Shell", interrupt: false)
+            _ = tracker.apply(message, now: t0.addingTimeInterval(Double(index + 1)))
+        }
+        #expect(tracker.sessions[key]?.failureStreak == 8)
+        #expect(tracker.stuck(now: t0.addingTimeInterval(10)).isEmpty)
     }
 
     @Test func aWaitTheCardProvedIsSaidAsAWaitNotAMaybe() throws {
@@ -518,6 +654,21 @@ import Testing
         store.cursorCardsSeen([plan("p")], now: t0.addingTimeInterval(4))
         #expect(store.cursorCards.isEmpty)
         #expect(store.sessions.sessions[key("c1")]?.isWorking == true, "answered in Cursor: the turn goes on")
+    }
+
+    @Test @MainActor func aQuestionCardIsAWaitOnItsRow() {
+        let suite = "NotchmeterTests.CursorCardStore.question"
+        let (store, ui, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prompt(store, "c1", project: "proj")
+        var question = CursorCard(kind: .question, window: "proj", heading: "Which fruit?", options: [])
+        question.choices = ["A apple", "B banana", "C Other..."]
+        store.cursorCardsSeen([question], now: t0.addingTimeInterval(3))
+        #expect(store.cursorCards[key("c1")] == [question])
+        #expect(store.sessions.sessions[key("c1")]?.isWaiting == true, "Cursor waits on the answer, and no hook says so")
+        store.cursorCardsSeen([], now: t0.addingTimeInterval(9))
+        #expect(store.sessions.sessions[key("c1")]?.isWorking == true)
+        #expect(ui.pressed.isEmpty, "a question is answered in Cursor; nothing of it is pressed from the notch")
     }
 
     @Test @MainActor func aCardStaysOnTheRowItWasFirstPutOn() {

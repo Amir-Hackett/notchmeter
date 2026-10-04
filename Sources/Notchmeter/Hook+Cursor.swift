@@ -16,6 +16,15 @@ extension Hook {
             "postToolUseFailure": "PostToolUseFailure",
         ]
 
+        /// The tools whose failures count towards a run of them (AgentSession.mayBeStuck): the ones whose success
+        /// Cursor also reports, a command's by an afterShellExecution with no failure after it, an edit's by
+        /// afterFileEdit. A command that exits with an error is a failure of `Shell` (Cursor 3.23.12, 2026-10-04);
+        /// `Write` and `StrReplace` are the names its transcripts give its editing tools, whose failures have not
+        /// been seen. A failed `Read` is left out: Cursor says nothing when a read works, so failed reads would add
+        /// up across a turn of reads that mostly worked, and it reads a file before creating it, which fails
+        /// every time.
+        static let countedFailures: Set<String> = [shellTool, "Write", "StrReplace"]
+
         /// The opening of the prompt Cursor submits when Build is pressed on a plan; nobody types it. Long enough
         /// that a prompt someone did type ("Implement the plan as specified in docs/PLAN.md") is not taken for it.
         static let buildPrompt = "Implement the plan as specified, it is attached for your reference"

@@ -580,7 +580,8 @@ private struct SessionRow: View {
                 denialList.padding(.leading, SessionRow.textInset)
             }
             ForEach(cursorCards, id: \.id) { card in
-                CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) })
+                CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
+                               answerInCursor: { if let session { jump(session) } })
                     .padding(.leading, SessionRow.textInset)
             }
             if let note = cursorNote {

@@ -1327,3 +1327,6 @@
 "Presses this button on Cursor's card" = "Bấm nút này trên thẻ của Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Hiện thẻ Run, chuyển chế độ và kế hoạch của Cursor trên dòng của phiên và bấm nút bạn chọn. Đọc cửa sổ của Cursor qua Trợ năng, không bao giờ đọc màn hình.";
 "Cursor is waiting to run a command" = "Cursor đang chờ để chạy một lệnh";
+"Cursor is asking a question" = "Cursor đang hỏi một câu";
+"Cursor is waiting for your approval" = "Cursor đang chờ bạn phê duyệt";
+"Brings Cursor forward, where the question is answered" = "Đưa Cursor lên trước, nơi trả lời câu hỏi";

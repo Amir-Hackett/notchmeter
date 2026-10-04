@@ -1327,3 +1327,6 @@
 "Presses this button on Cursor's card" = "Cursor 카드의 이 버튼을 누릅니다";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Cursor의 Run, 모드 전환, 계획 카드를 세션 행에 보여 주고 고른 버튼을 누릅니다. Cursor 창은 손쉬운 사용으로 읽으며 화면은 읽지 않습니다.";
 "Cursor is waiting to run a command" = "Cursor가 명령 실행을 기다리고 있습니다";
+"Cursor is asking a question" = "Cursor가 질문하고 있습니다";
+"Cursor is waiting for your approval" = "Cursor가 승인을 기다리고 있습니다";
+"Brings Cursor forward, where the question is answered" = "Cursor를 앞으로 가져옵니다. 질문에는 거기서 답합니다";

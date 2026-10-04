@@ -2138,8 +2138,10 @@ final class UsageStore {
            finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
-        if let trouble = outcome.trouble, prefs.notifySessionTrouble, prefs.notifiesSessions(of: tool) {
-            deliverSessionEvent(.trouble(trouble.trouble), trouble.session)
+        if let trouble = outcome.trouble {
+            // Said whatever the notices are set to, so a run can see the row's own state change (scripts/e2e.sh).
+            Oracle.shared.emit("session", ["action": "trouble", "session": trouble.session.id, "kind": trouble.trouble.name])
+            if prefs.notifySessionTrouble, prefs.notifiesSessions(of: tool) { deliverSessionEvent(.trouble(trouble.trouble), trouble.session) }
         }
         guard isShown(tool) else { return }
         if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
@@ -2777,7 +2779,7 @@ extension UsageStore {
         for (session, card) in started {
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
-                deliverSessionEvent(.waiting(blocking: true, kind: card.kind == .modeSwitch ? .question : .permission), session)
+                deliverSessionEvent(.waiting(blocking: true, kind: card.kind == .run ? .permission : .question), session)
             }
         }
     }

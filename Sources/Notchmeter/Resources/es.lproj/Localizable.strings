@@ -1344,3 +1344,6 @@
 "Presses this button on Cursor's card" = "Pulsa este botón en la tarjeta de Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Muestra las tarjetas Run, de cambio de modo y de plan de Cursor en la fila de la sesión y pulsa el botón que elijas. Lee las ventanas de Cursor mediante Accesibilidad, nunca la pantalla.";
 "Cursor is waiting to run a command" = "Cursor está esperando para ejecutar un comando";
+"Cursor is asking a question" = "Cursor hace una pregunta";
+"Cursor is waiting for your approval" = "Cursor está esperando tu aprobación";
+"Brings Cursor forward, where the question is answered" = "Trae Cursor al frente, donde se responde la pregunta";

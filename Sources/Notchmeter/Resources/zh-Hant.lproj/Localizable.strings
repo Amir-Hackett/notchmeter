@@ -1327,3 +1327,6 @@
 "Presses this button on Cursor's card" = "按下 Cursor 卡片上的這個按鈕";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "在工作階段列上顯示 Cursor 的 Run、切換模式與計畫卡片，並按下你選的按鈕。透過輔助使用讀取 Cursor 的視窗，從不讀取螢幕。";
 "Cursor is waiting to run a command" = "Cursor 正在等待執行指令";
+"Cursor is asking a question" = "Cursor 正在提問";
+"Cursor is waiting for your approval" = "Cursor 正在等待你的核准";
+"Brings Cursor forward, where the question is answered" = "將 Cursor 帶到最前面，在那裡回答問題";
