@@ -29,7 +29,8 @@ struct CursorPlanFollower: Equatable, Sendable {
     private(set) var planName: String?
     /// The plan file whose statuses last overlayed this list, when one matched.
     private(set) var planFile: String?
-    /// How many plans the transcript has made so far, so the store can tell a new plan from the one it knew.
+    /// How many times the transcript has started a list that is not the last plan's (a `CreatePlan`, or a whole
+    /// new list sharing none of its tasks), so the store can tell that the row's plan is no longer the one it knew.
     private(set) var plansCreated = 0
 
     /// The list as the row draws it; an empty one once every item is gone.
@@ -42,9 +43,14 @@ struct CursorPlanFollower: Equatable, Sendable {
         defer { try? handle.close() }
         let size = (try? handle.seekToEnd()) ?? 0
         if size < offset {
+            // Rewritten: everything read from it is read again, the plan's name, file and count included, so a
+            // transcript that comes back with the same plan is not taken for one that made another.
             offset = 0
             partial = Data()
             items = []
+            planName = nil
+            planFile = nil
+            plansCreated = 0
         }
         guard size > offset, (try? handle.seek(toOffset: offset)) != nil, let data = try? handle.readToEnd() else { return false }
         offset += UInt64(data.count)
@@ -64,14 +70,36 @@ struct CursorPlanFollower: Equatable, Sendable {
         for line in buffer.split(separator: 0x0A) where CursorPlans.mentionsPlanTool(Data(line)) {
             for call in CursorPlans.calls(in: Data(line)) { apply(call) }
         }
+        takeWholeTail()
         return (items, planName, planFile, plansCreated) != before
     }
 
-    /// Overlays statuses from the plan file Cursor keeps for this conversation. True when the list changed.
+    /// Cursor's earlier builds ended a transcript on a record with no newline after it (five of eleven from April
+    /// 2026 on one Mac, one of them the `CreatePlan` itself). A tail that is a whole JSON object is such a record,
+    /// not a line still being written, which cannot parse; it is read now and not again.
+    private mutating func takeWholeTail() {
+        guard !partial.isEmpty, CursorPlans.mentionsPlanTool(Data(partial)),
+              (try? JSONSerialization.jsonObject(with: Data(partial))) != nil else { return }
+        for call in CursorPlans.calls(in: Data(partial)) { apply(call) }
+        partial = Data()
+    }
+
+    /// Overlays the plan file Cursor keeps for this conversation: its status and words for each task the list
+    /// already has. A task only the file has is not added, since the list may have moved on (a later `TodoWrite`
+    /// that replaced it would otherwise get the plan's tasks appended on every read); a list with nothing in it
+    /// yet takes the file's. True when the list changed.
     mutating func readPlanFile(_ url: URL) -> Bool {
         guard let call = CursorPlanFiles.call(in: url) else { return false }
         let before = (items, planFile)
-        apply(call)
+        if items.isEmpty {
+            apply(call)
+        } else {
+            for todo in call.todos {
+                guard let id = todo.id, let index = items.firstIndex(where: { $0.id == id }) else { continue }
+                if let content = todo.content { items[index].content = content }
+                if let status = todo.status { items[index].status = status.plan }
+            }
+        }
         planFile = url.path
         return (items, planFile) != before
     }
@@ -87,10 +115,19 @@ struct CursorPlanFollower: Equatable, Sendable {
                 return Item(id: id, content: todo.content, status: todo.status?.plan ?? .pending)
             }
         } else if !call.merge {
-            items = call.todos.compactMap { todo in
+            let replacement = call.todos.compactMap { todo -> Item? in
                 guard let id = todo.id, let status = todo.status else { return nil }
                 return Item(id: id, content: todo.content, status: status.plan)
             }
+            // A whole new list with none of the plan's tasks in it is other work: the plan's name and file are no
+            // longer this list's, and the row's View Plan and Build go with them.
+            let known = Set(items.map(\.id))
+            if planName != nil || planFile != nil, !known.isEmpty, !replacement.contains(where: { known.contains($0.id) }) {
+                planName = nil
+                planFile = nil
+                plansCreated += 1
+            }
+            items = replacement
         } else {
             for todo in call.todos {
                 guard let id = todo.id else { continue }
@@ -226,7 +263,10 @@ enum CursorPlanFiles {
             let fileIDs = Set(call.todos.compactMap(\.id))
             let overlap = fileIDs.intersection(ids).count
             let nameMatch = name != nil && call.name == name
-            guard (nameMatch && overlap >= 1) || overlap >= 2 else { continue }
+            // A plan the transcript named is matched by that name and a task; only a list with no name to go by
+            // (a Build in a chat that did not make the plan) is matched on two tasks alone, so two plans that
+            // happen to share `tests` and `verify` are not one.
+            guard name == nil ? overlap >= 2 : (nameMatch && overlap >= 1) else { continue }
             let score = overlap + (nameMatch ? 100 : 0)
             if let current = best, score <= current.score {
                 if score == current.score { tied = true }
@@ -244,8 +284,13 @@ enum CursorPlanFiles {
         return call(parsing: text)
     }
 
+    /// Reads the frontmatter's `name` and its `todos`, each task's `id`, `content` and `status`, by the shape
+    /// Cursor writes: `todos:` at the top level, a `- ` item per task, its fields two columns in. Indentation
+    /// decides what a line is, so a `- ` inside a block scalar, a field's wrapped continuation or a top-level key
+    /// after the list (`isProject:`) is never taken for a task or one of its fields.
     static func call(parsing text: String) -> CursorPlans.Call? {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        // By any line ending: "\r\n" is one Character in Swift, so a split on "\n" alone leaves a Windows file one line.
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
         guard let open = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "---" }),
               let close = lines[(open + 1)...].firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "---" }),
               close > open else { return nil }
@@ -254,44 +299,67 @@ enum CursorPlanFiles {
         var id: String?
         var content: String?
         var status: String?
+        var inTodos = false
         var inTodo = false
+        var itemIndent: Int?
         func take() {
             defer { id = nil; content = nil; status = nil; inTodo = false }
-            guard let id, !id.isEmpty, id.count <= Hook.taskIDLimit else { return }
+            guard inTodo, let id, !id.isEmpty, id.count <= Hook.taskIDLimit else { return }
             todos.append(CursorPlans.Todo(id: id, content: Hook.title(fromPrompt: content),
                                            status: status.flatMap(CursorPlans.Status.init(rawValue:))))
         }
+        func set(_ line: String) {
+            if let value = field("id", in: line) { id = value }
+            else if let value = field("content", in: line) { content = value }
+            else if let value = field("status", in: line) { status = value }
+        }
         for raw in lines[(open + 1)..<close] {
             let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.hasPrefix("- ") {
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+            let indent = raw.prefix { $0 == " " || $0 == "\t" }.count
+            if indent == 0, !line.hasPrefix("- ") {
+                // A top-level key: the list of tasks runs from `todos:` to the next one.
                 take()
+                inTodos = line.hasPrefix("todos:")
+                itemIndent = nil
+                if let value = field("name", in: line) { name = value }
+                continue
+            }
+            guard inTodos else { continue }
+            if line.hasPrefix("- "), itemIndent == nil || indent == itemIndent {
+                take()
+                itemIndent = indent
                 inTodo = true
-                id = field("id", in: String(line.dropFirst(2)))
-                continue
+                set(String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces))
+            } else if inTodo, let itemIndent, indent == itemIndent + 2 {
+                set(line)
             }
-            if inTodo {
-                if let value = field("id", in: line) { id = value }
-                else if let value = field("content", in: line) { content = value }
-                else if let value = field("status", in: line) { status = value }
-                continue
-            }
-            if let value = field("name", in: line) { name = value }
         }
         take()
         guard !todos.isEmpty else { return nil }
         return CursorPlans.Call(merge: true, name: name, todos: todos)
     }
 
+    /// One `key: value` line's value as YAML means it: a double-quoted scalar with its escapes read (Cursor writes
+    /// `content: "Run: echo one"`), a single-quoted one with a doubled quote read as one, a plain one without a
+    /// trailing comment. A block scalar (`|`, `>`) has its words on the lines below, which are not read, so it is
+    /// no value here.
     private static func field(_ key: String, in line: String) -> String? {
         let prefix = key + ":"
         guard line.hasPrefix(prefix) else { return nil }
         var value = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
-        // YAML's two quoted scalars: Cursor writes `content: "Run: echo one"`, and a serializer may as well write
-        // 'single quotes', where a quote inside is doubled.
         if value.count >= 2, value.hasPrefix("\""), value.hasSuffix("\"") {
-            value = String(value.dropFirst().dropLast()).replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\\\", with: "\\")
+            // A double-quoted YAML scalar's escapes are JSON's for everything Cursor writes (\", \\, \n, \uXXXX).
+            if let decoded = try? JSONSerialization.jsonObject(with: Data(value.utf8), options: .fragmentsAllowed) as? String {
+                value = decoded
+            } else {
+                value = String(value.dropFirst().dropLast()).replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\\\", with: "\\")
+            }
         } else if value.count >= 2, value.hasPrefix("'"), value.hasSuffix("'") {
             value = String(value.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")
+        } else {
+            if let comment = value.range(of: " #") { value = String(value[..<comment.lowerBound]).trimmingCharacters(in: .whitespaces) }
+            if value.hasPrefix("|") || value.hasPrefix(">") { return nil }
         }
         return value.isEmpty ? nil : value
     }

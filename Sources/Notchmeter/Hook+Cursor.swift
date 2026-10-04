@@ -16,8 +16,9 @@ extension Hook {
             "postToolUseFailure": "PostToolUseFailure",
         ]
 
-        /// The opening of the prompt Cursor submits when Build is pressed on a plan; nobody types it.
-        static let buildPrompt = "Implement the plan as specified"
+        /// The opening of the prompt Cursor submits when Build is pressed on a plan; nobody types it. Long enough
+        /// that a prompt someone did type ("Implement the plan as specified in docs/PLAN.md") is not taken for it.
+        static let buildPrompt = "Implement the plan as specified, it is attached for your reference"
         /// `composer_mode` is the chat's own mode id (Cursor 3.23.12 sends its `unifiedMode`): "chat" is the mode
         /// Cursor calls Ask, "background" a cloud agent, "project" and "multitask" a plan built across agents. The
         /// names its documentation has used are kept beside them.
@@ -144,9 +145,22 @@ extension Hook {
         static let decisionEvents: Set<String> = ["beforeShellExecution", "beforeMCPExecution"]
         static let shellTool = "Shell"
 
-        /// *Require notch approval*, read by the hook process from the app's own defaults (Preferences).
+        /// *Require notch approval*, read by the hook process from the app's own defaults (Preferences), with the
+        /// switches it sits under: *Answer from the notch*, app-wide and on Cursor's page, and Cursor's sessions
+        /// being read at all. With any of those off the app would show no card, and a hook that held the call
+        /// anyway would hand every command to Cursor's own prompt while the setting looked off.
         static func approvalEnabled(defaults: UserDefaults = .standard) -> Bool {
-            defaults.bool(forKey: "cursorRequireApproval")
+            func offForCursor(_ key: String) -> Bool { (defaults.array(forKey: key) as? [String] ?? []).contains(ToolID.cursor.rawValue) }
+            return defaults.bool(forKey: "cursorRequireApproval")
+                && defaults.object(forKey: "answerFromNotch") as? Bool ?? true
+                && !offForCursor("answerFromNotchOffTools") && !offForCursor("sessionReadingOffTools")
+        }
+
+        /// Whether a payload is one of the two events *Require notch approval* answers, told from its bytes so a
+        /// payload that will not parse (cut short at the read limit, late on its pipe) is still known for what it
+        /// is. Both names are Cursor's own and appear nowhere else in a payload's keys.
+        static func isDecisionEvent(_ payload: Data) -> Bool {
+            decisionEvents.contains { payload.range(of: Data("\"\($0)\"".utf8)) != nil }
         }
 
         /// The Run/Deny request a shell command or MCP call becomes, reduced to a summary and a bounded detail

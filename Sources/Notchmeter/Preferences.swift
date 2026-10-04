@@ -1148,7 +1148,7 @@ final class Preferences {
     var answerFromNotch: Bool {
         didSet { defaults.set(answerFromNotch, forKey: Keys.answerFromNotch); report(Keys.answerFromNotch, answerFromNotch, changed: answerFromNotch != oldValue) }
     }
-    /// Every Cursor shell command and MCP call waits for Run or Deny in the notch (Hook.Cursor.approvalEnabled reads
+    /// Every Cursor shell command and MCP call waits for Allow or Deny in the notch (Hook.Cursor.approvalEnabled reads
     /// the same key from the hook process). Off by default: it is stricter than Cursor's own prompts, which ask
     /// only for what Cursor's allowlist does not cover.
     var cursorRequireApproval: Bool {

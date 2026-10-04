@@ -75,8 +75,53 @@ import Testing
         #expect(!titled.harnessTurn)
         let chat = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"Please implement the plan as specified in the doc"}"#))
         #expect(!chat.planBuild && chat.title == "Please implement the plan as specified in the doc", "a typed prompt is the user's own")
-        let later = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"one\ntwo\nImplement the plan as specified"}"#))
+        let later = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"one\ntwo\nImplement the plan as specified, it is attached for your reference."}"#))
         #expect(!later.planBuild, "only a prompt that opens the way Build's does")
+        let ownWords = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"Implement the plan as specified in docs/PLAN.md, then run the tests"}"#))
+        #expect(!ownWords.planBuild && ownWords.title == "Implement the plan as specified in docs/PLAN.md, then run the tests",
+                "a prompt someone typed that opens like Build's is theirs")
+    }
+
+    @Test @MainActor func requireNotchApprovalCountsOnlyUnderTheSwitchesItSitsUnder() throws {
+        let suite = "NotchmeterTests.CursorHook.approval"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(!Hook.Cursor.approvalEnabled(defaults: defaults), "off until it is turned on")
+        defaults.set(true, forKey: "cursorRequireApproval")
+        #expect(Hook.Cursor.approvalEnabled(defaults: defaults))
+        // With Answer from the notch off, app-wide or for Cursor, or Cursor's sessions not read, the app shows no
+        // card; a hook that held the call anyway would turn every command into Cursor's own prompt.
+        defaults.set(false, forKey: "answerFromNotch")
+        #expect(!Hook.Cursor.approvalEnabled(defaults: defaults))
+        defaults.set(true, forKey: "answerFromNotch")
+        defaults.set(["cursor"], forKey: "answerFromNotchOffTools")
+        #expect(!Hook.Cursor.approvalEnabled(defaults: defaults))
+        defaults.set(["codex"], forKey: "answerFromNotchOffTools")
+        #expect(Hook.Cursor.approvalEnabled(defaults: defaults))
+        defaults.set(["cursor"], forKey: "sessionReadingOffTools")
+        #expect(!Hook.Cursor.approvalEnabled(defaults: defaults))
+        // The same rule as the app's own, so the two never disagree about whether a call is held.
+        let prefs = Preferences(defaults: defaults)
+        let appsRule = prefs.cursorRequireApproval && prefs.answersFromNotch(.cursor)
+        #expect(Hook.Cursor.approvalEnabled(defaults: defaults) == appsRule)
+    }
+
+    @Test func aDecidingEventIsKnownFromItsBytesEvenWhenItWillNotParse() {
+        // A payload cut short at the read limit, or still arriving, is not JSON; with Require notch approval on the
+        // command must still know it is a call to answer, and hand it to Cursor's own prompt.
+        let cut = Data(#"{"hook_event_name":"beforeShellExecution","conversation_id":"c1","command":"cat <<EOF"#.utf8)
+        #expect(Hook.Cursor.isDecisionEvent(cut))
+        #expect(Hook.Cursor.isDecisionEvent(Data(#"{"command":"x","hook_event_name":"beforeMCPExecution""#.utf8)))
+        #expect(!Hook.Cursor.isDecisionEvent(Data(#"{"hook_event_name":"afterShellExecution","command":"echo beforeShellExecution"}"#.utf8)),
+                "the name as a word inside a command is not the event's name, which is a quoted string of its own")
+        #expect(!Hook.Cursor.isDecisionEvent(Data()))
+        #expect(Hook.looksDeciding(cut), "and a large one is read on to the deciding limit")
+        // A call no request can be made of is not held, which is why the command answers it `ask` itself.
+        #expect(Hook.Cursor.request(event: "beforeShellExecution", object: ["command": ""], id: "r") == nil)
+        #expect(Hook.Cursor.request(event: "beforeMCPExecution", object: ["tool_name": "has a space"], id: "r") == nil)
+        #expect(Hook.Answer.cursorDefer == #"{"permission":"ask"}"#)
+        #expect(Hook.decisionWait - Hook.cursorMargin < TimeInterval(HookVendor.decisionTimeout), "the command stops waiting before Cursor does")
     }
 
     @Test func theModeIsReadOnEveryPromptUnderCursorsOwnName() throws {

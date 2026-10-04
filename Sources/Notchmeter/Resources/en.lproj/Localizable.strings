@@ -1340,7 +1340,7 @@
 "Require notch approval for every command" = "Require notch approval for every command";
 "Pressed %@, but Cursor's card is still showing" = "Pressed %@, but Cursor's card is still showing";
 "Cursor's card changed before the press; nothing was pressed" = "Cursor's card changed before the press; nothing was pressed";
-"Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence.";
+"Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence.";
 "Presses this button on Cursor's card" = "Presses this button on Cursor's card";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen.";
 "Cursor is waiting to run a command" = "Cursor is waiting to run a command";

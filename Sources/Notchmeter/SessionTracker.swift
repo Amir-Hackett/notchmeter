@@ -943,10 +943,6 @@ struct SessionTracker: Equatable, Sendable {
         if let mode = message.permissionMode { session.permissionMode = mode }
         if let mode = message.composerMode { session.composerMode = mode }
         if message.background { session.background = true }
-        if message.planReplaced {
-            session.planFile = nil
-            session.planBuilt = false
-        }
         if let planFile = message.planFile {
             // Another plan has not been built; the chat's first plan file changes nothing a Build already said.
             if let old = session.planFile, planFile != old { session.planBuilt = false }
@@ -1009,6 +1005,11 @@ struct SessionTracker: Equatable, Sendable {
             session.agents = [:]
             session.commandsInFlight = 0
             session.pending = nil
+            // A Build that ended (stopped, or failed) before a task was started built nothing: the plan is as ready
+            // as it was, and the row offers Build again.
+            if session.planBuilt, !(session.todos?.items.contains { $0.status == .inProgress || $0.status == .completed } ?? false) {
+                session.planBuilt = false
+            }
             // A compaction that never reported its end did not outlive the turn it ran in.
             session.compacting = nil
             session.failureStreaks = [:]
@@ -1126,8 +1127,15 @@ struct SessionTracker: Equatable, Sendable {
             } else if message.event == "afterShellExecution" || message.event == "afterMCPExecution" {
                 session.commandsInFlight = Swift.max(0, session.commandsInFlight - 1)
             }
-            if session.quietNudge, session.isWaiting, session.cardWait {
+            if session.pending != nil {
+                // A request the notch still holds is answered by its own answer, not by another sign of life (a
+                // thought, or a second call running beside the held one).
+            } else if session.quietNudge, session.isWaiting, session.cardWait {
                 // A wait Cursor's own card proved (CursorAccessibility) was no false alarm, whatever ended it.
+                session.state = .working(since: now)
+            } else if !session.quietNudge, session.isWaiting, message.tool == .cursor {
+                // A call handed back to Cursor's own prompt left the chat waiting with nothing held; Cursor going
+                // on is the answer having been given there.
                 session.state = .working(since: now)
             } else if session.quietNudge, session.isWaiting {
                 // A command starting is the approval the nudge was for, and takes one false alarm back, so a
@@ -1178,10 +1186,21 @@ struct SessionTracker: Equatable, Sendable {
             // A fresh request on a session already waiting with none standing starts a wait of its own: the
             // assistant has moved on to a new tool call, so the wait before it was answered in the terminal (no
             // hook reports that), and this one is announced under its own kind rather than folded into the old.
-            if let request = message.request {
+            // Cursor can hold two calls at once for one chat (calls made side by side, a subagent's under its
+            // parent's conversation). The one on the card keeps it: were the newcomer to take its place, an Allow
+            // aimed at the first would land on the second. The newcomer is reported as nothing, so its hook hands
+            // it to Cursor's own prompt.
+            let displaced = message.tool == .cursor && hadPending != nil && message.request.map { $0.id != hadPending?.id } == true
+            if let request = message.request, !displaced {
                 let standing = session.pending?.id == request.id || sessions.values.contains { $0.pending?.id == request.id }
                 if !session.isWaiting || (!standing && hadPending == nil) { outcome.startedWaiting = session }
                 session.state = .waiting(since: now)
+                // A request is a wait the assistant stated, whatever a quiet spell had guessed before it.
+                session.quietNudge = false
+                session.cardWait = false
+                // A held Cursor call is in flight from the hold on, so the quiet-turn guess does not fire on the
+                // command it allowed running long.
+                if !standing, Hook.Cursor.decisionEvents.contains(message.event) { session.commandsInFlight += 1 }
                 if !standing {
                     let pending = PendingRequest(id: request.id, kind: request.kind, since: now)
                     session.pending = pending
@@ -1247,6 +1266,24 @@ struct SessionTracker: Equatable, Sendable {
     /// a pass leaves it waiting, because the terminal is now asking. Returns the session the request stood on, or
     /// nil when no session holds that id: a decision can only land on a request the tracker is showing.
     @discardableResult
+    /// A Cursor chat's task list as its transcript and plan file give it (UsageStore.cursorPlanRead), with the
+    /// plan's file and whether the list is no longer the plan the row knew. It is a reading of files, not an event
+    /// from the chat, so nothing else about the session moves: not its clock, its state, nor a compaction under
+    /// way. A list whose every task was cancelled is kept, since that is how the row knows the plan was cancelled.
+    mutating func cursorPlan(_ id: String, todos: TodoPlan, planFile: String?, replaced: Bool) {
+        guard var session = sessions[id] else { return }
+        if replaced {
+            session.planFile = nil
+            session.planBuilt = false
+        }
+        if let planFile {
+            if let old = session.planFile, planFile != old { session.planBuilt = false }
+            session.planFile = planFile
+        }
+        session.todos = todos.items.isEmpty ? nil : todos
+        sessions[id] = session
+    }
+
     mutating func resolve(requestID: String, resumes: Bool, now: Date) -> AgentSession? {
         guard let entry = sessions.first(where: { $0.value.pending?.id == requestID }) else { return nil }
         var session = entry.value

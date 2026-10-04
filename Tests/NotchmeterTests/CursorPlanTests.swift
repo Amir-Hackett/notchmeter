@@ -209,13 +209,113 @@ import Testing
         build.planBuild = true
         _ = tracker.apply(build, now: t0)
         #expect(tracker.sessions[key]?.planFile == file.path && tracker.sessions[key]?.planBuilt == true)
-        var replaced = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "c1", tool: .cursor)
-        replaced.todos = follower.plan
-        replaced.planReplaced = true
-        _ = tracker.apply(replaced, now: t0.addingTimeInterval(1))
-        #expect(tracker.sessions[key]?.planFile == nil, "the new plan's file is not known yet, and the old one's is not it")
-        #expect(tracker.sessions[key]?.planBuilt == false)
-        #expect(tracker.sessions[key]?.todos?.total == 2)
+        let before = try #require(tracker.sessions[key])
+        tracker.cursorPlan(key, todos: follower.plan, planFile: nil, replaced: true)
+        let after = try #require(tracker.sessions[key])
+        #expect(after.planFile == nil, "the new plan's file is not known yet, and the old one's is not it")
+        #expect(after.planBuilt == false)
+        #expect(after.todos?.total == 2)
+        #expect(after.lastEvent == before.lastEvent && after.state == before.state, "a reading of files is no event: the chat's clock and state stay")
+    }
+
+    @Test func thePlanFileSpeaksOnlyForTheTasksTheListHas() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-overlay-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("p_1a2b3c4d.plan.md")
+        try "---\nname: p\ntodos:\n  - id: a\n    content: One\n    status: completed\n  - id: b\n    content: Two\n    status: completed\n  - id: extra\n    content: Added in the editor\n    status: pending\n---\n"
+            .write(to: file, atomically: true, encoding: .utf8)
+        func line(_ name: String, _ input: String) -> Data {
+            Data(#"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"\#(name)","input":\#(input)}]}}"#.utf8 + [0x0A])
+        }
+        var follower = CursorPlanFollower()
+        _ = follower.feed(line("CreatePlan", #"{"name":"p","todos":[{"id":"a","content":"One"},{"id":"b","content":"Two"}]}"#))
+        _ = follower.readPlanFile(file)
+        #expect(follower.items.map(\.id) == ["a", "b"], "a task only the file has is not added to a list that has moved on from it")
+        #expect(follower.plan.done == 2)
+
+        // Later work in the same chat: a whole new list with none of the plan's tasks. The plan's tasks must not
+        // come back from its file on the next read, and the plan is no longer this list's.
+        _ = follower.feed(line("TodoWrite", #"{"merge":false,"todos":[{"id":"x","content":"Other","status":"in_progress"},{"id":"y","content":"Work","status":"pending"}]}"#))
+        #expect(follower.planFile == nil && follower.planName == nil)
+        #expect(follower.plansCreated == 2)
+        _ = follower.readPlanFile(file)
+        #expect(follower.items.map(\.id) == ["x", "y"], "were the file merged in, the row would read x, y, a, b")
+
+        // A list with nothing in it yet takes the file's.
+        var empty = CursorPlanFollower()
+        _ = empty.readPlanFile(file)
+        #expect(empty.items.map(\.id) == ["a", "b", "extra"])
+
+        // A whole new list that keeps one of the plan's tasks is still the plan's.
+        var same = CursorPlanFollower()
+        _ = same.feed(line("CreatePlan", #"{"name":"p","todos":[{"id":"a","content":"One"},{"id":"b","content":"Two"}]}"#))
+        _ = same.feed(line("TodoWrite", #"{"merge":false,"todos":[{"id":"a","content":"One","status":"in_progress"},{"id":"c","content":"Three","status":"pending"}]}"#))
+        #expect(same.planName == "p" && same.plansCreated == 1)
+    }
+
+    @Test func aLastRecordWithNoNewlineIsReadAndARewrittenTranscriptStartsOver() throws {
+        // Cursor's earlier builds ended a transcript without a newline; the last record was the CreatePlan in one.
+        let created = #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"p","todos":[{"id":"a","content":"One"}]}}]}}"#
+        var follower = CursorPlanFollower()
+        let whole = follower.feed(Data(("{\"role\":\"user\"}\n" + created).utf8))
+        #expect(whole, "a whole record at the end needs no newline to be read")
+        #expect(follower.planName == "p" && follower.plan.total == 1)
+        let again = follower.feed(Data("\n".utf8))
+        #expect(!again, "and it is not read a second time when the newline does come")
+        #expect(follower.plansCreated == 1)
+        var half = CursorPlanFollower()
+        let early = half.feed(Data(created.dropLast(20).utf8))
+        #expect(!early, "a record still being written is not")
+        let finished = half.feed(Data((String(created.suffix(20)) + "\n").utf8))
+        #expect(finished)
+
+        // A transcript rewritten shorter is read again from the start, its plan and its count with it.
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-shrink-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = folder.appendingPathComponent("c.jsonl")
+        try Data((String(repeating: "{\"role\":\"user\"}\n", count: 20) + created + "\n").utf8).write(to: url)
+        var read = CursorPlanFollower()
+        _ = read.read(url)
+        #expect(read.plansCreated == 1)
+        try Data((created + "\n").utf8).write(to: url)
+        _ = read.read(url)
+        #expect(read.plansCreated == 1 && read.planName == "p", "the same plan read again is not another plan")
+        try Data("{\"role\":\"user\"}\n".utf8).write(to: url)
+        _ = read.read(url)
+        #expect(read.planName == nil && read.plan.total == 0, "and a rewrite to no plan leaves none")
+    }
+
+    @Test func thePlanFileIsReadByItsIndentation() throws {
+        let text = [
+            "---",
+            "name: \"Caf\\u00e9 plan\"",
+            "overview: |",
+            "  - id: not-a-task",
+            "    status: completed",
+            "todos:",
+            "  - id: a",
+            "    content: >",
+            "      - id: also-not-a-task",
+            "      status: cancelled",
+            "    status: completed # done by hand",
+            "  - id: b",
+            "    content: Second",
+            "    status: in_progress",
+            "status: cancelled",
+            "isProject: false",
+            "---",
+        ].joined(separator: "\r\n")
+        let call = try #require(CursorPlanFiles.call(parsing: text), "a file with Windows line endings is read")
+        #expect(call.name == "Café plan", "a double-quoted scalar's escapes are read")
+        #expect(call.todos.map(\.id) == ["a", "b"], "a `- ` inside a block scalar is its text, not a task")
+        #expect(call.todos.map(\.status) == [.completed, .inProgress], "a comment after a status is no part of it, and a top-level key after the list is not the last task's")
+        #expect(call.todos[0].content == nil, "a block scalar's words are on the lines below, which are not read")
+
+        // Items written flush with `todos:` are the same list.
+        let flush = "---\nname: p\ntodos:\n- id: a\n  status: pending\n- id: b\n  status: completed\n---\n"
+        #expect(try #require(CursorPlanFiles.call(parsing: flush)).todos.map(\.status) == [.pending, .completed])
     }
 
     @Test func twoPlansOfOneNameAreToldApartByWhenTheyWereWritten() throws {
@@ -246,7 +346,7 @@ import Testing
         #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, home: home) == nil, "with no date to go by the two are a tie, and a tie is not guessed")
         #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(-7200), home: home) == nil,
                 "nor when both were written during the chat")
-        // A better match is not a tie: a third file sharing only the ids scores lower and changes nothing.
+        // A plan the transcript named is matched by that name: a file of another name sharing both ids is not it.
         let other = plans.appendingPathComponent("another_9c9c9c9c.plan.md")
         try "---\nname: another\ntodos:\n  - id: echo-one\n    content: one\n    status: pending\n  - id: echo-two\n    content: two\n    status: pending\n---\n"
             .write(to: other, atomically: true, encoding: .utf8)
@@ -256,6 +356,12 @@ import Testing
         try FileManager.default.removeItem(at: new)
         #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(40), home: home) == nil, "never the other chat's plan for want of this one's")
         #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(-7200), home: home) == old, "one match by name is the match")
+        #expect(CursorPlanFiles.match(name: "renamed since", ids: ids, since: began.addingTimeInterval(-7200), home: home) == nil,
+                "two plans that share `tests` and `verify` are not one when the transcript names its plan")
+        // With no name to go by (a Build in a chat that did not make the plan), two tasks in common are needed.
+        try FileManager.default.removeItem(at: old)
+        #expect(CursorPlanFiles.match(name: nil, ids: ids, since: began, home: home) == other.resolvingSymlinksInPath())
+        #expect(CursorPlanFiles.match(name: nil, ids: ["echo-one"], since: began, home: home) == nil)
     }
 
     @Test func aPlanFilesQuotedScalarsAreReadWithoutTheirQuotes() throws {

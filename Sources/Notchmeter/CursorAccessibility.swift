@@ -49,9 +49,14 @@ struct CursorCard: Equatable, Sendable, Identifiable {
     /// The card's own words: the destination mode, the plan's name, the command; at most `CursorCards.headingLimit`.
     let heading: String?
     let options: [Option]
+    /// A hash of everything the card says, command included and uncut, so two commands that open with the same 160
+    /// characters are two cards. Stable for the life of the process, which is all a card's `id` is compared within.
+    var fingerprint = 0
 
     /// Stable while the same card is on screen, and different for the next one.
-    var id: String { [kind.rawValue, window, chat ?? "", heading ?? "", options.map(\.label).joined(separator: "|")].joined(separator: "\u{1F}") }
+    var id: String {
+        [kind.rawValue, window, chat ?? "", heading ?? "", options.map(\.label).joined(separator: "|"), String(fingerprint)].joined(separator: "\u{1F}")
+    }
     /// Whether the card holds the turn until it is answered (a plan card waits for nobody).
     var blocksTurn: Bool { kind != .plan }
 }
@@ -63,12 +68,16 @@ enum CursorCards {
     /// Checked against Cursor 3.23.12's own components and its live tree (2026-10-03): the mode card is Skip and
     /// Switch, and its "Always ask" is a menu that sets a preference (Always ask, Always run), a pop-up button and
     /// no answer, so it is never offered; the Run card is Skip, Run and, when the command can be allowlisted,
-    /// Always Run; a plan's Build reads "Build Locally" where Cursor shows a separate cloud build.
+    /// Always Run; a plan's Build reads "Build Locally" where Cursor shows a separate cloud build. A plan's card is
+    /// drawn two ways: in an editor window "Created Plan", the name, View Plan and Build; in the Agents window
+    /// "Review Plan", the name, Minimize plan and Build, the plan itself open in a tab beside the chat.
     static let signatures: [CursorCard.Kind: (required: [Set<String>], optional: Set<String>)] = [
         .modeSwitch: ([["switch"], ["skip"]], []),
-        .plan: ([buildLabels, ["view plan"]], []),
+        .plan: ([buildLabels, ["view plan", "minimize plan"]], []),
         .run: ([["run"], ["skip", "reject", "deny", "cancel"]], ["always run", "allow", "always allow", "allowlist", "add to allowlist", "run always", "run everything"]),
     ]
+    /// The words that head a plan's card, the plan's name on the line after them.
+    static let planCardLabels = ["Created Plan", "Review Plan"]
     /// A plan card's Build on this Mac. "Build in Cloud" is another thing and is never pressed.
     static let buildLabels: Set<String> = ["build", "build locally"]
     /// What the Agents window's header button reads before the chat's name.
@@ -155,7 +164,11 @@ enum CursorCards {
             var seen = Set<String>()
             let options = gathered.buttons.filter { wanted.contains($0.label.lowercased()) && $0.enabled && seen.insert($0.label.lowercased()).inserted }
                 .map { CursorCard.Option(label: $0.label, path: $0.path) }
-            found.append(CursorCard(kind: kind, window: title, heading: heading(kind, texts: gathered.texts, commands: gathered.commands), options: options))
+            var hasher = Hasher()
+            hasher.combine(gathered.commands)
+            hasher.combine(gathered.texts)
+            found.append(CursorCard(kind: kind, window: title, heading: heading(kind, texts: gathered.texts, commands: gathered.commands), options: options,
+                                    fingerprint: hasher.finalize()))
             gathered.kinds.insert(kind)
             emitted = true
         }
@@ -179,7 +192,8 @@ enum CursorCards {
                 text = texts.first
             }
         case .plan:
-            if let index = texts.firstIndex(where: { $0.caseInsensitiveCompare("Created Plan") == .orderedSame }), texts.indices.contains(index + 1) {
+            if let index = texts.firstIndex(where: { text in planCardLabels.contains { text.caseInsensitiveCompare($0) == .orderedSame } }),
+               texts.indices.contains(index + 1) {
                 text = texts[index + 1]
             } else {
                 text = texts.first
@@ -188,8 +202,11 @@ enum CursorCards {
         case .run: text = commands.first ?? texts.first
         }
         guard let text else { return nil }
+        // One line, and a mark where there was more: a command that goes on past what is shown must not read as whole.
         let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
-        return line.count > headingLimit ? String(line.prefix(headingLimit)) + "…" : line
+        let cut = line.count > headingLimit
+        let more = cut || text.trimmingCharacters(in: .whitespacesAndNewlines).contains(where: \.isNewline)
+        return (cut ? String(line.prefix(headingLimit)) : line) + (more ? "…" : "")
     }
 
     /// The Cursor session a card belongs to. A card that holds a turn (Run, a mode switch) belongs to a chat that is
@@ -208,7 +225,8 @@ enum CursorCards {
         }
         if candidates.count <= 1 { return candidates.first?.id }
         if let chat = card.chat {
-            let named = candidates.filter { $0.title == chat }
+            // Cursor's own name for the chat is the row's `sessionName` (CursorChatNames); its title is a prompt's.
+            let named = candidates.filter { $0.sessionName == chat || $0.title == chat }
             if named.count == 1 { return named[0].id }
         }
         let parts = Set(card.window.components(separatedBy: " — ").map { $0.trimmingCharacters(in: .whitespaces) })
@@ -225,14 +243,14 @@ enum CursorCards {
         card.options.first { buildLabels.contains($0.label.lowercased()) }
     }
 
-    /// The plan card for a plan named `name`, when exactly one is on screen.
+    /// The plan card for a plan named `name`, when exactly one of that name is on screen. A name that matches no
+    /// card finds none, whatever else is showing: the only plan card on screen may be another chat's, and its Build
+    /// is not the row's. With no name to go by (the plan file could not be read), the one plan card there is.
     static func planCard(named name: String?, in cards: [CursorCard]) -> CursorCard? {
         let plans = cards.filter { $0.kind == .plan }
-        if let name {
-            let matching = plans.filter { $0.heading == name }
-            if matching.count == 1 { return matching[0] }
-        }
-        return plans.count == 1 ? plans[0] : nil
+        guard let name else { return plans.count == 1 ? plans[0] : nil }
+        let matching = plans.filter { $0.heading == name }
+        return matching.count == 1 ? matching[0] : nil
     }
 }
 
@@ -333,16 +351,21 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         guard trusted, let app = application() else { return .unavailable }
         // The same card, read again: same window, same words, same buttons. Two windows on one workspace share a
         // title, so each of that title is read until one holds the card.
-        var found: (window: AXUIElement, card: CursorCard)?
+        // The button pressed is the element this very read saw the card's button in, not one found again by walking
+        // the tree a second time: Cursor's chat re-renders as it streams, and a second walk could land on the same
+        // place in another card. An element that has gone since refuses the press.
+        var found: (window: AXUIElement, card: CursorCard, buttons: Buttons)?
         for window in windows(of: app) where (attribute(window, kAXTitleAttribute) as? String ?? "") == card.window {
             var budget = Self.nodeBudget
-            if let same = CursorCards.detect(in: snapshot(window, depth: 0, budget: &budget), title: card.window).first(where: { $0.id == card.id }) {
-                found = (window, same)
+            let buttons = Buttons()
+            if let same = CursorCards.detect(in: snapshot(window, depth: 0, budget: &budget, path: [], buttons: buttons), title: card.window)
+                .first(where: { $0.id == card.id }) {
+                found = (window, same, buttons)
                 break
             }
         }
-        guard let (window, same) = found, let target = same.options.first(where: { $0.label == option }),
-              let element = element(at: target.path, from: window),
+        guard let (window, same, buttons) = found, let target = same.options.first(where: { $0.label == option }),
+              let element = buttons.byPath[target.path],
               CursorCards.normalized(label(of: element)) == option else { return .gone }
         guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else { return .gone }
         for _ in 0..<10 {
@@ -387,14 +410,20 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         return read
     }
 
-    private func snapshot(_ element: AXUIElement, depth: Int, budget: inout Int) -> CursorAXNode {
+    /// The buttons a read met, by their place in the tree, kept only for a press (`press`).
+    private final class Buttons {
+        var byPath: [[Int]: AXUIElement] = [:]
+    }
+
+    private func snapshot(_ element: AXUIElement, depth: Int, budget: inout Int, path: [Int]? = nil, buttons: Buttons? = nil) -> CursorAXNode {
         budget -= 1
         let read = read(element)
         var node = CursorAXNode(role: read.role, label: nil, enabled: read.enabled, code: read.code)
+        if read.role == "AXButton", let path { buttons?.byPath[path] = element }
         guard depth < Self.depthLimit, budget > 0, !Self.skippedRoles.contains(read.role) else { return node }
-        for child in read.children {
+        for (index, child) in read.children.enumerated() {
             guard budget > 0 else { break }
-            node.children.append(snapshot(child, depth: depth + 1, budget: &budget))
+            node.children.append(snapshot(child, depth: depth + 1, budget: &budget, path: path.map { $0 + [index] }, buttons: buttons))
         }
         node.label = read.label ?? (read.role == "AXButton" ? Self.text(in: node) : nil)
         return node
@@ -411,15 +440,6 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         return words.isEmpty ? nil : words
     }
 
-    private func element(at path: [Int], from root: AXUIElement) -> AXUIElement? {
-        var current = root
-        for index in path {
-            guard let children = attribute(current, kAXChildrenAttribute) as? [AXUIElement], children.indices.contains(index) else { return nil }
-            current = children[index]
-        }
-        return current
-    }
-
     private func attribute(_ element: AXUIElement, _ name: String) -> Any? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
@@ -430,7 +450,7 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
 /// View Plan: the plan file, opened in Cursor itself (its editor shows the plan with its own Build button).
 enum CursorPlanOpener {
     @MainActor static func open(_ path: String) -> Bool {
-        guard let url = CursorPlanFiles.allowed(path) else { return false }
+        guard let url = CursorPlanFiles.allowed(path), FileManager.default.fileExists(atPath: url.path) else { return false }
         let workspace = NSWorkspace.shared
         guard let app = workspace.urlForApplication(withBundleIdentifier: TerminalJump.BundleID.cursor) else {
             return workspace.open(url)

@@ -11,9 +11,11 @@
 #
 #   E2E_ALLOW_PREFS=1 scripts/e2e-cursor.sh [build/Notchmeter.app]
 set -euo pipefail
+# The app's path as given, made absolute before the move to the repository's root.
+APP="${1:-}"
+if [ -n "$APP" ]; then APP="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"; fi
 cd "$(dirname "$0")/.."
-
-APP="${1:-build/Notchmeter.app}"
+APP="${APP:-$PWD/build/Notchmeter.app}"
 BIN="$APP/Contents/MacOS/Notchmeter"
 DOMAIN=com.amirhackett.notchmeter
 
@@ -37,7 +39,7 @@ APP_PID=""
 cleanup() {
   if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true; fi
   defaults delete "$DOMAIN" 2>/dev/null || true
-  if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP"; fi
+  if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP" || echo "e2e-cursor: could not put the preferences back from $BACKUP" >&2; fi
   if [ -n "${KEEP_ORACLE:-}" ]; then cp "$ORACLE" "$KEEP_ORACLE" 2>/dev/null || true; fi
   rm -rf "$WORK"
 }
@@ -50,6 +52,8 @@ defaults delete "$DOMAIN" 2>/dev/null || true
 defaults write "$DOMAIN" welcomed -bool true
 defaults write "$DOMAIN" hookOfferShown -bool true
 defaults write "$DOMAIN" cursorRequireApproval -bool true
+# The buttons are found by their English labels, whatever language the Mac speaks.
+defaults write "$DOMAIN" AppleLanguages -array en
 
 mkdir -p "$WORK/proj"
 "$BIN" --e2e-oracle "$ORACLE" --no-prompt >"$WORK/app.log" 2>&1 &

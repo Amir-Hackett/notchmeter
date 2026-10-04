@@ -16,7 +16,9 @@ struct CursorCardView: View {
                 Text(title).fontWeight(.semibold)
             }
             .font(.caption)
-            if !hideDetails, let heading = card.heading, heading != title {
+            // A Run card keeps its command whatever is hidden, as the request card keeps its summary: Run and Always
+            // Run are not offered to someone who cannot read what they would run.
+            if !hideDetails || card.kind == .run, let heading = card.heading, heading != title {
                 Text(verbatim: heading).font(.caption2).foregroundStyle(Caption.style).lineLimit(2).truncationMode(.tail)
             }
             HStack(spacing: 6) {

@@ -12,6 +12,11 @@
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
+#
+# On a Mac where Cursor is in use: for the two minutes of the run *Require notch approval* is on in the real
+# preferences, which Cursor's own hook reads, so a command a real Cursor chat runs meanwhile is held or handed to
+# Cursor's own prompt. The exit trap puts the setting back; a run killed with SIGKILL leaves it on, and
+# `defaults delete com.amirhackett.notchmeter cursorRequireApproval` takes it off.
 set -euo pipefail
 
 APP="${1:-build/Notchmeter.app}"
@@ -42,13 +47,23 @@ APP_PID=""
 
 cleanup() {
   if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true; fi
-  defaults delete "$DOMAIN" 2>/dev/null || true
-  if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP"; fi
-  if [ -n "${KEEP_ORACLE:-}" ]; then cp "$ORACLE" "$KEEP_ORACLE" 2>/dev/null || true; fi
-  rm -rf "$WORK"
+  if [ -n "${HELD_PID:-}" ]; then kill "$HELD_PID" 2>/dev/null || true; fi
+  # What the run put under ~/.cursor goes first, so nothing below can leave it behind; the two folders go too when
+  # the run made them and they are empty again.
   rm -rf "$CURSOR_PROJECT"
   rm -f "$CURSOR_PLAN"
+  if [ -n "$MADE_PROJECTS" ]; then rmdir "$HOME/.cursor/projects" 2>/dev/null || true; fi
+  if [ -n "$MADE_PLANS" ]; then rmdir "$HOME/.cursor/plans" 2>/dev/null || true; fi
+  if [ -n "$MADE_CURSOR" ]; then rmdir "$HOME/.cursor" 2>/dev/null || true; fi
+  defaults delete "$DOMAIN" 2>/dev/null || true
+  if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP" || echo "e2e: could not put the preferences back from $BACKUP" >&2; fi
+  if [ -n "${KEEP_ORACLE:-}" ]; then cp "$ORACLE" "$KEEP_ORACLE" 2>/dev/null || true; fi
+  rm -rf "$WORK"
 }
+MADE_CURSOR=""; MADE_PROJECTS=""; MADE_PLANS=""
+[ -d "$HOME/.cursor" ] || MADE_CURSOR=1
+[ -d "$HOME/.cursor/projects" ] || MADE_PROJECTS=1
+[ -d "$HOME/.cursor/plans" ] || MADE_PLANS=1
 trap cleanup EXIT
 
 # A first launch shows the Welcome and the hook offer; neither is under test. The quiet spell is the floor of its
@@ -202,7 +217,10 @@ plan_file completed pending pending
 plan_event afterAgentResponse
 wait_for "the plan file's statuses reach the row" "$its_plan and o.get(\"source\") == \"plan\" and o.get(\"todos\") == {\"done\": 1, \"total\": 3}" 1 10
 plan_event stop ',"status":"completed"'
-sleep 1
+# The turn's last hook has been read before the file changes, so the read that sees the change is the app's own
+# look at the file's date, not a hook's.
+wait_for "the turn ended" "$heard and o.get(\"session\") == \"e2e-plan\" and o.get(\"name\") == \"Stop\"" 1 10
+sleep 2
 plan_file completed completed pending
 wait_for "a plan file changed with no hook is read again" "$its_plan and o.get(\"todos\") == {\"done\": 2, \"total\": 3}" 1 15
 plan_event beforeSubmitPrompt ',"composer_mode":"agent","prompt":"E2E\n\nImplement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself."'
@@ -214,7 +232,11 @@ cursor e2e-approve loud-proj beforeSubmitPrompt
 held_shell e2e-approve 'echo held' >"$WORK/held.out" &
 HELD_PID=$!
 wait_for "a shell command is held for the notch" "$heard and o.get(\"session\") == \"e2e-approve\" and o.get(\"request\") == \"permission\"" 1 10
+# The app's hold is 15 seconds; a hook still waiting well past it is a failure, not something to sit out.
+for _ in $(seq 1 45); do kill -0 "$HELD_PID" 2>/dev/null || break; sleep 1; done
+if kill -0 "$HELD_PID" 2>/dev/null; then echo "FAIL: the held hook was still waiting 45 s on" >&2; exit 1; fi
 wait "$HELD_PID" || true
+HELD_PID=""
 [ "$(cat "$WORK/held.out")" = '{"permission":"ask"}' ] && echo "ok: unanswered, the held call goes to Cursor's own prompt" \
   || { echo "FAIL: the unanswered call printed: $(cat "$WORK/held.out")" >&2; exit 1; }
 wait_for "and the app says it passed it back" 'o["event"] == "decision" and o.get("session") == "cursor:e2e-approve" and o.get("behavior") == "pass"' 1 5

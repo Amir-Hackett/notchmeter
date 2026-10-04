@@ -8,22 +8,22 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 Cursor's hooks report less than the other assistants': no task list, no plan, and no event that says it is waiting for you. This release reads the rest from Cursor itself.
 
-- A Cursor plan shows on its chat's row the moment Cursor creates it, before it is built: its to-dos, **View Plan**, which opens the plan in Cursor, and **Build**. The to-dos are crossed off as Cursor finishes them, and one you tick in Cursor's plan editor is crossed off too.
+- A Cursor plan shows on its chat's row when Cursor creates it, before it is built: its to-dos, **View Plan**, which opens the plan in Cursor, and **Build**. The to-dos are crossed off as Cursor finishes them, and one you tick in Cursor's plan editor is crossed off too.
 - The turn that builds a plan is named for it, "Build: <plan>", not for the sentence Cursor submits.
 - A Cursor row shows the chat's mode (Plan, Ask, Debug and the rest) as of its latest prompt, and a Background chip for a background agent.
-- A failed tool call counts toward "May be stuck" for Cursor too; one you interrupted or denied does not. The compaction notice quotes the fill Cursor reports.
+- The compaction notice quotes the fill Cursor reports.
 
 ### Answering Cursor from the notch
 
 Two switches on Cursor's page in Settings, both off until you turn them on:
 
-- *Require notch approval for every command*: every shell command and MCP call Cursor runs waits for Allow or Deny on the session's row. *Answer in Cursor* hands one back to Cursor's own prompt, and so does a call nobody answers. Nothing runs on silence.
+- *Require notch approval for every command*: every shell command and MCP call Cursor runs waits for Allow or Deny on the session's row. *Answer in Cursor* hands one back to Cursor's own prompt, and so does a call nobody answers: Notchmeter never allows a call you did not answer.
 - *Mirror Cursor's cards*: Cursor's own Run prompt (Skip, Run) and its switch-to-Plan-Mode card (Skip, Switch) appear on the row with Cursor's button labels, the Run card headed by the command it would run, and the one you pick is pressed in Cursor. With it on, the row's Build presses Build on the plan's card; without it, Build opens the plan in Cursor. It needs the Accessibility permission, re-reads the card before each press, and presses nothing if the card changed.
-- Cursor's windows are read only while a Cursor chat is in a turn. While *Mirror Cursor's cards* is on, Cursor's editor shows Screen Reader Optimized unless `editor.accessibilitySupport` is off in Cursor's settings.
+- Cursor's windows are read while a Cursor chat is in a turn and when you press Build, never while every chat is idle. While *Mirror Cursor's cards* is on, Cursor's editor shows Screen Reader Optimized unless `editor.accessibilitySupport` is off in Cursor's settings.
 
 ### Numbers
 
-- Cursor's usage events are read defensively: a count that is negative, fractional, not a number or too large to hold is dropped instead of crashing the read, an amount written as two numbers is not read as one, and an event dated outside 2020 to 2100 is skipped.
+- Cursor's usage events are read defensively: a count that is negative, fractional, not a number or too large to hold is dropped instead of crashing the read, an amount is read only where the text holds one well-formed number, and an event dated outside 2020 to 2100 is skipped.
 
 ### Diagnostics
 

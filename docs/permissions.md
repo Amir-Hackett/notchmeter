@@ -60,8 +60,8 @@ the row ([docs/hooks.md](hooks.md#cursor)).
   bar shows *Screen Reader Optimized* while the tree is on (Cursor 3.23.12). `"editor.accessibilitySupport": "off"`
   in Cursor's settings keeps the editor as it was; the cards are read either way.
 - **When it reads.** Once a second, only while the switch is on, the permission is granted, a Cursor chat on this
-  Mac is in a turn (working, or waiting on a card) and the Mac is awake and unlocked; and once when you press Build
-  on a plan's row. Each read stops after 20,000 elements and is one message to Cursor per element (about 0.1 s for
+  Mac is in a turn (working, or waiting on a card) and the Mac is awake and unlocked; and when you press Build on a
+  plan's row, which reads until it finds that plan's card, four times at most. Each read stops after 20,000 elements and is one message to Cursor per element (about 0.1 s for
   the two windows of a short chat). An idle or finished chat's row is never a reason to read.
 - **Without it.** Cursor's cards stay in Cursor, the switch's caption says Accessibility is needed, and a plan
   row's Build opens the plan in Cursor instead of pressing anything.

@@ -2295,19 +2295,28 @@ final class UsageStore {
         let follower = cursorPlans[path]?.follower ?? CursorPlanFollower()
         let home = cursorHome
         let named = message.planFile.flatMap { CursorPlanFiles.allowed($0, home: home) }
+        let heardFirst = sessions.sessions[SessionTracker.key(tool: .cursor, session: sessionID, host: message.host)]?.started
+        let lead = Self.planFileLead
         Task { [weak self] in
             let (read, changed, grew, modified) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool, Bool, Date?) in
                 var follower = follower
                 let start = follower.offset
                 var changed = follower.read(url)
-                // A plan file older than the conversation is another conversation's, whatever it is called.
-                let began = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.creationDate] as? Date
+                // A plan file last written before the conversation began is another conversation's, whatever it is
+                // called. The conversation began no later than its first hook event or its transcript's creation,
+                // whichever is earlier, less `planFileLead`: Cursor writes a first turn's plan file a moment before
+                // it creates the transcript (0.2 to 0.9 s on three plans, 3.23.12).
+                let created = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.creationDate] as? Date
+                let began = [created, heardFirst].compactMap { $0 }.min()?.addingTimeInterval(-lead)
+                var stamp: Date?
                 if let plan = named ?? follower.planFile.flatMap({ CursorPlanFiles.allowed($0, home: home) })
                     ?? CursorPlanFiles.match(name: follower.planName, ids: Set(follower.items.map(\.id)), since: began, home: home) {
+                    // The date is taken before the read, so a write that lands between the two is seen as a change.
+                    stamp = Self.modified(plan.path)
                     changed = follower.readPlanFile(plan) || changed
                 }
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value ?? 0
-                return (follower, changed, follower.offset > start && size > follower.offset, follower.planFile.flatMap(Self.modified))
+                return (follower, changed, follower.offset > start && size > follower.offset, stamp)
             }.value
             self?.cursorPlanRead(read, changed: changed, grew: grew, planFileModified: modified, path: path, sessionID: sessionID, host: message.host)
         }
@@ -2326,6 +2335,8 @@ final class UsageStore {
     }
 
     static let planFileSearch: TimeInterval = 30
+    /// How long before a conversation's first trace its plan file may have been written and still be its own.
+    static let planFileLead: TimeInterval = 120
     static let planFileSearchEvery: TimeInterval = 5
 
     private nonisolated static func modified(_ path: String) -> Date? {
@@ -2367,15 +2378,13 @@ final class UsageStore {
         let replaced = cursorPlans[path].map { follower.plansCreated > $0.follower.plansCreated } ?? false
         cursorPlans[path] = FollowedCursorPlan(key: key, sessionID: sessionID, host: host, follower: follower, planFileModified: planFileModified,
                                                planFileSearched: cursorPlans[path]?.planFileSearched)
-        if changed, prefs.readsSessions(of: .cursor) {
-            var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
-            message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
-            message.planReplaced = replaced
-            message.planFile = follower.planFile
+        if changed || replaced, prefs.readsSessions(of: .cursor) {
             Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": follower.planFile == nil ? "transcript" : "plan",
                                            "todos": ["done": follower.plan.done, "total": follower.plan.total]])
+            // Set on the session, not sent to it as an event: a file read is no sign of life from the chat, so its
+            // clock, its state and a compaction under way stay as they were.
             var tracker = sessions
-            _ = tracker.apply(message, now: Date())
+            tracker.cursorPlan(key, todos: prefs.sessionTitles ? follower.plan : follower.plan.withoutContent(), planFile: follower.planFile, replaced: replaced)
             sessions = tracker
             pruneOpenSessionLists()
         }
@@ -2687,7 +2696,7 @@ extension UsageStore {
     /// be on screen during one, and a read is a few thousand messages to Cursor's main thread (0.4 s for the two
     /// windows of a small chat on Cursor 3.23.12), so an idle chat's row costs nothing however long it stays.
     var cursorWatchWanted: Bool {
-        prefs.cursorControl && prefs.readsSessions(of: .cursor) && !sessionInactive && cursorUI.trusted
+        prefs.cursorControl && prefs.readsSessions(of: .cursor) && !sessionInactive && !screenLocked && cursorUI.trusted
             && sessions.all.contains { $0.tool == .cursor && $0.host == nil && ($0.isWorking || $0.isWaiting) }
     }
 
@@ -2786,7 +2795,10 @@ extension UsageStore {
         case .build:
             guard prefs.cursorControl, cursorUI.trusted else {
                 _ = CursorPlanOpener.open(file)
-                noteCursorAction(L("Opened in Cursor: turn on Mirror Cursor's cards to build from the notch"), for: sessionID)
+                // With the switch on, what is missing is the permission, and the note says which.
+                noteCursorAction(prefs.cursorControl
+                    ? L("Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter.")
+                    : L("Opened in Cursor: turn on Mirror Cursor's cards to build from the notch"), for: sessionID)
                 return
             }
             let name = CursorPlanFiles.allowed(file).flatMap(CursorPlanFiles.call(in:))?.name

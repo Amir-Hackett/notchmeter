@@ -4,8 +4,8 @@ import Testing
 
 /// Cursor's own cards read from a snapshot of its Accessibility tree: recognised by their buttons, never pressed
 /// on a guess, and put on the right session. The trees are transcribed from Cursor 3.23.12's live windows
-/// (2026-10-03): the plan card, the mode card waiting and answered, the Run card and the Agents window's header.
-/// The Run card with Always Run follows that version's ToolApprovalGate component, which the live run did not show.
+/// (2026-10-03), an editor window's and the Agents window's: the plan card as each draws it, the mode card waiting
+/// and answered, the Run card with and without Always Run, and the Agents window's header.
 @Suite struct CursorCardDetection {
     func button(_ title: String, enabled: Bool = true, _ children: [CursorAXNode] = []) -> CursorAXNode {
         CursorAXNode(role: "AXButton", label: title, enabled: enabled, children: children)
@@ -59,6 +59,22 @@ import Testing
         #expect(plan.blocksTurn == false, "a plan waits for nobody")
         #expect(CursorCards.buildOption(of: plan)?.path == [1, 0, 3, 0])
 
+        // The Agents window draws the same plan as "Review Plan", with Minimize plan where View Plan was, and the
+        // plan itself open in a tab beside the chat, which has a Build of its own (live tree, 2026-10-03).
+        let review = group([group([text("Review Plan"), text("three echoes"), group([text("Run three standalone echo commands one at a time.")]),
+                                   CursorAXNode(role: "AXButton", label: "Minimize plan"),
+                                   group([button("Build ⌘⏎", [text("Build"), text("⌘⏎")]), popUp("Open menu")])])])
+        let tab = group([text("cursor-e2e"), text("Plans"), text("Three echoes"), popUp("Grok 4.6 Medium"), group([button("Build"), popUp("Open menu")]),
+                         text("3 To-dos"), button("New")])
+        let header = button("Chat title. Three echoes plan commands", [text("Chat title."), text("Three echoes plan commands")])
+        let agents = CursorCards.detect(in: group([header, review, tab]), title: "Cursor Agents")
+        #expect(agents.count == 1, "the plan's own tab is no second card")
+        let reviewed = try #require(agents.first)
+        #expect(reviewed.kind == .plan && reviewed.heading == "three echoes")
+        #expect(reviewed.chat == "Three echoes plan commands")
+        #expect(CursorCards.buildOption(of: reviewed)?.path == [1, 0, 4, 0], "the card's Build, not the tab's")
+        #expect(CursorCards.planCard(named: "three echoes", in: agents) == reviewed)
+
         // Once built, Cursor takes the Build button away and the card is no longer one to press.
         let built = group([group([group([text("Created Plan"), text("hello and ls")]), button("View Plan")])])
         #expect(CursorCards.detect(in: built, title: "cursor-e2e").isEmpty)
@@ -82,12 +98,17 @@ import Testing
         #expect(card.options.map(\.label) == ["Skip", "Run"])
         #expect(card.blocksTurn)
 
-        // Where the command can be allowlisted Cursor adds Always Run between the two; with no command drawn the
-        // card's first words head it.
-        let gate = group([group([text("npm run deploy -- --prod")]), button("Skip"), group([button("Always Run"), button("Run ⏎")])])
-        let allowlistable = try #require(CursorCards.detect(in: gate, title: "w").first)
-        #expect(allowlistable.heading == "npm run deploy -- --prod")
+        // Where the command can be allowlisted Cursor adds Always Run between the two, as the Agents window drew it
+        // for the same command.
+        let gate = group([group([text("Run echo three"), text("echo"), group([group([popUp("Shell command options")])]),
+                                 code(["$", " ", "echo", " ", "three"]), group([popUp("Autorun mode: Allowlist (with Sandbox)")]),
+                                 button("Skip"), group([button("Always Run")]), button("Run")])])
+        let allowlistable = try #require(CursorCards.detect(in: gate, title: "Cursor Agents").first)
+        #expect(allowlistable.heading == "echo three")
         #expect(allowlistable.options.map(\.label) == ["Skip", "Always Run", "Run"])
+        // With no command drawn, the card's first words head it.
+        let wordsOnly = try #require(CursorCards.detect(in: group([group([text("npm run deploy -- --prod")]), button("Skip"), button("Run ⏎")]), title: "w").first)
+        #expect(wordsOnly.heading == "npm run deploy -- --prod")
     }
 
     @Test func theAgentsWindowNamesItsChat() throws {
@@ -168,6 +189,11 @@ import Testing
         let two = [session("x", "enrollhere", 1, title: "Find NB screener code"), session("y", "tools", 9, title: "Map Cursor plan ingestion")]
         #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find NB screener code"), among: two) == "x")
         #expect(CursorCards.session(for: run("Cursor Agents", chat: "Some other name"), among: two) == "y")
+        // Cursor's own name for a chat is the row's session name; its title is whatever was last typed.
+        var named = two
+        named[0].title = "called and i heard hello"
+        named[0].sessionName = "Find NB screener code"
+        #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find NB screener code"), among: named) == "x")
         #expect(CursorCards.session(for: run("Cursor Agents"), among: two) == "y")
 
         // A plan card holds no turn, so an idle chat can own one.
@@ -180,6 +206,26 @@ import Testing
         #expect(CursorCards.planCard(named: "A", in: [plan("A"), plan("B")])?.heading == "A")
         #expect(CursorCards.planCard(named: "C", in: [plan("A"), plan("B")]) == nil, "two plans and neither is this one: nothing is pressed")
         #expect(CursorCards.planCard(named: nil, in: [plan("A")])?.heading == "A")
+        #expect(CursorCards.planCard(named: "C", in: [plan("A")]) == nil,
+                "the only plan card on screen may be another chat's: a row for plan C never presses plan A's Build")
+        #expect(CursorCards.planCard(named: "A", in: [plan("A"), plan("A")]) == nil, "two cards of the name are not one")
+    }
+
+    @Test func aCardIsItsWholeCommandNotTheLineShown() throws {
+        // Two commands that open alike are two cards: the press re-reads the card and must not take one for the other.
+        let opening = String(repeating: "x", count: 200)
+        func run(_ command: String) throws -> CursorCard {
+            try #require(CursorCards.detect(in: group([text("Run it"), code(["$", " ", command]), button("Skip"), button("Run")]), title: "w").first)
+        }
+        let a = try run(opening + " --dry-run")
+        let b = try run(opening + " --force")
+        #expect(a.heading == b.heading, "what is shown is the first 160 characters of each")
+        #expect(a.heading?.hasSuffix("…") == true, "and says there is more")
+        #expect(a.id != b.id, "but the card is the whole command")
+        #expect(try run("ls").id == run("ls").id)
+        // A command that goes on to a second line says so too.
+        let two = try #require(CursorCards.detect(in: group([text("npm test\nrm -rf build"), button("Skip"), button("Run")]), title: "w").first)
+        #expect(two.heading == "npm test…")
     }
 }
 
@@ -238,6 +284,82 @@ import Testing
         #expect(tracker.sessions[key]?.isWaiting == true)
         let card = tracker.cursorCardShown(key, now: t0.addingTimeInterval(2))
         #expect(card == nil, "a request the notch holds is not also a card wait")
+    }
+
+    @Test func aSecondHeldCallDoesNotTakeTheCardFromTheFirst() throws {
+        // Two calls held at once for one chat (made side by side, or a subagent's): the card must not change under
+        // a click, so the one standing keeps it and the newcomer is not taken, which sends it to Cursor's own prompt.
+        var tracker = started()
+        func held(_ id: String, _ event: String = "beforeShellExecution") -> Hook.Message {
+            var message = Hook.Message(event: event, needsInput: true, sessionID: "c1", tool: .cursor)
+            message.request = Hook.Request(id: id, kind: .permission(tool: "Shell", summary: "Run \(id)", detail: nil, suggestions: []))
+            return message
+        }
+        let first = tracker.apply(held("r1"), now: t0.addingTimeInterval(1))
+        #expect(first.requested?.request.id == "r1")
+        let second = tracker.apply(held("r2", "beforeMCPExecution"), now: t0.addingTimeInterval(2))
+        #expect(second.requested == nil, "not taken: its hook is answered nothing and prints ask")
+        #expect(second.requestsEnded.isEmpty, "and the first is not ended by it")
+        #expect(tracker.sessions[key]?.pending?.id == "r1")
+        #expect(tracker.sessions[key]?.isWaiting == true)
+
+        // A sign of life beside a held call is not its answer.
+        _ = tracker.apply(Hook.Message(event: "afterAgentThought", needsInput: false, sessionID: "c1", tool: .cursor), now: t0.addingTimeInterval(3))
+        #expect(tracker.sessions[key]?.pending?.id == "r1" && tracker.sessions[key]?.isWaiting == true)
+
+        // Once the first is answered the next call is held as usual.
+        _ = tracker.resolve(requestID: "r1", resumes: true, now: t0.addingTimeInterval(4))
+        let third = tracker.apply(held("r3"), now: t0.addingTimeInterval(5))
+        #expect(third.requested?.request.id == "r3")
+        // Claude Code's rule is unchanged: its new request replaces the one before it, whose terminal has moved on.
+        var claude = SessionTracker()
+        var ask = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "s1", project: "p")
+        ask.request = Hook.Request(id: "a", kind: .permission(tool: "Bash", summary: "ls", detail: nil, suggestions: []))
+        _ = claude.apply(ask, now: t0)
+        ask.request = Hook.Request(id: "b", kind: .permission(tool: "Bash", summary: "pwd", detail: nil, suggestions: []))
+        #expect(claude.apply(ask, now: t0.addingTimeInterval(1)).requested?.request.id == "b")
+    }
+
+    @Test func aHeldCallIsInFlightAndACallHandedBackEndsWhenCursorGoesOn() throws {
+        var tracker = started()
+        var held = Hook.Message(event: "beforeShellExecution", needsInput: true, sessionID: "c1", tool: .cursor)
+        held.request = Hook.Request(id: "r1", kind: .permission(tool: "Shell", summary: "Run ls", detail: nil, suggestions: []))
+        _ = tracker.apply(held, now: t0.addingTimeInterval(1))
+        #expect(tracker.sessions[key]?.commandsInFlight == 1, "so an allowed command running long is not called a possible wait")
+        #expect(tracker.sessions[key]?.quietNudge == false)
+        // Handed back to Cursor's own prompt: nothing is held, and the chat waits there.
+        _ = tracker.resolve(requestID: "r1", resumes: false, now: t0.addingTimeInterval(2))
+        #expect(tracker.sessions[key]?.isWaiting == true && tracker.sessions[key]?.pending == nil)
+        // Answered in Cursor, the command runs and ends: the wait is over without any card being read.
+        _ = tracker.apply(Hook.Message(event: "afterShellExecution", needsInput: false, sessionID: "c1", tool: .cursor), now: t0.addingTimeInterval(9))
+        #expect(tracker.sessions[key]?.isWorking == true)
+        #expect(tracker.sessions[key]?.commandsInFlight == 0)
+    }
+
+    @Test func aBuildThatEndedBeforeAnyTaskStartedLeavesThePlanReady() throws {
+        func plan(_ statuses: [TodoPlan.Status]) -> TodoPlan {
+            TodoPlan(items: statuses.enumerated().map { TodoPlan.Item(id: "\($0.offset)", content: "t", status: $0.element) })
+        }
+        var tracker = started()
+        tracker.cursorPlan(key, todos: plan([.pending, .pending]), planFile: "/p/a.plan.md", replaced: false)
+        var build = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", tool: .cursor)
+        build.planBuild = true
+        _ = tracker.apply(build, now: t0.addingTimeInterval(1))
+        #expect(tracker.sessions[key]?.planState == .building)
+        let aborted = Hook.Message(event: "StopFailure", needsInput: false, sessionID: "c1", failure: "aborted", tool: .cursor)
+        _ = tracker.apply(aborted, now: t0.addingTimeInterval(2))
+        #expect(tracker.sessions[key]?.planState == .ready, "nothing was built: the row offers Build again")
+
+        // A build that got somewhere stays a build when its turn ends.
+        _ = tracker.apply(build, now: t0.addingTimeInterval(3))
+        tracker.cursorPlan(key, todos: plan([.completed, .pending]), planFile: "/p/a.plan.md", replaced: false)
+        _ = tracker.apply(Hook.Message(event: "Stop", needsInput: false, sessionID: "c1", tool: .cursor), now: t0.addingTimeInterval(4))
+        #expect(tracker.sessions[key]?.planState == .building)
+
+        // Every task cancelled is a cancelled plan, which the row can only know if the list is kept.
+        tracker.cursorPlan(key, todos: plan([.cancelled, .cancelled]), planFile: "/p/a.plan.md", replaced: false)
+        #expect(tracker.sessions[key]?.todos != nil)
+        #expect(tracker.sessions[key]?.planState == .cancelled, "not ready: Build is not offered for a plan called off")
     }
 
     @Test func aPlanIsReadyThenBuildingThenDone() {
@@ -539,6 +661,10 @@ import Testing
         #expect(JSON.count(Double.nan) == nil)
         #expect(JSON.count(Double.infinity) == nil)
         #expect(JSON.count("12abc") == nil)
+        #expect(JSON.count(true) == nil, "a JSON true is no count of one")
+        #expect(JSON.count("0x10") == nil, "and a hex string is no sixteen")
+        #expect(JSON.count("1e3") == nil)
+        #expect(JSON.count("17.0") == 17)
         #expect(JSON.count(nil) == nil)
     }
 
@@ -555,6 +681,11 @@ import Testing
         #expect(JSON.money("12,345,6") == nil)
         #expect(JSON.money("1,234") == 1234)
         #expect(JSON.money("That is $5.") == 5, "a full stop that ends the sentence is not the number's")
+        #expect(JSON.money("on-demand: $0.12") == 0.12, "a hyphen earlier in the words is no minus")
+        #expect(JSON.money("\u{2013}$3.10") == -3.1, "a dash written against the amount is one")
+        #expect(JSON.money("claude-4 included") == nil, "a number that is part of a name is no amount")
+        #expect(JSON.money("5¢") == nil && JSON.money("$1.2k") == nil && JSON.money("12%") == nil, "nor one with a unit or a multiplier on it")
+        #expect(JSON.money("USD 5.00") == 5 && JSON.money("5.00 USD") == 5)
         #expect(JSON.money("0.05 (2 requests)") == nil)
         #expect(JSON.money("$12") == 12)
         #expect(JSON.money(".5") == 0.5)

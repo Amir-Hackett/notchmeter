@@ -1655,7 +1655,7 @@ struct SettingsView: View {
     private var cursorControls: some View {
         Toggle(L("Require notch approval for every command"), isOn: Binding(get: { prefs.cursorRequireApproval }, set: { prefs.cursorRequireApproval = $0 }))
             .disabled(!prefs.answersFromNotch(.cursor))
-            .help(L("Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence."))
+            .help(L("Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence."))
         Toggle(L("Mirror Cursor's cards"), isOn: Binding(get: { prefs.cursorControl }, set: {
             prefs.cursorControl = $0
             if $0, !AXIsProcessTrusted() { LiveCursorUI.requestTrust() }
