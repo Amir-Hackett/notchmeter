@@ -2,6 +2,13 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.17](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.17) — 2026-10-04
+
+### Cursor
+
+- When Cursor shows one of its own cards, a Run prompt, a mode switch, an approval or a question, the notch opens on that card by itself, with its buttons, and stays until the card is answered, in the notch or in Cursor. Before, the card was only on the chat's row, so the notch had to be opened all the way to reach Run. It needs *Mirror Cursor's cards*. A panel that is already open keeps the card on its row, and a call you handed back with *Answer in Cursor* does not open the notch again.
+- Pressing a button on one of Cursor's cards no longer makes the row jump. The card used to stay beside the note that said what was pressed for up to a second, a line taller, and then drop. It now leaves with the note, and its buttons are held while the press is on its way.
+
 ## [0.9.16](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.16) — 2026-10-04
 
 ### Cursor

@@ -211,6 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LegacyCaches.clean()
         CostHistory.migrateFromCaches()
         store = UsageStore(prefs: prefs)
+        // An end-to-end run's stand-in for Cursor's window (FileCursorUI): only beside the oracle.
+        if let cards = FileCursorUI.path() { store.cursorUI = FileCursorUI(path: cards) }
         // The privacy setting is answered here, at the three places a banner is handed over (this pair and
         // `sessionEvent`), rather than by giving the Notifier the store: it stays a type with no dependencies,
         // which is what lets its copy be pinned in tests without Notification Center.
@@ -226,6 +228,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
         store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
+        store.cursorCardStarted = { [weak self] session in self?.cursorCardStarted(session) }
+        store.cursorCardsEnded = { [weak self] sessionID in self?.cursorCardsEnded(sessionID) }
         // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
         store.canPeek = { [weak self] in
             self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
@@ -829,6 +833,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store.panelOpenedForPrompt = true
             presenter.expandNow(cause: .notification)
         }
+    }
+
+    /// One of Cursor's own cards began a wait on a chat (*Mirror Cursor's cards*; UsageStore.cursorCardStarted): the
+    /// panel opens on that chat's card alone, its buttons on it, as a request's card opens it. Until 0.9.17 the
+    /// card was only on the chat's row, so the notch had to be opened by hand to reach Run. Opened the way a click
+    /// opens it, to stay: a command takes a moment to read, and a glance is gone before it is. It closes when the
+    /// card has been answered, here or in Cursor (cursorCardsEnded), or the way any open panel closes. Nothing
+    /// opens over one of the app's own windows, over a panel already open (the card is on its row there), or
+    /// while a held request has the panel. A card that appears on a chat already waiting does not come this way:
+    /// that is a call handed back with *Answer in Cursor*, and it is being answered there.
+    private func cursorCardStarted(_ session: AgentSession) {
+        guard !holds.isHeld, store.sessions.pending(now: Date()).isEmpty,
+              let presenter = pointerPresenter, !presenter.hover.isOffScreen(), presenter.hover.state != .expanded else { return }
+        var notice = AttentionNotice(session: session, event: .waiting(blocking: true))
+        notice.forCursorCard = true
+        store.attentionNotice = notice
+        presenter.expandNow(cause: .notification)
+    }
+
+    /// The chat's cards have gone. A panel that was opened on them, and still shows them alone, closes with them;
+    /// one the reader has since turned into the whole panel, or opened by hand, stays.
+    private func cursorCardsEnded(_ sessionID: String) {
+        guard let notice = store.attentionNotice, notice.forCursorCard, notice.session.id == sessionID else { return }
+        for presenter in presenters where presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .notification) }
     }
 
     /// One of the app's own windows went while a request was showing: `promptRequested` declined to open over it,

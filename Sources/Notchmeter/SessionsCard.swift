@@ -404,6 +404,7 @@ struct SessionsCard: View {
                                        planAction: { plan, action in store.cursorPlanAction(plan.file, action, sessionID: row.id) },
                                        cursorCards: store.cursorCards[row.id] ?? [],
                                        cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: row.id) },
+                                       cursorPressing: store.cursorPressing,
                                        answerInCursor: { actions.answerInCursor($0) },
                                        cursorNote: store.cursorActionNotes[row.id],
                                        hideDetails: store.hidesFigures || !prefs.sessionTitles)
@@ -540,6 +541,8 @@ private struct SessionRow: View {
     /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons.
     var cursorCards: [CursorCard] = []
     var cursorPress: (CursorCard, String) -> Void = { _, _ in }
+    /// The cards a press is in flight for (UsageStore.cursorPressing).
+    var cursorPressing: Set<String> = []
     /// Brings Cursor forward for a card that is answered there (PanelActions.answerInCursor).
     var answerInCursor: (AgentSession) -> Void = { _ in }
     var cursorNote: String? = nil
@@ -584,6 +587,7 @@ private struct SessionRow: View {
             }
             ForEach(cursorCards, id: \.id) { card in
                 CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
+                               pressing: cursorPressing.contains(card.id),
                                answerInCursor: { if let session { answerInCursor(session) } })
                     .padding(.leading, SessionRow.textInset)
             }

@@ -7,6 +7,9 @@ import SwiftUI
 struct AttentionNotice: Sendable {
     let session: AgentSession
     let event: Notifier.SessionEvent
+    /// Opened for one of Cursor's own cards (AppDelegate.cursorCardStarted): opened to stay, as a request's card
+    /// is, and closed when the card has been answered, here or in Cursor.
+    var forCursorCard = false
 
     /// A wait that may not be one: Claude Code's idle reminder or a Cursor turn gone quiet (`quietNudge`). Drawn
     /// as one line rather than the full card.
@@ -26,6 +29,14 @@ struct NoticeCard: View {
     var hideTitle = false
     var canJump = false
     var jump: () -> Void = {}
+    /// Cursor's own cards on this session (UsageStore.cursorCards), with their buttons: a card the notch is opened
+    /// on is answered on it, not from a row in the whole panel. Drawn in place of the sentence and the jump, which
+    /// say less than the card does.
+    var cursorCards: [CursorCard] = []
+    var cursorPressing: Set<String> = []
+    var cursorPress: (CursorCard, String) -> Void = { _, _ in }
+    var answerInCursor: () -> Void = {}
+    var cursorNote: String? = nil
     @Environment(\.density) private var density
 
     /// How long the card stays before it settles, unless the pointer comes in. Longer than a bare glance: there
@@ -37,7 +48,35 @@ struct NoticeCard: View {
     static func duration(for notice: AttentionNotice) -> TimeInterval { notice.isNudge ? nudgeDuration : duration }
 
     var body: some View {
-        if notice.isNudge { nudge } else { full }
+        if !cursorCards.isEmpty { cards } else if notice.isNudge { nudge } else { full }
+    }
+
+    /// The session's Cursor cards under the notice's own heading: which chat, then what Cursor asks and its buttons.
+    private var cards: some View {
+        let copy = Notifier.copy(for: notice.event, session: notice.session, hidingFigures: hideFigures)
+        let hideDetails = hideFigures || hideTitle
+        return VStack(alignment: .leading, spacing: density.rowSpacing) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
+                Text(copy.title).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour, .text))
+                if !hideFigures, let project = notice.session.displayName { Chip(text: project) }
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+            if !hideDetails, let title = notice.session.displayTitle {
+                Text(verbatim: title).modifier(Caption()).lineLimit(1).truncationMode(.tail)
+            }
+            ForEach(cursorCards, id: \.id) { card in
+                CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
+                               pressing: cursorPressing.contains(card.id), answerInCursor: answerInCursor)
+            }
+            if let cursorNote {
+                Text(cursorNote).font(.caption2.weight(.medium)).foregroundStyle(Caption.style)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(CardBackground())
     }
 
     /// A nudge — a wait the session may not have stopped for — on one line: the symbol, "Cursor may be waiting",

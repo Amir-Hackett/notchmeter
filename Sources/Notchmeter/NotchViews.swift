@@ -1327,7 +1327,12 @@ struct NotchExpandedView: View {
             if noticeLeads, let notice = store.attentionNotice {
                 NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,
                            canJump: NoticeCard.canJump(notice.session, enabled: prefs.jumpToTerminal),
-                           jump: { actions.jump(notice.session) })
+                           jump: { actions.jump(notice.session) },
+                           cursorCards: store.cursorCards[notice.session.id] ?? [],
+                           cursorPressing: store.cursorPressing,
+                           cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: notice.session.id) },
+                           answerInCursor: { actions.answerInCursor(notice.session) },
+                           cursorNote: store.cursorActionNotes[notice.session.id])
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.attentionNotice = nil } label: {
                     Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)

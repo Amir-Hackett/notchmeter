@@ -8,6 +8,9 @@ struct CursorCardView: View {
     let card: CursorCard
     let hideDetails: Bool
     let press: (String) -> Void
+    /// A button of this card is being pressed in Cursor: the buttons are held, in place, until the press comes back
+    /// and the card leaves the row or says why it has not.
+    var pressing = false
     /// Brings Cursor forward for a card answered there.
     var answerInCursor: () -> Void = {}
 
@@ -42,6 +45,7 @@ struct CursorCardView: View {
                     Button(option.label) { press(option.label) }
                         .buttonStyle(PromptButtonStyle(filled: Self.primary.contains(option.label.lowercased())))
                         .accessibilityHint(L("Presses this button on Cursor's card"))
+                        .disabled(pressing)
                 }
                 if card.kind == .question {
                     Button(L("Answer in Cursor"), action: answerInCursor)
@@ -49,6 +53,7 @@ struct CursorCardView: View {
                         .accessibilityHint(L("Brings Cursor forward, where the question is answered"))
                 }
             }
+            .opacity(pressing ? 0.5 : 1)
         }
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Themed.wash(Palette.calm, 0.12)))

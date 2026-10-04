@@ -54,9 +54,13 @@ defaults write "$DOMAIN" hookOfferShown -bool true
 defaults write "$DOMAIN" cursorRequireApproval -bool true
 # The buttons are found by their English labels, whatever language the Mac speaks.
 defaults write "$DOMAIN" AppleLanguages -array en
+# *Mirror Cursor's cards*, and the file that stands for Cursor's window in this run (FileCursorUI): no card yet.
+defaults write "$DOMAIN" cursorControl -bool true
+CARDS="$WORK/cursor-cards.json"
+printf '[]' >"$CARDS"
 
-mkdir -p "$WORK/proj"
-"$BIN" --e2e-oracle "$ORACLE" --no-prompt >"$WORK/app.log" 2>&1 &
+mkdir -p "$WORK/proj" "$WORK/card-proj"
+"$BIN" --e2e-oracle "$ORACLE" --e2e-cursor-cards "$CARDS" --no-prompt >"$WORK/app.log" 2>&1 &
 APP_PID=$!
 
 count() {
@@ -148,6 +152,22 @@ answered "Deny" beforeShellExecution ',"command":"echo two"' "Deny (⌘N)" '"per
 answered "Answer in Cursor" beforeShellExecution ',"command":"echo three"' "Answer in Cursor" '{"permission":"ask"}' pass
 # Cursor documents an MCP call's `tool_input` as a JSON string, not an object.
 answered "an MCP call, allowed" beforeMCPExecution ',"tool_name":"search","tool_input":"{\"query\":\"notchmeter\"}"' "Allow (⌘Y)" '"permission":"allow"' allow
+
+# One of Cursor's own cards (0.9.17), through the stand-in for its window: the notch opens on the card by itself,
+# with no click to open it, Run is pressed on the notch, the press takes the card out of "Cursor's window", and
+# the notch closes with it.
+opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "notification" and o.get("cards") == ["notice"]'
+closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "notification"'
+pressed='o["event"] == "decision" and o.get("source") == "cursorCard" and o.get("session") == "cursor:e2e-card" and o.get("behavior") == "pressed"'
+opened_before="$(count "$opened")"; closed_before="$(count "$closed")"
+printf '{"conversation_id":"e2e-card","hook_event_name":"beforeSubmitPrompt","cursor_version":"e2e","workspace_roots":["%s"],"prompt":"e2e card"}' "$WORK/card-proj" \
+  | "$BIN" --hook --tool cursor >/dev/null
+printf '[{"kind":"run","window":"card-proj","heading":"ls -la","options":["Skip","Run"]}]' >"$CARDS.new" && mv "$CARDS.new" "$CARDS"
+wait_for "Cursor's Run card: the notch opens on it by itself" "$opened" $((opened_before + 1)) 10
+"$PRESS" Run 8 || { echo "FAIL: no Run button on the notch" >&2; exit 1; }
+wait_for "Run, pressed on the notch, is pressed in Cursor" "$pressed" 1 10
+[ "$(cat "$CARDS")" = "[]" ] && echo "ok: and the card has left Cursor's window" || { echo "FAIL: the card is still there: $(cat "$CARDS")" >&2; exit 1; }
+wait_for "and the notch closes with it" "$closed" $((closed_before + 1)) 10
 
 kill -0 "$APP_PID" 2>/dev/null || { echo "FAIL: the app exited during the run" >&2; exit 1; }
 echo "e2e-cursor: all checks passed"

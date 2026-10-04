@@ -533,6 +533,67 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
     }
 }
 
+/// A stand-in for Cursor's window, for the end-to-end scripts (docs/testing.md): the cards are whatever a JSON file
+/// says, and a press takes its card out of the file, as Cursor's own card goes when its button is pressed. It lets
+/// a run see what the app does with a card (the row, the wait, the notch opening on it and closing after it)
+/// without a Cursor to draw one. `--e2e-cursor-cards <path>`, honoured only beside the oracle, so no ordinary
+/// launch reads cards from a file.
+final class FileCursorUI: CursorUIControlling, @unchecked Sendable {
+    struct Entry: Codable, Equatable {
+        var kind: String
+        var window: String
+        var chat: String?
+        var heading: String?
+        var options: [String]?
+        var choices: [String]?
+        var command: Bool?
+    }
+
+    private let url: URL
+    private let lock = NSLock()
+
+    init(path: String) {
+        url = URL(fileURLWithPath: path)
+    }
+
+    /// The launch argument's file, when the oracle is on too.
+    static func path(arguments: [String] = CommandLine.arguments, oracle: String? = Oracle.path()) -> String? {
+        guard oracle != nil, let index = arguments.firstIndex(of: "--e2e-cursor-cards"), index + 1 < arguments.count else { return nil }
+        return arguments[index + 1]
+    }
+
+    var trusted: Bool { true }
+
+    private func entries() -> [Entry] {
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
+    }
+
+    static func card(_ entry: Entry) -> CursorCard? {
+        guard let kind = CursorCard.Kind(rawValue: entry.kind) else { return nil }
+        let options = (entry.options ?? []).enumerated().map { CursorCard.Option(label: $1, path: [$0]) }
+        var card = CursorCard(kind: kind, window: entry.window, chat: entry.chat, heading: entry.heading, options: options)
+        card.choices = entry.choices ?? []
+        card.command = entry.command ?? (kind != .run || entry.heading != nil)
+        return card
+    }
+
+    func scan() -> [CursorCard] {
+        lock.withLock { entries().compactMap(Self.card) }
+    }
+
+    func press(_ card: CursorCard, option: String) -> CursorPressResult {
+        lock.withLock {
+            var all = entries()
+            guard card.options.contains(where: { $0.label == option }),
+                  let index = all.firstIndex(where: { Self.card($0)?.id == card.id }) else { return .gone }
+            all.remove(at: index)
+            guard let data = try? JSONEncoder().encode(all), (try? data.write(to: url, options: .atomic)) != nil else { return .unavailable }
+            return .pressed
+        }
+    }
+}
+
 /// View Plan: the plan file, opened in Cursor itself (its editor shows the plan with its own Build button).
 enum CursorPlanOpener {
     @MainActor static func open(_ path: String) -> Bool {
