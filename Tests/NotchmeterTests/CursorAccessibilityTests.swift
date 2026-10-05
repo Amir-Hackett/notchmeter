@@ -1045,12 +1045,23 @@ import Testing
         try? await Task.sleep(for: .milliseconds(50))
         #expect(store.sessions.sessions[key("c1")]?.todos?.done == 0)
 
+        // The plan is shown on its row (View Plan), as the file reads now.
+        var summary = "as first written"
+        store.readPlan = { _ in CursorPlanFiles.Preview(name: "p", summary: summary) }
+        store.cursorPlanAction(plan.path, .view, sessionID: key("c1"))
+        #expect(store.planPreviews[key("c1")]?.preview.summary == "as first written")
+
         // Both ticked in Cursor's plan editor, between turns, with no hook to say so.
+        summary = "as rewritten"
         try write("completed", "completed", at: start.addingTimeInterval(60))
         store.refreshChangedCursorPlans()
         await until { store.sessions.sessions[key("c1")]?.todos?.done == 2 }
         #expect(store.sessions.sessions[key("c1")]?.todos?.done == 2)
         #expect(store.sessions.sessions[key("c1")]?.isWorking == false, "a file read is no turn")
+        #expect(store.planPreviews[key("c1")]?.preview.summary == "as rewritten", "the plan on the row is read again with its file, not left as it was beside a Build for the new one")
+        // The panel it was shown in closes: the words are let go, and the next View Plan reads the file afresh.
+        store.closePlanPreviews()
+        #expect(store.planPreviews.isEmpty && store.openSessionLists.isEmpty)
     }
 
     @Test @MainActor func withTheSettingOffBuildPressesNothing() async {

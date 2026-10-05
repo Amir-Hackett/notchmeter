@@ -143,6 +143,43 @@ import Testing
         #expect(panel().shownParts == whole.filter { $0 != .prompt })
     }
 
+    /// A notch open on one of Cursor's own cards closes because that card has left the store. What it was open on
+    /// includes the card, so it closes as the card it was, and not as the bare notice, a third shorter, that the
+    /// store alone gives by then.
+    @MainActor @Test func aNotchOpenOnOneOfCursorsCardsClosesAsThatCard() throws {
+        let (store, prefs) = DemoFixtures.store(now: Date(), moment: .cursorNotch, suite: "NotchmeterTests.cursorCardLeaving")
+        defer { UserDefaults.standard.removePersistentDomain(forName: "NotchmeterTests.cursorCardLeaving") }
+        prefs.cursorControl = true
+        store.cursorCardsSeen(DemoFixtures.cursorNotchCards)
+        let waiting = try #require(store.sessions.all.first { !(store.cursorCards[$0.id] ?? []).isEmpty })
+        let card = try #require(store.cursorCards[waiting.id]?.first)
+        var notice = AttentionNotice(session: waiting, event: .waiting(blocking: true))
+        notice.forCursorCard = true
+        store.attentionNotice = notice
+        let actions = NotchActions()
+        let leaving = PanelLeaving()
+        func height() -> CGFloat {
+            let host = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000, leaving: leaving))
+            host.layoutSubtreeIfNeeded()
+            return host.fittingSize.height
+        }
+        let open = height()
+        #expect(store.panelOpening.noticeCards == [card])
+
+        // The card is answered. The store says so, and the panel takes what it was open on as it is told
+        // (NotchController.leave, from AppDelegate.cursorCardsChanged), before the store's own are cleared.
+        store.cursorCardsChanged = { _, ended in
+            guard ended.contains(waiting.id) else { return }
+            leaving.opening = store.panelOpening
+            store.attentionNotice = nil
+        }
+        store.cursorCardsSeen(DemoFixtures.cursorNotchCards.filter { $0.id != card.id })
+        #expect(store.cursorCards[waiting.id] == nil, "the card has left its row")
+        #expect(leaving.opening?.noticeCards == [card], "and is still what the closing panel is open on")
+        #expect(height() == open, "the same card for the frames of the close")
+        #expect(store.panelOpening.noticeCards.isEmpty, "nothing is kept of it once the telling is over")
+    }
+
     @Test func anOpeningTellsTheOracleItsCardsAndEntrance() {
         let open = PanelReporter.fields(state: .expanded, cause: .dwell, parts: [.header, .sessions, .spend], staggered: true)
         #expect(open["cards"] as? [String] == ["header", "sessions", "cost"])

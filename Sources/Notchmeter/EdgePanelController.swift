@@ -264,6 +264,9 @@ final class EdgePanelController: NSObject, PanelPresenting {
             store.panelOpenedForPrompt = false
             store.attentionNotice = nil
             store.promptFocus = nil
+            // The card is taken off in this turn (`layout`), so a plan shown on a row goes now: the next View Plan
+            // reads its file as it is then.
+            store.closePlanPreviews()
         case .none:
             return
         }
@@ -562,7 +565,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
                  // budget is set, and monthlyBudgetUSD reads it only while one is.
                  prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
-                 store.attentionNotice?.session.id, store.hooksInstalled, store.openCodePluginInstalled, store.openSessionLists, store.promptFocus,
+                 store.attentionNotice?.session.id, store.hooksInstalled, store.openCodePluginInstalled, store.openSessionLists, store.planPreviews, store.promptFocus,
                  store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent,
                  prefs.usageStyle, prefs.hourClock, prefs.sessionRows, prefs.sessionRowLead)
             layout(animated: false)

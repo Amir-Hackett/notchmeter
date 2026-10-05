@@ -429,6 +429,11 @@ final class NotchController: NSObject, PanelPresenting {
     private let leaving = PanelLeaving()
     /// The closes whose morph has not finished (`compact`); `leaving` is let go when the last one has.
     private var closing = 0
+    /// What the panel on its way closed is drawn from, for a test to read.
+    var leavingOpening: PanelOpening? { leaving.opening }
+    /// Carries an opening or a close out on the notch itself: DynamicNotchKit's own, unless a test has put its own
+    /// here, so the order of the queued opens and closes can be driven and counted with no window on screen.
+    var carryOut: ((HoverIntent.State) async -> Void)?
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -726,8 +731,13 @@ final class NotchController: NSObject, PanelPresenting {
         store.endPeek()
         refreshGlow()
         let serial = beginTransition()
-        await notch.expand(on: screen)
-        if PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
+        if let carryOut { await carryOut(.expanded) } else { await notch.expand(on: screen) }
+        // Only a panel that is still this opening's takes the keyboard. The wait above is DynamicNotchKit's 0.4 s,
+        // and a panel closed inside it (the shortcut twice, a request answered at once, a jump from a panel just
+        // opened) was made key all the same, closed, with the keys going to it.
+        if serial == transitionSerial, hover.state == .expanded, PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) {
+            window?.makeKey()
+        }
         endTransition(serial)
     }
 
@@ -740,6 +750,13 @@ final class NotchController: NSObject, PanelPresenting {
         // the panel afterwards: a panel the machine read as open, closed, with the glance's own clock lost. The
         // panel stays where it is, and the opening after this draws what it is now open on.
         guard hover.state == .compact else { return }
+        // Stood aside for a full-screen app, the notch is hidden, and a close would bring it back, compact, over
+        // that app (a request ending on a display that has since gone full-screen). There is nothing on screen to
+        // keep a copy for either.
+        guard !suppressedForFullScreen else {
+            leaving.opening = nil
+            return
+        }
         configureTransition(closing: true)
         // What the view on screen draws from here until it has gone, read the way it reads it.
         reporter.report(.compact, cause: cause,
@@ -747,13 +764,18 @@ final class NotchController: NSObject, PanelPresenting {
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
         closing += 1
-        await notch.compact(on: screen)
+        if let carryOut { await carryOut(.compact) } else { await notch.compact(on: screen) }
         closing -= 1
         // The panel has gone, and with it the need for what it was open on: a notice is a copy of its session,
         // title and all, which `UsageStore.dropTitles` cannot reach here. Counted and not left to the serial: a
         // second close asked for while the first is still on screen returns at once (DynamicNotchKit is already
         // compact) and is then the latest transition, with the first's panel not yet gone.
-        if closing == 0, hover.state == .compact { leaving.opening = nil }
+        if closing == 0, hover.state == .compact {
+            leaving.opening = nil
+            // And a plan shown on a row is a reading of its file from when it was opened: with the panel gone it
+            // is let go, so the next View Plan reads the file as it is then.
+            store.closePlanPreviews()
+        }
         endTransition(serial)
         refreshGlow()
     }
@@ -917,7 +939,7 @@ final class NotchController: NSObject, PanelPresenting {
                  // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
                  // budget is set, and monthlyBudgetUSD reads it only while one is.
                  prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled, store.openCodePluginInstalled,
-                 store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
+                 store.openSessionLists, store.planPreviews, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
                  prefs.notchNewsStyle, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
                  prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent, prefs.usageStyle, prefs.hourClock,
                  prefs.closedWhileWorking, prefs.closedWhenQuiet, store.closedNotchPhase, prefs.sessionRows, prefs.sessionRowLead)

@@ -281,18 +281,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         actions.jump = { [weak self] session in
             guard let self, self.prefs.jumpToTerminal else { return }
-            self.jumper.jump(session)
-            // Where there is a window to go to, the panel gets out of its way, as it does for a plan (`handedOff`).
-            if NoticeCard.canJump(session, enabled: true) { self.handedOff() }
+            // Where the jump lands, the panel gets out of its way, as it does for a plan (`handedOff`). One that
+            // lands nowhere, its terminal having quit, leaves the panel where it is.
+            self.jumper.jump(session) { [weak self] in self?.handedOff() }
         }
         actions.answerInCursor = { [weak self] session in
             guard let self else { return }
             if session.host == nil, let terminal = session.terminal, TerminalJump.resolve(terminal) != .none {
-                self.jumper.jump(session)
-            } else {
-                CursorPlanOpener.activateCursor()
+                self.jumper.jump(session) { [weak self] in self?.handedOff() }
+            } else if CursorPlanOpener.activateCursor() {
+                self.handedOff()
             }
-            self.handedOff()
         }
         actions.offerHook = { [weak self] tool in self?.offerHook(for: tool) }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
@@ -484,6 +483,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let notice = AttentionNotice(session: session, event: event)
             store.attentionNotice = notice
             presenter.glance(for: NoticeCard.duration(for: notice))
+            // A glance that opened nothing (Always open, with the panel put away by the shortcut) leaves no card
+            // behind: the next opening would have shown it alone, for news long past.
+            if presenter.hover.state != .expanded { store.attentionNotice = nil }
         case .openPanel: presenter.expandNow(cause: .notification)
         case .nothing: break
         }

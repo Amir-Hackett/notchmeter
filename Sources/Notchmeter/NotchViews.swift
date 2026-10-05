@@ -1140,6 +1140,12 @@ struct PanelOpening {
     var promptOnly = false
     var notice: AttentionNotice?
     var focus: String?
+    /// Cursor's own cards on the notice's session and the note under them, as the notice's card draws them. Part of
+    /// what the panel is open on, so a panel on its way closed keeps them too: a notch open on one of Cursor's cards
+    /// closes because that card has left the store, and drawn from the store it was the bare notice, a third
+    /// shorter, for the frames the close takes.
+    var noticeCards: [CursorCard] = []
+    var noticeNote: String?
 }
 
 /// What a panel that has begun to close was open on, kept by its presenter until it opens again. The collapse
@@ -1355,11 +1361,11 @@ struct NotchExpandedView: View {
                 NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,
                            canJump: NoticeCard.canJump(notice.session, enabled: prefs.jumpToTerminal),
                            jump: { actions.jump(notice.session) },
-                           cursorCards: store.cursorCards[notice.session.id] ?? [],
+                           cursorCards: opening.noticeCards,
                            cursorPressing: store.cursorPressing,
                            cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: notice.session.id) },
                            answerInCursor: { actions.answerInCursor(notice.session) },
-                           cursorNote: store.cursorActionNotes[notice.session.id])
+                           cursorNote: opening.noticeNote)
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.attentionNotice = nil } label: {
                     Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)

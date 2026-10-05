@@ -295,8 +295,8 @@ final class UsageStore {
     var openSessionLists: Set<String> = []
     /// The plans shown on their chats' rows (View Plan), by session id, each with the file it was read from so a
     /// chat that has made another plan since is not shown the old one. Open as the row's lists are, under
-    /// "<session id>/plan" in `openSessionLists`, which is what re-sizes the panel; this is what the row then draws,
-    /// and the measuring copy of the panel reads it the same way. A plan's name and summary are its author's words:
+    /// "<session id>/plan" in `openSessionLists`; this is what the row then draws, the measuring copy of the panel
+    /// reads it the same way, and the panels re-size for a change to either (NotchController.observeContent). A plan's name and summary are its author's words:
     /// read only when the preview is opened, held only while it is open, never logged, and dropped with the titles
     /// (`dropTitles`).
     private(set) var planPreviews: [String: ShownPlan] = [:]
@@ -313,8 +313,20 @@ final class UsageStore {
     /// one drawn when several sessions hold requests, and its own card outranks another session's request. Nil the
     /// rest of the time; cleared by every collapse.
     var promptFocus: String?
-    /// What an open panel is on, as the three above say it (PanelOpening).
-    var panelOpening: PanelOpening { PanelOpening(promptOnly: panelOpenedForPrompt, notice: attentionNotice, focus: promptFocus) }
+    /// What an open panel is on, as the three above say it (PanelOpening), with the notice's session's Cursor cards
+    /// and note. A card that is leaving its row as this is read (`cursorCardsLeaving`) still counts: the panel that
+    /// was open on it takes this as it begins to close.
+    var panelOpening: PanelOpening {
+        var opening = PanelOpening(promptOnly: panelOpenedForPrompt, notice: attentionNotice, focus: promptFocus)
+        if let id = attentionNotice?.session.id {
+            opening.noticeCards = cursorCards[id] ?? cursorCardsLeaving[id] ?? []
+            opening.noticeNote = cursorActionNotes[id]
+        }
+        return opening
+    }
+    /// The cards that have just left their chats' rows, by session id, only for as long as `cursorCardsChanged` is
+    /// being told so (cursorCardsSeen).
+    @ObservationIgnored private var cursorCardsLeaving: [String: [CursorCard]] = [:]
     /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
     /// rest of the time and always while Preferences.notchNews is off.
     private(set) var peek: NotchNews?
@@ -2444,6 +2456,7 @@ final class UsageStore {
             sessions = tracker
             pruneOpenSessionLists()
         }
+        followPlanPreview(key, file: follower.planFile)
         // One follow-up, whether a hook arrived during the read or the transcript grew after this read started.
         guard grew || cursorPlanAgain[path] != nil else { return }
         let again = cursorPlanAgain.removeValue(forKey: path) ?? (sessionID, host)
@@ -2850,7 +2863,11 @@ extension UsageStore {
         let gone = before.keys.filter { bySession[$0] == nil }
         // Before the notices below, so a panel this opens on the card is already open when the attention setting
         // is asked what to do about the wait, as a request's is.
-        if !fresh.isEmpty || !gone.isEmpty { cursorCardsChanged(fresh, gone) }
+        if !fresh.isEmpty || !gone.isEmpty {
+            cursorCardsLeaving = before.filter { gone.contains($0.key) }
+            cursorCardsChanged(fresh, gone)
+            cursorCardsLeaving = [:]
+        }
         for (session, card) in started {
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
@@ -2929,7 +2946,9 @@ extension UsageStore {
             // it away. Where a plan's words may not be drawn (titles off, the screen shared), or the file says
             // nothing to show, View Plan goes to Cursor as Open in Cursor does.
             let wordsShown = prefs.sessionTitles && !hidesFigures
-            if wordsShown, planPreviews[sessionID] != nil {
+            // Folded only when it is this plan that is shown: one left open from a plan the chat has since replaced
+            // is not drawn (SessionsCard), so folding it was a press that did nothing, and it is replaced instead.
+            if wordsShown, planPreviews[sessionID]?.file == file {
                 closePlanPreview(sessionID)
             } else if wordsShown, let preview = readPlan(file) {
                 // The words before the key: the key is what re-sizes the panel, and the measure has to find them.
@@ -2985,10 +3004,29 @@ extension UsageStore {
         Oracle.shared.emit("sessionRow", ["session": sessionID, "list": SessionsCard.Disclosure.plan.rawValue, "expanded": false])
     }
 
-    /// Every plan shown on a row folded away: *Show what a session is working on* was turned off, and with it off
-    /// nothing a plan says is held (`dropTitles`).
-    private func closePlanPreviews() {
+    /// Every plan shown on a row folded away, and its words let go: *Show what a session is working on* was turned
+    /// off, and with it off nothing a plan says is held (`dropTitles`); or the panel they were shown in has closed
+    /// (NotchController.compact, EdgePanelController.act), since what is shown is a reading of the file from when
+    /// it was opened.
+    func closePlanPreviews() {
         for id in Array(planPreviews.keys) { closePlanPreview(id) }
+    }
+
+    /// A plan shown on a row whose chat has since made another, or has none now, is let go: the row no longer
+    /// draws it (SessionsCard), and it is not held unseen.
+    private func dropStalePlanPreviews() {
+        for (id, shown) in planPreviews where sessions.sessions[id]?.planFile != shown.file { closePlanPreview(id) }
+    }
+
+    /// A read of a chat's plan has landed (`cursorPlanRead`), which it does when the plan's file has changed: a plan
+    /// shown on that row is read again, so its summary is not an older one beside a Build that acts on the file as
+    /// it is now, and one shown for a plan the chat no longer has is let go.
+    private func followPlanPreview(_ sessionID: String, file: String?) {
+        guard !planPreviews.isEmpty else { return }
+        dropStalePlanPreviews()
+        guard let file, let shown = planPreviews[sessionID], shown.file == file, prefs.sessionTitles,
+              let fresh = readPlan(file), fresh != shown.preview else { return }
+        planPreviews[sessionID] = ShownPlan(file: file, preview: fresh)
     }
 
     /// Puts what a press or plan action came to under the session's row, and takes it down again after a while:

@@ -628,7 +628,8 @@ enum CursorPlanOpener {
         return true
     }
 
-    @MainActor static func activateCursor() {
-        NSRunningApplication.runningApplications(withBundleIdentifier: TerminalJump.BundleID.cursor).first?.activate()
+    /// Brings Cursor forward, and says whether there was a Cursor to bring.
+    @MainActor @discardableResult static func activateCursor() -> Bool {
+        NSRunningApplication.runningApplications(withBundleIdentifier: TerminalJump.BundleID.cursor).first?.activate() ?? false
     }
 }

@@ -351,45 +351,78 @@ enum CursorPlanFiles {
     static let previewNameLimit = 120
     static let previewSummaryLimit = 480
 
+    /// How much of a plan file is read for its preview. Its frontmatter and first paragraph are at its head, and
+    /// this is read on the main actor as the row opens: a plan can run to megabytes, and none needs them for this.
+    static let previewReadLimit = 64 * 1024
+
     static func preview(in url: URL) -> Preview? {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard var data = try? handle.read(upToCount: previewReadLimit), !data.isEmpty else { return nil }
+        // Cut at the limit, the last line is not whole, and its last character may not be either.
+        if data.count == previewReadLimit, let newline = data.lastIndex(of: 0x0A) { data = data[..<newline] }
+        if data.starts(with: [0xEF, 0xBB, 0xBF]) { data = data.dropFirst(3) }
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
         return preview(parsing: text)
     }
 
     /// The plan's `name` and Cursor's own one-paragraph `overview`, both from the frontmatter, which is where every
     /// plan Cursor writes carries them (3.23.12). A file with no frontmatter, or one missing either, gives its first
-    /// heading for the name and the first paragraph of its text for the summary. Nil when it has neither. The rest
-    /// of the plan is not kept: the preview says what the plan is, and Cursor is where it is read.
+    /// heading for the name and the first paragraph of its text for the summary. Nil when it has neither, and for
+    /// a frontmatter that never closes, which is a file cut short and would otherwise be its own YAML for a
+    /// summary. The rest of the plan is not kept: the preview says what the plan is, and Cursor is where it is read.
     static func preview(parsing text: String) -> Preview? {
         let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
         func bare(_ line: String) -> String { line.trimmingCharacters(in: .whitespaces) }
+        func indented(_ line: String) -> Bool { line.first == " " || line.first == "\t" }
+        // YAML's own word for nothing is no name and no summary.
+        func said(_ value: String?) -> String? { value.flatMap { ["null", "Null", "NULL", "~"].contains($0) ? nil : $0 } }
         var name: String?
         var overview: String?
         var body = lines[...]
         // Frontmatter opens the file; a `---` further down is a rule in the text.
-        if let open = lines.firstIndex(where: { !bare($0).isEmpty }), bare(lines[open]) == "---",
-           let close = lines[(open + 1)...].firstIndex(where: { bare($0) == "---" }) {
-            for raw in lines[(open + 1)..<close] where raw.first != " " && raw.first != "\t" {
-                let line = bare(raw)
-                if let value = field("name", in: line) { name = value } else if let value = field("overview", in: line) { overview = value }
+        if let open = lines.firstIndex(where: { !bare($0).isEmpty }), bare(lines[open]) == "---" {
+            guard let close = lines[(open + 1)...].firstIndex(where: { bare($0) == "---" }) else { return nil }
+            var index = open + 1
+            while index < close {
+                var line = bare(lines[index])
+                let top = !indented(lines[index])
+                index += 1
+                guard top, line.hasPrefix("name:") || line.hasPrefix("overview:") else { continue }
+                // A scalar wrapped over several lines runs on under its key, indented.
+                while index < close, indented(lines[index]) {
+                    line += " " + bare(lines[index])
+                    index += 1
+                }
+                if line.hasPrefix("name:") { name = said(field("name", in: line)) } else { overview = said(field("overview", in: line)) }
             }
             body = lines[(close + 1)...]
         }
         var heading: String?
         var paragraph: [String] = []
-        var fenced = false
+        var fence: String?
+        var commented = false
         for raw in body {
             let line = bare(raw)
-            if line.hasPrefix("```") {
-                // A fence ends a paragraph that has begun; before one, what it holds is code and no summary.
-                if !paragraph.isEmpty { break }
-                fenced.toggle()
+            // Code and comments are not the plan's prose, wherever they stand.
+            if let open = fence {
+                if line.hasPrefix(open) { fence = nil }
                 continue
             }
-            if fenced { continue }
-            if line.isEmpty || line.hasPrefix("#") {
+            if commented {
+                if line.contains("-->") { commented = false }
+                continue
+            }
+            let opensFence = line.hasPrefix("```") || line.hasPrefix("~~~")
+            let opensComment = line.hasPrefix("<!--")
+            let numbered = line.first?.isNumber == true && [". ", ") "].contains { line.drop(while: \.isNumber).hasPrefix($0) }
+            // A list, a table and a quotation are not a summary either: a plan that opens on one has none here.
+            let block = ["- ", "* ", "+ ", "|", ">"].contains { line.hasPrefix($0) } || numbered
+            if line.isEmpty || line.hasPrefix("#") || opensFence || opensComment || block {
                 // A paragraph ends at the first of these after it began.
                 if !paragraph.isEmpty { break }
+                if opensFence { fence = String(line.prefix(3)) }
+                if opensComment { commented = !line.contains("-->") }
                 if heading == nil, line.hasPrefix("#") {
                     let title = bare(String(line.drop { $0 == "#" }))
                     if !title.isEmpty { heading = title }
