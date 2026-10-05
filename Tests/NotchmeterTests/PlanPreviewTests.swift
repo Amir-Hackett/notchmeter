@@ -118,7 +118,7 @@ import Testing
     }
 
     @Test func aLongOverviewIsCutAtAWordAndSaysSo() throws {
-        let long = String(repeating: "All six threads are still open and snoozed. ", count: 40)
+        let long = String(repeating: "Check contrast in both themes. ", count: 40)
         let preview = try #require(CursorPlanFiles.preview(parsing: "---\nname: n\noverview: \(long)\n---\n"))
         let summary = try #require(preview.summary)
         #expect(summary.count <= CursorPlanFiles.previewSummaryLimit + 1)
@@ -146,7 +146,7 @@ import Testing
         chat = try #require(store.sessions.all.first { $0.planFile != nil })
         file = try #require(chat.planFile)
         let box = box
-        store.readPlan = { _ in CursorPlanFiles.Preview(name: "Close six snoozed Intercom bugs", summary: "All six threads are still open and snoozed. None have an open pull request.") }
+        store.readPlan = { _ in CursorPlanFiles.Preview(name: "Settings dark mode", summary: "Give the settings page a dark theme. Check contrast in both themes.") }
         store.openPlan = { box.opened.append($0); return box.opens }
         store.handedOff = { box.handedOff += 1 }
     }
@@ -163,7 +163,7 @@ import Testing
         defer { UserDefaults.standard.removePersistentDomain(forName: Self.suite) }
         let closed = height()
         store.cursorPlanAction(file, .view, sessionID: chat.id)
-        #expect(store.planPreviews[chat.id]?.preview.name == "Close six snoozed Intercom bugs")
+        #expect(store.planPreviews[chat.id]?.preview.name == "Settings dark mode")
         #expect(store.planPreviews[chat.id]?.file == file)
         #expect(store.openSessionLists.contains(key), "under the key that re-sizes the panel")
         #expect(box.opened.isEmpty && box.handedOff == 0, "nothing is opened in Cursor, and the panel stays")
@@ -179,7 +179,7 @@ import Testing
         #expect(store.openSessionLists.contains(key))
         store.cursorPlanAction(newer, .view, sessionID: chat.id)
         #expect(store.planPreviews[chat.id] == nil, "and a second press on that one folds it")
-        store.readPlan = { _ in CursorPlanFiles.Preview(name: "Close six snoozed Intercom bugs", summary: "All six threads are still open and snoozed. None have an open pull request.") }
+        store.readPlan = { _ in CursorPlanFiles.Preview(name: "Settings dark mode", summary: "Give the settings page a dark theme. Check contrast in both themes.") }
         store.cursorPlanAction(file, .view, sessionID: chat.id)
 
         // A second press folds it away.

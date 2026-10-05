@@ -110,8 +110,8 @@ import Testing
     /// and brings forward the window already showing it. Without a folder it is only raised.
     @Test func anEditorIsHandedTheSessionsFolderAndElseRaised() {
         let cursor = "com.todesktop.230313mzl4w4u92"
-        #expect(TerminalJump.resolve(TerminalRef(program: "vscode", bundleID: cursor, workspace: "/Users/me/enrollhere"))
-                == .openFolder("/Users/me/enrollhere", bundleID: cursor))
+        #expect(TerminalJump.resolve(TerminalRef(program: "vscode", bundleID: cursor, workspace: "/Users/me/storefront"))
+                == .openFolder("/Users/me/storefront", bundleID: cursor))
         #expect(TerminalJump.resolve(TerminalRef(bundleID: "com.microsoft.VSCode", workspace: "/Users/me/x")) == .openFolder("/Users/me/x", bundleID: "com.microsoft.VSCode"))
         #expect(TerminalJump.resolve(TerminalRef(bundleID: cursor, workspace: "relative/path")) == .activate(bundleID: cursor), "only an absolute path is opened")
         #expect(TerminalJump.resolve(TerminalRef(bundleID: cursor, workspace: "/Users/me/../../etc")) == .activate(bundleID: cursor))
@@ -215,14 +215,14 @@ import Testing
          TerminalIdentity.Ancestor(pid: 600, parent: 1, bundleID: cursor)]
     }
     let inherited = ["__CFBundleIdentifier": "com.anthropic.claudefordesktop", "TERM_PROGRAM": "iTerm.app",
-                     "ITERM_SESSION_ID": "w0t0p0:9F1A2B3C-0000-1111-2222-333344445555", "CURSOR_PROJECT_DIR": "/Users/me/enrollhere"]
+                     "ITERM_SESSION_ID": "w0t0p0:9F1A2B3C-0000-1111-2222-333344445555", "CURSOR_PROJECT_DIR": "/Users/me/storefront"]
 
     @Test func cursorsAgentIsCursorWhateverCursorInherited() {
         let ref = TerminalIdentity.resolve(environment: inherited, ancestry: underCursor, ownBundleID: own, tool: .cursor)
         #expect(ref == TerminalRef(bundleID: cursor), "only Cursor: no inherited app, program, tab or tty")
         var withFolder = ref
-        withFolder?.workspace = "/Users/me/enrollhere"
-        #expect(withFolder.map(TerminalJump.resolve) == .openFolder("/Users/me/enrollhere", bundleID: cursor))
+        withFolder?.workspace = "/Users/me/storefront"
+        #expect(withFolder.map(TerminalJump.resolve) == .openFolder("/Users/me/storefront", bundleID: cursor))
     }
 
     @Test func anotherToolKeepsWhatItsEnvironmentSays() {
@@ -246,9 +246,9 @@ import Testing
     @Test func aReferenceNamingAnotherAppReplacesTheOldOneWhole() {
         let stale = TerminalRef(program: "iTerm.app", bundleID: "com.anthropic.claudefordesktop", tty: "/dev/ttys001",
                                 sessionID: "w0t0p0:9F1A2B3C-0000-1111-2222-333344445555")
-        let fresh = TerminalRef(bundleID: cursor, workspace: "/Users/me/enrollhere")
+        let fresh = TerminalRef(bundleID: cursor, workspace: "/Users/me/storefront")
         #expect(stale.merging(fresh) == fresh)
-        #expect(TerminalJump.resolve(stale.merging(fresh)) == .openFolder("/Users/me/enrollhere", bundleID: cursor))
+        #expect(TerminalJump.resolve(stale.merging(fresh)) == .openFolder("/Users/me/storefront", bundleID: cursor))
         // The same app reporting less keeps what it knew.
         let partial = TerminalRef(bundleID: TerminalJump.BundleID.iTerm)
         let known = TerminalRef(program: "iTerm.app", bundleID: TerminalJump.BundleID.iTerm, tty: "/dev/ttys001")

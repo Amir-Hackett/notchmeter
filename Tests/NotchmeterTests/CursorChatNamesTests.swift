@@ -13,7 +13,7 @@ import Testing
     func cursorSession(_ conversation: String, title: String? = nil, name: String? = nil, host: String? = nil,
                        lastEvent: Date? = nil, started: Date? = nil) -> AgentSession {
         var session = AgentSession(id: SessionTracker.key(tool: .cursor, session: conversation, host: host), tool: .cursor,
-                                   project: "enrollhere-admin-support-tools", state: .idle, started: started ?? t0,
+                                   project: "storefront-checkout-service", state: .idle, started: started ?? t0,
                                    lastEvent: lastEvent ?? t0, turnStarted: nil, branch: "dev", host: host)
         session.title = title
         session.sessionName = name
@@ -93,8 +93,8 @@ import Testing
         #expect(cursorSession(id, title: "Take a screenshot", name: "Screenshot tooling").displayTitle == "Take a screenshot")
         #expect(cursorSession(id, name: "Screenshot tooling").displayTitle == "Screenshot tooling")
         #expect(SessionsCard.title(of: cursorSession(id, name: "Screenshot tooling"), hideTitles: false) == "Screenshot tooling")
-        #expect(SessionsCard.title(of: cursorSession(id), hideTitles: false) == "enrollhere-admin-support-tools")
-        #expect(SessionsCard.title(of: cursorSession(id, name: "Screenshot tooling"), hideTitles: true) == "enrollhere-admin-support-tools",
+        #expect(SessionsCard.title(of: cursorSession(id), hideTitles: false) == "storefront-checkout-service")
+        #expect(SessionsCard.title(of: cursorSession(id, name: "Screenshot tooling"), hideTitles: true) == "storefront-checkout-service",
                 "hidden like a prompt title while the screen is shared")
     }
 
@@ -125,7 +125,7 @@ import Testing
         #expect(titles["cursor:a-1"] != titles["cursor:b-2"])
         #expect(rows.first { $0.id == "cursor:a-1" }?.branch == "dev", "the branch stays on the second line")
         let lone = SessionsCard.rows([named, first], hideTitles: false, jump: false, now: t0).rows
-        #expect(lone.first { $0.id == "cursor:a-1" }?.title == "enrollhere-admin-support-tools")
+        #expect(lone.first { $0.id == "cursor:a-1" }?.title == "storefront-checkout-service")
     }
 
     // MARK: - The database
@@ -142,7 +142,7 @@ import Testing
         let sql = """
         CREATE TABLE composerHeaders (composerId TEXT PRIMARY KEY, workspaceId TEXT, createdAt INTEGER, lastUpdatedAt INTEGER, isArchived INTEGER, isSubagent INTEGER, recency INTEGER, checkpointAt INTEGER, value TEXT, subagentTypeName TEXT);
         CREATE TABLE cursorDiskKV (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB);
-        INSERT INTO composerHeaders (composerId, value) VALUES ('aaaa-1', '{"type":"head","composerId":"aaaa-1","name":"Queue sheet fix"}');
+        INSERT INTO composerHeaders (composerId, value) VALUES ('aaaa-1', '{"type":"head","composerId":"aaaa-1","name":"Checkout total fix"}');
         INSERT INTO composerHeaders (composerId, value) VALUES ('bbbb-2', '{"type":"head","composerId":"bbbb-2"}');
         INSERT INTO cursorDiskKV (key, value) VALUES ('composerData:bbbb-2', '{"composerId":"bbbb-2","name":"Older Cursor name"}');
         INSERT INTO composerHeaders (composerId, value) VALUES ('cccc-3', '{"type":"head","composerId":"cccc-3"}');
@@ -150,7 +150,7 @@ import Testing
         #expect(sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK)
         sqlite3_close(db)
         let names = CursorChatNames.read(ids: ["aaaa-1", "bbbb-2", "cccc-3", "dddd-4", "bad id;"], database: database)
-        #expect(names == ["aaaa-1": "Queue sheet fix", "bbbb-2": "Older Cursor name"])
+        #expect(names == ["aaaa-1": "Checkout total fix", "bbbb-2": "Older Cursor name"])
         #expect(CursorChatNames.read(ids: ["aaaa-1"], database: directory.appendingPathComponent("missing.vscdb")).isEmpty)
     }
 }

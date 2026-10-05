@@ -12,8 +12,8 @@ import SwiftUI
 /// frame is round it; a fixed frame is what makes a long name truncate inside the room the window leaves instead
 /// of running on past its edge, where it is cut square (NotchPeek.windowRoom).
 ///
-/// The name is in the text colour and cut at its end, so what is left reads as the start of a name ("enrollhere-
-/// admin-su…"); the assistant's symbol is in the assistant's colour.
+/// The name is in the text colour and cut at its end, so what is left reads as the start of a name
+/// ("storefront-checko…"); the assistant's symbol is in the assistant's colour.
 struct NotchPeekHalf: View {
     let news: NotchNews
     let words: NotchNews.Words
