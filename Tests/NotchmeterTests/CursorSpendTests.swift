@@ -89,7 +89,9 @@ import Testing
         Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
     }
 
-    static func events(_ items: [(offset: TimeInterval, cents: Double, model: String)]) -> Data {
+    /// `midday` is given by a test that has to place its own dates against the same one (a run across midnight
+    /// would otherwise read two different days).
+    static func events(_ items: [(offset: TimeInterval, cents: Double, model: String)], midday: Date = midday) -> Data {
         let list = items.map { item -> [String: Any] in
             ["timestamp": String(Int(midday.addingTimeInterval(item.offset).timeIntervalSince1970 * 1000)),
              "model": item.model, "tokenUsage": ["inputTokens": 1000, "outputTokens": 100, "totalCents": item.cents]]
@@ -275,7 +277,10 @@ import Testing
     /// limit gets a real meter; a free seat that has spent nothing is left as it was.
     @Test func theCyclesSpendIsOnTheCardForEveryKindOfSeat() async throws {
         let iso = ISO8601DateFormatter()
-        let start = iso.string(from: Self.midday.addingTimeInterval(-10 * 86_400)), end = iso.string(from: Self.midday.addingTimeInterval(20 * 86_400))
+        // One midday for the cycle's dates and the events', so a run across midnight cannot split them.
+        let now = Date()
+        let midday = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
+        let start = iso.string(from: midday.addingTimeInterval(-10 * 86_400)), end = iso.string(from: midday.addingTimeInterval(20 * 86_400))
         let enterprise = Data("""
         {"billingCycleStart":"\(start)","billingCycleEnd":"\(end)","membershipType":"enterprise","limitType":"team","isUnlimited":false,
          "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null}},"teamUsage":{"onDemand":{"enabled":true,"used":0,"limit":null}}}
@@ -283,8 +288,9 @@ import Testing
         // Ten dollars in this cycle, fifty in the one before it. Today's four are stamped a minute ago and not at a
         // fixed hour: the cycle's sum leaves out an event later than now, which one an hour before midday is until
         // eleven, so the sum came to six dollars on every run before then (0.9.17).
-        let recent = max(Calendar.current.startOfDay(for: Date()), Date().addingTimeInterval(-60)).timeIntervalSince(Self.midday)
-        let export = Self.events([(offset: recent, cents: 400, model: "m"), (offset: -2 * 86_400.0, cents: 600, model: "m"), (offset: -12 * 86_400.0, cents: 5000, model: "m")])
+        let recent = max(Calendar.current.startOfDay(for: now), now.addingTimeInterval(-60)).timeIntervalSince(midday)
+        let export = Self.events([(offset: recent, cents: 400, model: "m"), (offset: -2 * 86_400.0, cents: 600, model: "m"), (offset: -12 * 86_400.0, cents: 5000, model: "m")],
+                                 midday: midday)
         func answer(summary: Data, period: (Int, Data), export: Data) -> @Sendable (URL, Int) -> (Int, Data) {
             { url, _ in
                 switch url {
