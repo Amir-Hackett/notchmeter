@@ -69,7 +69,7 @@ import Testing
 
     @Test func aCreatePlanSeedsPendingTasksAndThePlanFileSuppliesStatuses() throws {
         var follower = CursorPlanFollower()
-        let created = line(#"{"name":"NBSCTe holiday IVR","overview":"Publish a holiday greeting.","todos":[{"id":"pick-number","content":"Pick a number"},{"id":"publish-calendar","content":"Publish the calendar"}]}"#, name: "CreatePlan")
+        let created = line(#"{"name":"Release calendar","overview":"Publish the release calendar.","todos":[{"id":"pick-number","content":"Pick a number"},{"id":"publish-calendar","content":"Publish the calendar"}]}"#, name: "CreatePlan")
         let seeded = follower.feed(Data(created.utf8))
         #expect(seeded)
         #expect(lines(follower.plan) == ["pending Pick a number", "pending Publish the calendar"])
@@ -79,11 +79,11 @@ import Testing
         defer { try? FileManager.default.removeItem(at: home) }
         let folder = home.appendingPathComponent(".cursor/plans")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let file = folder.appendingPathComponent("nbscte_holiday_ivr_ec1e8ed4.plan.md")
+        let file = folder.appendingPathComponent("release_calendar_1a2b3c4d.plan.md")
         let body = """
         ---
-        name: NBSCTe holiday IVR
-        overview: Publish a holiday greeting.
+        name: Release calendar
+        overview: Publish the release calendar.
         todos:
           - id: pick-number
             content: Pick a number
@@ -105,9 +105,9 @@ import Testing
         #expect(follower.plan.done == 1)
         #expect(follower.plan.total == 2)
         let weak = folder.appendingPathComponent("same_name_aaaaaaaa.plan.md")
-        try Data("---\nname: NBSCTe holiday IVR\ntodos:\n  - id: other\n    content: Something else\n    status: pending\n---\n".utf8).write(to: weak)
-        #expect(CursorPlanFiles.match(name: "NBSCTe holiday IVR", ids: ["other"], home: home) == weak.standardizedFileURL.resolvingSymlinksInPath())
-        #expect(CursorPlanFiles.match(name: "NBSCTe holiday IVR", ids: ["unrelated"], home: home) == nil, "a shared name with no shared task is not this conversation")
+        try Data("---\nname: Release calendar\ntodos:\n  - id: other\n    content: Something else\n    status: pending\n---\n".utf8).write(to: weak)
+        #expect(CursorPlanFiles.match(name: "Release calendar", ids: ["other"], home: home) == weak.standardizedFileURL.resolvingSymlinksInPath())
+        #expect(CursorPlanFiles.match(name: "Release calendar", ids: ["unrelated"], home: home) == nil, "a shared name with no shared task is not this conversation")
         let outside = home.appendingPathComponent("secret.plan.md")
         try Data("---\nname: x\ntodos:\n  - id: pick-number\n    content: a\n    status: pending\n  - id: publish-calendar\n    content: b\n    status: pending\n---\n".utf8).write(to: outside)
         #expect(CursorPlanFiles.allowed(outside.path, home: home) == nil)

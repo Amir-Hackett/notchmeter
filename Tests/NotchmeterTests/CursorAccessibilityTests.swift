@@ -907,10 +907,10 @@ import Testing
         let asked = Asked()
         store.cursorChatNameReader = { ids in
             asked.record(ids)
-            return ["aaaa-1111": "Holiday greeting line", "bbbb-2222": "Usage export"]
+            return ["aaaa-1111": "Release calendar", "bbbb-2222": "Usage export"]
         }
         var card = run("Cursor Agents")
-        card.chat = "Holiday greeting line"
+        card.chat = "Release calendar"
 
         store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
         #expect(store.cursorCards.isEmpty, "not put on the chat heard from last while the names are being read")
