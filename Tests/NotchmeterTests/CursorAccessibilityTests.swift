@@ -344,10 +344,10 @@ import Testing
     @Test func aQuestionIsReadWholeAndEachQuestionsLettersRunFromA() throws {
         // A question drawn as several runs, a word of it in bold, is one question.
         var rich = askedCard()
-        rich.children[1].children[0].children[1] = group([group([text("Which "), text("fix"), text(" should I plan?")])])
+        rich.children[1].children[0].children[1] = group([group([text("Which "), text("theme"), text(" should it use?")])])
         let card = try #require(CursorCards.detect(in: group([rich]), title: "proj").first)
-        #expect(card.questions.map(\.text) == ["Which fix should I plan?", "Pick a color"])
-        #expect(card.heading == "Which fix should I plan?")
+        #expect(card.questions.map(\.text) == ["Which theme should it use?", "Pick a color"])
+        #expect(card.heading == "Which theme should it use?")
 
         let again = group([text("Questions"), button("A one"), button("B two"), button("A three"), text("Skip"), text("Continue")])
         #expect(CursorCards.detect(in: again, title: "proj").isEmpty, "a second question has two choices or more, as a first has")
