@@ -1364,6 +1364,9 @@ struct NotchExpandedView: View {
                            cursorCards: opening.noticeCards,
                            cursorPressing: store.cursorPressing,
                            cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: notice.session.id) },
+                           cursorPick: { card, question, choice in
+                               store.pickCursorChoice(card, question: question, choice: choice, sessionID: notice.session.id)
+                           },
                            answerInCursor: { actions.answerInCursor(notice.session) },
                            cursorNote: opening.noticeNote)
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))

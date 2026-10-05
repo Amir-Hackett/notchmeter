@@ -1329,9 +1329,12 @@
 "Require notch approval for every command" = "すべてのコマンドにノッチでの承認を求める";
 "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "ノッチから Cursor に答えるだけなら不要です。「Cursor のカードを映す」が Cursor 自身の確認をノッチに届けます。この設定はそれに加えて、Cursor が確認なしで実行したはずのものも含め、すべてのコマンドについて尋ねます。";
 "Pressed %@, but Cursor's card is still showing" = "%@ を押しましたが、Cursor のカードはまだ表示されています";
+"Pressed %@, but Cursor does not show it picked" = "%@ を押しましたが、Cursor では選択済みと表示されていません";
 "Cursor's card changed before the press; nothing was pressed" = "押す前に Cursor のカードが変わりました。何も押していません";
+"Cursor would not take the press; answer it in Cursor" = "Cursor が押下を受け付けませんでした。Cursor で回答してください";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor が実行するシェルコマンドと MCP 呼び出しはすべて、ノッチで 許可 か 拒否 を待ちます。Cursor の許可リストなら確認なしで実行するものも含みます。応答がなければ Cursor 自身の確認が表示され、黙って実行されることはありません。";
 "Presses this button on Cursor's card" = "Cursor のカードのこのボタンを押します";
+"Picks this choice on Cursor's card" = "Cursor のカードでこの選択肢を選びます";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Cursor の Run、モード切り替え、プランのカードをセッションの行に表示し、選んだボタンを押します。Cursor のウインドウはアクセシビリティで読み取り、画面は読みません。";
 "Cursor is waiting to run a command" = "Cursor がコマンドの実行を待っています";
 "Cursor is asking a question" = "Cursor が質問しています";

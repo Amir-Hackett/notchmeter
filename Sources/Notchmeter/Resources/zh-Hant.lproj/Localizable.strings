@@ -1329,9 +1329,12 @@
 "Require notch approval for every command" = "每個指令都需在瀏海中核准";
 "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "從瀏海回應 Cursor 並不需要它：「鏡像 Cursor 的卡片」會把 Cursor 自己的提示帶到瀏海。此項會另外詢問每個指令，包括 Cursor 本會直接執行的。";
 "Pressed %@, but Cursor's card is still showing" = "已按下 %@，但 Cursor 的卡片仍在顯示";
+"Pressed %@, but Cursor does not show it picked" = "已按下 %@，但 Cursor 未顯示它已選取";
 "Cursor's card changed before the press; nothing was pressed" = "按下前 Cursor 的卡片已改變；未按下任何按鈕";
+"Cursor would not take the press; answer it in Cursor" = "Cursor 未接受這次按下；請在 Cursor 中回答";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor 執行的每個 shell 指令和 MCP 呼叫都會在瀏海中等待 允許 或 拒絕，包括 Cursor 允許清單本會直接執行的。無人回應時，Cursor 會顯示自己的提示；不會默默執行。";
 "Presses this button on Cursor's card" = "按下 Cursor 卡片上的這個按鈕";
+"Picks this choice on Cursor's card" = "在 Cursor 的卡片上選擇這個選項";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "在工作階段列上顯示 Cursor 的 Run、切換模式與計畫卡片，並按下你選的按鈕。透過輔助使用讀取 Cursor 的視窗，從不讀取螢幕。";
 "Cursor is waiting to run a command" = "Cursor 正在等待執行指令";
 "Cursor is asking a question" = "Cursor 正在提問";

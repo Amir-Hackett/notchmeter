@@ -1346,9 +1346,12 @@
 "Require notch approval for every command" = "Require notch approval for every command";
 "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking.";
 "Pressed %@, but Cursor's card is still showing" = "Pressed %@, but Cursor's card is still showing";
+"Pressed %@, but Cursor does not show it picked" = "Pressed %@, but Cursor does not show it picked";
 "Cursor's card changed before the press; nothing was pressed" = "Cursor's card changed before the press; nothing was pressed";
+"Cursor would not take the press; answer it in Cursor" = "Cursor would not take the press; answer it in Cursor";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence.";
 "Presses this button on Cursor's card" = "Presses this button on Cursor's card";
+"Picks this choice on Cursor's card" = "Picks this choice on Cursor's card";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen.";
 "Cursor is waiting to run a command" = "Cursor is waiting to run a command";
 "Cursor is asking a question" = "Cursor is asking a question";

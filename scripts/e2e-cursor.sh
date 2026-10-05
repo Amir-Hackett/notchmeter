@@ -171,5 +171,22 @@ wait_for "Run, pressed on the notch, is pressed in Cursor" "$pressed" 1 10
 [ "$(cat "$CARDS")" = "[]" ] && echo "ok: and the card has left Cursor's window" || { echo "FAIL: the card is still there: $(cat "$CARDS")" >&2; exit 1; }
 wait_for "and the notch closes with it" "$closed" $((closed_before + 1)) 10
 
+# A question Cursor asks (0.9.19), through the same stand-in: its choices are on the notch, a press on one picks it
+# in "Cursor's window" and the card stays there, as Cursor's does, and Continue sends it and takes the card away.
+picked='o["event"] == "decision" and o.get("source") == "cursorChoice" and o.get("session") == "cursor:e2e-card" and o.get("behavior") == "pressed"'
+opened_before="$(count "$opened")"; closed_before="$(count "$closed")"; pressed_before="$(count "$pressed")"
+printf '[{"kind":"question","window":"card-proj","heading":"Which fruit?","options":["Skip","Continue"],"questions":[{"text":"Which fruit?","choices":[{"label":"A apple"},{"label":"B banana"},{"label":"C Other...","typed":true}]}]}]' >"$CARDS.new" && mv "$CARDS.new" "$CARDS"
+wait_for "Cursor's question: the notch opens on it by itself" "$opened" $((opened_before + 1)) 10
+"$PRESS" "B. banana" 8 || { echo "FAIL: no choice to press on the notch" >&2; exit 1; }
+wait_for "a choice, pressed on the notch, is picked in Cursor" "$picked" 1 10
+grep -q '"picked":true' "$CARDS" && echo "ok: and the card is still in Cursor's window, with the pick on it" \
+  || { echo "FAIL: the pick is not on the card: $(cat "$CARDS")" >&2; exit 1; }
+[ "$(count "$closed")" -eq "$closed_before" ] && echo "ok: and the notch stays open on it" \
+  || { echo "FAIL: the notch closed on a pick" >&2; exit 1; }
+"$PRESS" Continue 8 || { echo "FAIL: no Continue on the notch" >&2; exit 1; }
+wait_for "Continue, pressed on the notch, sends the answer" "$pressed" $((pressed_before + 1)) 10
+[ "$(cat "$CARDS")" = "[]" ] && echo "ok: and the card has left Cursor's window" || { echo "FAIL: the card is still there: $(cat "$CARDS")" >&2; exit 1; }
+wait_for "and the notch closes with it" "$closed" $((closed_before + 1)) 10
+
 kill -0 "$APP_PID" 2>/dev/null || { echo "FAIL: the app exited during the run" >&2; exit 1; }
 echo "e2e-cursor: all checks passed"

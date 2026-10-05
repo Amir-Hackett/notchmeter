@@ -415,6 +415,9 @@ struct SessionsCard: View {
                                            : store.planPreviews[row.id].flatMap { $0.file == row.plan?.file ? $0.preview : nil },
                                        cursorCards: store.cursorCards[row.id] ?? [],
                                        cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: row.id) },
+                                       cursorPick: { card, question, choice in
+                                           store.pickCursorChoice(card, question: question, choice: choice, sessionID: row.id)
+                                       },
                                        cursorPressing: store.cursorPressing,
                                        answerInCursor: { actions.answerInCursor($0) },
                                        cursorNote: store.cursorActionNotes[row.id],
@@ -553,9 +556,12 @@ private struct SessionRow: View {
     var planAction: (SessionsCard.Row.PlanMark, CursorPlanAction) -> Void = { _, _ in }
     var planPreview: CursorPlanFiles.Preview? = nil
     /// Cursor's own cards on this session (UsageStore.cursorCards), the press for one of their buttons, and what
-    /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons.
+    /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons, but for a
+    /// question's, which go with the choices they send.
     var cursorCards: [CursorCard] = []
     var cursorPress: (CursorCard, String) -> Void = { _, _ in }
+    /// Picks a choice of a question card: the card, the question's place and the choice's.
+    var cursorPick: (CursorCard, Int, Int) -> Void = { _, _, _ in }
     /// The cards a press is in flight for (UsageStore.cursorPressing).
     var cursorPressing: Set<String> = []
     /// Brings Cursor forward for a card that is answered there (PanelActions.answerInCursor).
@@ -607,6 +613,7 @@ private struct SessionRow: View {
             }
             ForEach(cursorCards, id: \.id) { card in
                 CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
+                               pick: { cursorPick(card, $0, $1) },
                                pressing: cursorPressing.contains(card.id),
                                answerInCursor: { if let session { answerInCursor(session) } })
                     .padding(.leading, SessionRow.textInset)

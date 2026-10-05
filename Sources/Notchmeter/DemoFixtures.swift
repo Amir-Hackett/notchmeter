@@ -871,13 +871,19 @@ extension DemoFixtures {
     ]
 
     /// The same chats with the two cards that are not a command's (`cursor-cards.png`, for review): Cursor's approval
-    /// for a file written outside the workspace, and a question, which is shown with its choices and answered in Cursor.
+    /// for a file written outside the workspace, and a question, with its choices to pick, one of them picked, and
+    /// Cursor's own Skip and Continue.
     static let cursorOtherCards: [CursorCard] = {
         var approval = CursorCard(kind: .run, window: "api-server", heading: "Create /Users/me/notes/export-plan.md",
                                   options: [.init(label: "Skip", path: [0]), .init(label: "Run", path: [1])])
         approval.command = false
-        var question = CursorCard(kind: .question, window: "scout", heading: "Which queue should retries go through?", options: [])
-        question.choices = ["A The existing Redis queue", "B A new table in Postgres", "C Other..."]
+        var question = CursorCard(kind: .question, window: "scout", heading: "Which queue should retries go through?",
+                                  options: [.init(label: "Skip", path: [3]), .init(label: "Continue", path: [4])])
+        let choices = ["A The existing Redis queue, which the importer already uses", "B A new table in Postgres", "C Other..."]
+        question.choices = choices
+        question.questions = [.init(text: question.heading, choices: choices.enumerated().map { index, label in
+            .init(label: label, path: [index], picked: index == 0, typed: index == 2)
+        })]
         return [approval, question]
     }()
 

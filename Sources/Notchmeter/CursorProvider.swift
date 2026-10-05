@@ -685,7 +685,9 @@ actor CursorProvider: UsageProvider {
     /// Runs `body` against a read-only connection to a private copy of the state database and its write-ahead
     /// log, deleted afterwards. Cursor holds the live file open and writes it at any moment; a copy is never
     /// locked, never checkpointed under it, and cannot be written by a mistake here. Every reader of the file goes
-    /// through this (the session token here, the chats' names in CursorChatNames).
+    /// through this (the session token here, the chats' names in CursorChatNames, a waiting question in
+    /// CursorQuestions). On the volume the temporary folder shares with the user's Library the copy is a clone,
+    /// which takes no time to speak of whatever the file's size: 5 ms for 16 MB and its 5 MB log (2026-10-05).
     static func withStateCopy<T>(of database: URL, _ body: (OpaquePointer) throws -> T) throws -> T {
         let fm = FileManager.default
         let scratch = fm.temporaryDirectory.appendingPathComponent("notchmeter-cursor-\(UUID().uuidString)")

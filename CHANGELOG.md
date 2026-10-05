@@ -2,6 +2,21 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.19](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.19) — 2026-10-05
+
+### Cursor
+
+- **A question Cursor asks is answered from the notch.** Each choice is a button, its letter in a chip as Cursor draws it and its words beside it, on up to four lines where the notch used to cut each to one. A press picks that choice on Cursor's own card, and the mark beside it is what Cursor then shows as picked, so a question with one answer moves its mark and one with several keeps them. Cursor's own **Skip** and **Continue** are under the choices: Continue sends the answers and the card goes, and is held until every question on the card has a choice picked, as Cursor's own does nothing before then. A pick does not send by itself, in the notch or in Cursor: Cursor's window does not say whether a question takes one answer or several. The choice whose answer is typed (*Other...*) takes you to Cursor, where it is typed. Before, the notch showed the question and its choices, each cut to a line, and one button, **Answer in Cursor**. It needs *Mirror Cursor's cards* and its Accessibility permission, as Cursor's other cards do.
+- A card on which Cursor asks several questions at once shows all of them, each with its own choices. Before, such a card did not reach the notch at all.
+- **A question reaches the notch when Cursor's window is minimised, or Cursor is hidden.** Cursor does not draw a window that is put away, so its card was not there to read and nothing arrived until the window came back. With *Mirror Cursor's cards* on, the app now also finds a waiting question in Cursor's own state database: the row says the chat is waiting, the notch opens on the question with its choices, and the waiting notification is sent, wherever the window is. Read that way it is shown with **Answer in Cursor**, which brings the window back, and the choices become buttons once the window can be read. The database is read through a private copy, as it is for the session token, so Cursor's live file is never opened, and only for the chats the app is already showing. A question that was on a row when the screen locked is still there after it. Cursor's Run prompt and its mode-switch card are still read from the window alone; from a window that is put away they arrive as *Cursor may be waiting* once the chat has gone quiet.
+- With *Show what a session is working on* off, or with *Hide usage while the screen is shared or recorded* on while it is, a question's words are not shown, and its card keeps **Answer in Cursor** alone: Continue is not offered on a question that cannot be read.
+- Nothing is pressed on a guess. A pick is made only against the card as the notch showed it, so a choice that changed in Cursor a moment before is not turned back over by a late click; the card is drawn again as it now is. A pick that cannot be read back, or a press Cursor will not take, says so on the row, and that card is answered in Cursor from then on.
+
+### Fixes
+
+- A press that Cursor's button would not take now says *Cursor would not take the press; answer it in Cursor*. Before, it said the card had changed, which it had not.
+- A press is no longer counted as taken on a read of Cursor's window that came back short. Cursor's window is read again until a whole read shows the card gone.
+
 ## [0.9.18](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.18) — 2026-10-05
 
 ### Cursor
