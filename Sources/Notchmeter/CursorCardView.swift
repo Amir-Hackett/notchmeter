@@ -32,7 +32,7 @@ struct CursorCardView: View {
 
     /// A choice's letter and its words apart, as a row draws them (the letter in a chip, then the words): Cursor's
     /// label is the two run together ("A apple"), which reads badly when the words open with a capital of their
-    /// own ("B A new table"). A label that is not a letter, a space and words is drawn as it is, with no letter.
+    /// own ("B A second runner"). A label that is not a letter, a space and words is drawn as it is, with no letter.
     static func lettered(_ label: String) -> (letter: String?, words: String) {
         guard label.count > 2, let first = label.first, first.isLetter, first.isUppercase, label.dropFirst().first == " " else { return (nil, label) }
         return (String(first), String(label.dropFirst(2)))
