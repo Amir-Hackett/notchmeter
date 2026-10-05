@@ -855,6 +855,12 @@ extension DemoFixtures {
         feed(6, #"{"hook_event_name":"afterAgentThought","conversation_id":"n-3","workspace_roots":["/Users/me/scout"]}"#)
     }
 
+    /// What View Plan shows for the ready chat's plan (`cursor-plan.png`): the name the fixture's `CreatePlan` gave it
+    /// and an overview as Cursor writes one, a sentence or two on what the plan does. Made up, like the chats.
+    static let cursorPlanPreview = CursorPlanFiles.Preview(
+        name: "Holiday greeting line",
+        summary: "Play a recorded holiday greeting on the main support line on the dates in the holiday calendar, then fall back to the normal menu. Publish the calendar first, record the greeting, and switch the line over behind a flag so it can be turned off the same day.")
+
     /// The cards Cursor's windows would be showing for `cursorNotch`: the building chat's Run prompt and the
     /// third chat's mode switch, as CursorCards.detect reads them.
     static let cursorNotchCards: [CursorCard] = [

@@ -1313,6 +1313,8 @@
 "Background" = "백그라운드";
 "Cursor asks to switch mode" = "Cursor가 모드 전환을 요청합니다";
 "Open this plan in Cursor" = "이 계획을 Cursor에서 열기";
+"Open in Cursor" = "Cursor에서 열기";
+"Show this plan here, with a button to open it in Cursor" = "이 계획을 여기에 표시하고, Cursor에서 여는 버튼을 함께 보여 줍니다";
 "The mode this Cursor chat runs in" = "이 Cursor 채팅이 실행되는 모드";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Cursor에서 이 계획의 Build 누르기";

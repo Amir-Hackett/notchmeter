@@ -170,7 +170,7 @@
         <h2>Cursor, answered from the notch</h2>
         <p>Cursor's hooks report no task list, no plan and no event that says it is waiting for you, so Notchmeter reads the rest from Cursor itself: the plan from the conversation's transcript and the file Cursor keeps in <code>~/.cursor/plans</code>, and Cursor's own cards from its window.</p>
         <ul class="lp-points">
-          <li><strong>A plan on its row</strong> when Cursor creates it, before you build it: its to-dos crossed off as they finish, <em>View Plan</em> to open it in Cursor, and <em>Build</em>.</li>
+          <li><strong>A plan on its row</strong> when Cursor creates it, before you build it: its to-dos crossed off as they finish, <em>View Plan</em> to read what it is on the row, with <em>Open in Cursor</em> under it, and <em>Build</em>.</li>
           <li><strong>Require notch approval for every command</strong>: each shell command and MCP call waits for Allow or Deny in the notch. One nobody answers goes back to Cursor's own prompt, so nothing is allowed for you unanswered.</li>
           <li><strong>Mirror Cursor's cards</strong>: when Cursor shows its Run prompt, headed by the command it would run, or its switch-to-Plan-Mode card, the notch opens on it, and the button you pick is pressed in Cursor. A question Cursor asks appears there too, with its choices and a button that brings Cursor forward to answer it. It needs the Accessibility permission, and Cursor's editor shows <em>Screen Reader Optimized</em> while it is on unless you turn that off in Cursor's settings.</li>
           <li><strong>May be stuck</strong>: a chat in which five commands fail in a row, with no command working and no edit landing between them, says so on its row.</li>
@@ -181,6 +181,22 @@
         <div class="shot"><img src="../img/cursor-notch.png" alt="The Sessions card with three Cursor chats. One asks to switch to Plan Mode, with Skip and Switch on its row. One is building a plan, its task list open at one of three done, with Cursor's Run prompt on the row: the command, Skip and Run. One has a plan ready, with its Plan mode chip, View Plan and Build." loading="lazy"></div>
         <figcaption>The Sessions card over three made-up Cursor chats: a mode switch waiting, a plan being built with a command waiting, and a plan ready to build.</figcaption>
       </figure>
+    </div>
+  </div>
+</section>
+
+<section id="plan">
+  <div class="wrap">
+    <div class="split">
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/cursor-plan.png" alt="The Sessions card with three Cursor chats. The chat with a plan ready has it shown on its row: the plan's name, Holiday greeting line, a short summary of what the plan does, and two buttons under it, Open in Cursor and Build." loading="lazy"></div>
+        <figcaption>View Plan on a made-up chat: the plan's name and Cursor's own summary of it on the row, with Open in Cursor and Build under them.</figcaption>
+      </figure>
+      <div>
+        <h2>A plan you can read where you are</h2>
+        <p><em>View Plan</em> shows the plan on its chat's row: its name and Cursor's own summary of it, read from the plan file when you open it and kept only while it is open. <em>Open in Cursor</em> takes you to the plan itself and closes the notch, and <em>Build</em> is beside it while the plan is ready to build.</p>
+        <p>With <em>Show what a session is working on</em> off, or while your screen is shared, a plan's words stay out of the notch and View Plan goes straight to Cursor.</p>
+      </div>
     </div>
   </div>
 </section>

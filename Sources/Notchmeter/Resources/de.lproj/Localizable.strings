@@ -1331,6 +1331,8 @@
 "Background" = "Hintergrund";
 "Cursor asks to switch mode" = "Cursor möchte den Modus wechseln";
 "Open this plan in Cursor" = "Diesen Plan in Cursor öffnen";
+"Open in Cursor" = "In Cursor öffnen";
+"Show this plan here, with a button to open it in Cursor" = "Diesen Plan hier zeigen, mit einer Taste, um ihn in Cursor zu öffnen";
 "The mode this Cursor chat runs in" = "Der Modus, in dem dieser Cursor-Chat läuft";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Build für diesen Plan in Cursor drücken";

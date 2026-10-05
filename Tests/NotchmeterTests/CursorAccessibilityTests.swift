@@ -983,26 +983,6 @@ import Testing
         #expect(!store.cursorWatchWanted)
     }
 
-    /// View Plan sends the user to Cursor, so the panel is told to get out of the way: left open it stood over the
-    /// plan it had just opened. A plan that is gone opens nothing, and the row says so on a panel that stays.
-    @Test @MainActor func viewPlanHandsOffToCursorAndAPlanThatIsGoneDoesNot() {
-        let suite = "NotchmeterTests.CursorCardStore.viewPlan"
-        let (store, _, defaults) = store(suite)
-        defer { defaults.removePersistentDomain(forName: suite) }
-        prompt(store, "c1", project: "proj")
-        var opened: [String] = [], handedOff = 0
-        store.handedOff = { handedOff += 1 }
-        store.openPlan = { opened.append($0); return true }
-        store.cursorPlanAction("/plans/a.plan.md", .view, sessionID: key("c1"))
-        #expect(opened == ["/plans/a.plan.md"])
-        #expect(handedOff == 1)
-        #expect(store.cursorActionNotes[key("c1")] == nil)
-        store.openPlan = { _ in false }
-        store.cursorPlanAction("/plans/gone.plan.md", .view, sessionID: key("c1"))
-        #expect(handedOff == 1, "nothing was opened, so the panel stays, with the note on the row")
-        #expect(store.cursorActionNotes[key("c1")] == L("The plan file is gone"))
-    }
-
     @Test @MainActor func buildReadsCursorItselfAndPressesThePlansBuild() async {
         let suite = "NotchmeterTests.CursorCardStore.build"
         let (store, ui, defaults) = store(suite)

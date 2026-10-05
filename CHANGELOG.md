@@ -6,12 +6,16 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 ### Cursor
 
-- **View Plan** on a Cursor chat's row now takes you to the plan. It opened the plan in Cursor as it does now, but the notch stayed open over it, under *Open on click* until you clicked somewhere else, so it looked as if nothing had happened. The notch now closes as Cursor comes forward. A panel with a request waiting for Allow or Deny stays open.
+- **View Plan** on a Cursor chat's row now shows the plan in the notch: its name and Cursor's own summary of it, with **Open in Cursor** under it, and **Build** beside that while the plan is ready to build. Open in Cursor takes you to the plan and closes the notch. Before, View Plan opened the plan in Cursor behind a notch that stayed open over it, under *Open on click* until you clicked somewhere else, so it looked as if nothing had happened. With *Show what a session is working on* off, or while the screen is shared, a plan's words are not shown and View Plan goes straight to Cursor.
+- A click on a session's row that jumps to its terminal, and **Answer in Cursor**, now close the notch as they take you there, as Open in Cursor does. A panel with a request waiting for Allow or Deny stays open.
 - Cursor's page in Settings now says, under *Require notch approval for every command*, what that switch adds: it is not needed to answer Cursor from the notch, since *Mirror Cursor's cards* brings Cursor's own prompts there, and it asks about every command on top of those, including the ones Cursor would have run without asking. Before, the switch's name could be read as the only way to answer Cursor here. The line reads the same way in all eleven languages.
 
 ### Fixes
 
 - A notch that opened on one card alone no longer shows the rest of the panel as it closes. After Allow or Deny on a request, the whole panel was drawn for a moment before the notch shut, at its full height, and most plainly with *Reduce animations* on. The closing notch now keeps the card it was open on, and draws nothing in place of a request that has been answered. A glance and one of Cursor's own cards close the same way and are covered by the same fix.
+- Closing Settings, the Dashboard, the Welcome or the usage card while a request was waiting reopened the notch on the whole panel, with the request's card on top, and left it open after you answered. It reopens on the card alone and closes with the answer.
+- A session that stopped while its request was still on the notch, with *Glance* or *Open the panel* set for a finished turn, could leave the notch shut while the app took it for open, with the glance lost. The notch now stays open on the finished turn's card.
+- With the panel open on two displays for the same request, the one under the notch still showed every part as it closed. It closes as the card, like the other.
 
 ## [0.9.17](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.17) — 2026-10-04
 

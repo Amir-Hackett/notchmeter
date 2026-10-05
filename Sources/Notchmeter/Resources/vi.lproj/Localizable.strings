@@ -1313,6 +1313,8 @@
 "Background" = "Nền";
 "Cursor asks to switch mode" = "Cursor xin chuyển chế độ";
 "Open this plan in Cursor" = "Mở kế hoạch này trong Cursor";
+"Open in Cursor" = "Mở trong Cursor";
+"Show this plan here, with a button to open it in Cursor" = "Hiện kế hoạch này tại đây, kèm nút để mở trong Cursor";
 "The mode this Cursor chat runs in" = "Chế độ của cuộc trò chuyện Cursor này";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Bấm Build cho kế hoạch này trong Cursor";

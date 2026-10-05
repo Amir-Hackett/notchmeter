@@ -340,6 +340,82 @@ enum CursorPlanFiles {
         return CursorPlans.Call(merge: true, name: name, todos: todos)
     }
 
+    /// What View Plan shows on a chat's row before the plan is opened in Cursor: the plan's name and its summary.
+    struct Preview: Equatable, Sendable {
+        var name: String?
+        var summary: String?
+    }
+
+    /// A name is one line and a summary a short paragraph; a plan's own are cut to these, at a word where there is
+    /// one, so a file with a page for an overview does not fill the panel.
+    static let previewNameLimit = 120
+    static let previewSummaryLimit = 480
+
+    static func preview(in url: URL) -> Preview? {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        return preview(parsing: text)
+    }
+
+    /// The plan's `name` and Cursor's own one-paragraph `overview`, both from the frontmatter, which is where every
+    /// plan Cursor writes carries them (3.23.12). A file with no frontmatter, or one missing either, gives its first
+    /// heading for the name and the first paragraph of its text for the summary. Nil when it has neither. The rest
+    /// of the plan is not kept: the preview says what the plan is, and Cursor is where it is read.
+    static func preview(parsing text: String) -> Preview? {
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+        func bare(_ line: String) -> String { line.trimmingCharacters(in: .whitespaces) }
+        var name: String?
+        var overview: String?
+        var body = lines[...]
+        // Frontmatter opens the file; a `---` further down is a rule in the text.
+        if let open = lines.firstIndex(where: { !bare($0).isEmpty }), bare(lines[open]) == "---",
+           let close = lines[(open + 1)...].firstIndex(where: { bare($0) == "---" }) {
+            for raw in lines[(open + 1)..<close] where raw.first != " " && raw.first != "\t" {
+                let line = bare(raw)
+                if let value = field("name", in: line) { name = value } else if let value = field("overview", in: line) { overview = value }
+            }
+            body = lines[(close + 1)...]
+        }
+        var heading: String?
+        var paragraph: [String] = []
+        var fenced = false
+        for raw in body {
+            let line = bare(raw)
+            if line.hasPrefix("```") {
+                // A fence ends a paragraph that has begun; before one, what it holds is code and no summary.
+                if !paragraph.isEmpty { break }
+                fenced.toggle()
+                continue
+            }
+            if fenced { continue }
+            if line.isEmpty || line.hasPrefix("#") {
+                // A paragraph ends at the first of these after it began.
+                if !paragraph.isEmpty { break }
+                if heading == nil, line.hasPrefix("#") {
+                    let title = bare(String(line.drop { $0 == "#" }))
+                    if !title.isEmpty { heading = title }
+                }
+                continue
+            }
+            paragraph.append(line)
+        }
+        let title = clipped(name ?? heading, to: previewNameLimit)
+        let summary = clipped(overview ?? (paragraph.isEmpty ? nil : paragraph.joined(separator: " ")), to: previewSummaryLimit)
+        guard title != nil || summary != nil else { return nil }
+        return Preview(name: title, summary: summary)
+    }
+
+    /// `text` on one line and no longer than `limit`, cut at the last space inside it and marked as cut; nil when
+    /// there is nothing left of it.
+    static func clipped(_ text: String?, to limit: Int) -> String? {
+        guard let text else { return nil }
+        let line = text.split(whereSeparator: { $0.isNewline || $0 == "\t" }).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        guard !line.isEmpty else { return nil }
+        guard line.count > limit else { return line }
+        var cut = String(line.prefix(limit))
+        if let space = cut.lastIndex(of: " "), cut.distance(from: cut.startIndex, to: space) > limit / 2 { cut = String(cut[..<space]) }
+        return cut.trimmingCharacters(in: .whitespaces) + "…"
+    }
+
     /// One `key: value` line's value as YAML means it: a double-quoted scalar with its escapes read (Cursor writes
     /// `content: "Run: echo one"`), a single-quoted one with a doubled quote read as one, a plain one without a
     /// trailing comment. A block scalar (`|`, `>`) has its words on the lines below, which are not read, so it is

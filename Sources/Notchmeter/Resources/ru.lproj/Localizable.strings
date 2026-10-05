@@ -1330,6 +1330,8 @@
 "Background" = "Фон";
 "Cursor asks to switch mode" = "Cursor просит сменить режим";
 "Open this plan in Cursor" = "Открыть этот план в Cursor";
+"Open in Cursor" = "Открыть в Cursor";
+"Show this plan here, with a button to open it in Cursor" = "Показать этот план здесь, с кнопкой, чтобы открыть его в Cursor";
 "The mode this Cursor chat runs in" = "Режим, в котором работает этот чат Cursor";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Нажать Build для этого плана в Cursor";

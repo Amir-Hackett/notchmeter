@@ -1330,6 +1330,8 @@
 "Background" = "后台";
 "Cursor asks to switch mode" = "Cursor 请求切换模式";
 "Open this plan in Cursor" = "在 Cursor 中打开此计划";
+"Open in Cursor" = "在 Cursor 中打开";
+"Show this plan here, with a button to open it in Cursor" = "在此显示此计划，并附上在 Cursor 中打开的按钮";
 "The mode this Cursor chat runs in" = "此 Cursor 对话运行的模式";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "在 Cursor 中按下此计划的 Build";

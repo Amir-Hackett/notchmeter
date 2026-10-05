@@ -1330,6 +1330,8 @@
 "Background" = "Segundo plano";
 "Cursor asks to switch mode" = "O Cursor pede para trocar de modo";
 "Open this plan in Cursor" = "Abrir este plano no Cursor";
+"Open in Cursor" = "Abrir no Cursor";
+"Show this plan here, with a button to open it in Cursor" = "Mostrar este plano aqui, com um botão para abri-lo no Cursor";
 "The mode this Cursor chat runs in" = "O modo em que este chat do Cursor roda";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Pressionar Build neste plano no Cursor";

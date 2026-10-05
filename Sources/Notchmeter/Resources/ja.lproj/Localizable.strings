@@ -1313,6 +1313,8 @@
 "Background" = "バックグラウンド";
 "Cursor asks to switch mode" = "Cursor がモードの切り替えを求めています";
 "Open this plan in Cursor" = "このプランを Cursor で開く";
+"Open in Cursor" = "Cursor で開く";
+"Show this plan here, with a button to open it in Cursor" = "このプランをここに表示し、Cursor で開くボタンを添えます";
 "The mode this Cursor chat runs in" = "この Cursor チャットのモード";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Cursor でこのプランの Build を押す";

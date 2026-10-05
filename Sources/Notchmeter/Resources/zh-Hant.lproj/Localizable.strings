@@ -1313,6 +1313,8 @@
 "Background" = "背景";
 "Cursor asks to switch mode" = "Cursor 要求切換模式";
 "Open this plan in Cursor" = "在 Cursor 中打開此計畫";
+"Open in Cursor" = "在 Cursor 中打開";
+"Show this plan here, with a button to open it in Cursor" = "在此顯示此計畫，並附上在 Cursor 中打開的按鈕";
 "The mode this Cursor chat runs in" = "此 Cursor 對話執行的模式";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "在 Cursor 中按下此計畫的 Build";
