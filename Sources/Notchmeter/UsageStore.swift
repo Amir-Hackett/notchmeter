@@ -300,6 +300,8 @@ final class UsageStore {
     /// one drawn when several sessions hold requests, and its own card outranks another session's request. Nil the
     /// rest of the time; cleared by every collapse.
     var promptFocus: String?
+    /// What an open panel is on, as the three above say it (PanelOpening).
+    var panelOpening: PanelOpening { PanelOpening(promptOnly: panelOpenedForPrompt, notice: attentionNotice, focus: promptFocus) }
     /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
     /// rest of the time and always while Preferences.notchNews is off.
     private(set) var peek: NotchNews?

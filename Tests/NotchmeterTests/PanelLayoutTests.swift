@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -92,6 +93,54 @@ import Testing
         let panel = EdgePanel(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10),
                               styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         #expect(panel.allowsToolTipsWhenApplicationIsInactive)
+    }
+
+    /// A panel a card opened is still on screen for the frames its close takes, after the collapse has cleared what
+    /// it was opened on. Drawn from the store in that time it was every part, at the whole panel's height, in place
+    /// of the card (0.9.17, after Allow); it draws what it was open on, and nothing once the request has ended.
+    @MainActor @Test func aPanelOnItsWayClosedDrawsWhatItWasOpenOnAndNotEveryPart() throws {
+        let (store, prefs) = DemoFixtures.store(now: Date(), moment: .permissionRequest, suite: "NotchmeterTests.panelLeaving")
+        defer { UserDefaults.standard.removePersistentDomain(forName: "NotchmeterTests.panelLeaving") }
+        let actions = NotchActions()
+        let leaving = PanelLeaving()
+        func panel() -> NotchExpandedView { NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000, leaving: leaving) }
+        func height() -> CGFloat {
+            let host = NSHostingView(rootView: panel())
+            host.layoutSubtreeIfNeeded()
+            return host.fittingSize.height
+        }
+        let whole = panel().shownParts, wholeHeight = height()
+        #expect(whole.count > 1)
+
+        // A request's card: the presenter takes what the panel is on as it begins to close, then the store's go.
+        store.panelOpenedForPrompt = true
+        #expect(panel().shownParts == [.prompt])
+        let card = height()
+        #expect(card < wholeHeight)
+        leaving.opening = store.panelOpening
+        store.panelOpenedForPrompt = false
+        #expect(panel().shownParts == [.prompt], "the card it was open on, not every part")
+        #expect(height() == card)
+        #expect(NotchExpandedView(store: store, prefs: prefs, actions: actions).shownParts == whole, "every other build of the view reads the store")
+        // Answered: the request leaves, and nothing takes its place on the way out.
+        let request = try #require(store.sessions.pending(now: Date()).first?.request.id)
+        store.decide(request, .allow)
+        #expect(panel().shownParts.isEmpty)
+        #expect(height() < card)
+
+        // A session's card (a glance, one of Cursor's own cards) is kept the same way.
+        let session = try #require(store.sessions.all.first)
+        leaving.opening = nil
+        store.attentionNotice = AttentionNotice(session: session, event: .waiting(blocking: true))
+        #expect(panel().shownParts == [.notice])
+        leaving.opening = store.panelOpening
+        store.attentionNotice = nil
+        #expect(panel().shownParts == [.notice])
+        #expect(height() < wholeHeight)
+
+        // The next opening is drawn from the store again: every part, without the request that was answered.
+        leaving.opening = nil
+        #expect(panel().shownParts == whole.filter { $0 != .prompt })
     }
 
     @Test func anOpeningTellsTheOracleItsCardsAndEntrance() {

@@ -407,6 +407,8 @@ final class NotchController: NSObject, PanelPresenting {
     private let ringLabel = RingLabelPresenter()
     /// The hover machine has decided to open and the transition has not yet adopted it (`act`, `expand`).
     private var expanding = false
+    /// What the panel was open on when it began to close, for the view still on screen while it does (PanelLeaving).
+    private let leaving = PanelLeaving()
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -424,9 +426,10 @@ final class NotchController: NSObject, PanelPresenting {
         self.actions = actions
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
         let targets = ringTargets
+        let leaving = leaving
         let room = NotchPeek.windowRoom(screen: screen.frame, notch: Self.notchRect(on: screen))
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
-            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true)
+            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true, leaving: leaving)
         } compactLeading: {
             NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
         } compactTrailing: {
@@ -655,6 +658,9 @@ final class NotchController: NSObject, PanelPresenting {
             expanding = true
             Task { await self.expand(cause: cause) }
         case .collapse:
+            // Taken here and not in `compact`, a turn later: whoever asked for the close clears what the panel was
+            // opened on straight after asking (App.promptEnded, App.cursorCardsChanged).
+            leaving.opening = store.panelOpening
             Task { await self.compact(cause: cause) }
         case .none:
             break
@@ -664,6 +670,8 @@ final class NotchController: NSObject, PanelPresenting {
     private func expand(cause: PanelCause) async {
         refreshRegions()
         configureTransition(closing: false)
+        // This opening is drawn from the store again.
+        leaving.opening = nil
         // Reaching the peek with the pointer is reaching for its session: under On hover the dwell opens the panel
         // before any click can land, so it opens on the session the way the click does (NotchNews.opensOnSession).
         if prefs.notchNews, let news = store.peek, NotchNews.opensOnSession(cause) { focus(on: news) }
@@ -682,6 +690,8 @@ final class NotchController: NSObject, PanelPresenting {
     private func compact(cause: PanelCause) async {
         configureTransition(closing: true)
         hover.adopt(.compact)
+        // A close the machine did not ask for (a hold, `show`) has taken nothing yet.
+        if leaving.opening == nil { leaving.opening = store.panelOpening }
         store.panelOpenedForPrompt = false
         store.attentionNotice = nil
         store.promptFocus = nil

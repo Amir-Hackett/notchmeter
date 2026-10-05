@@ -2,6 +2,12 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.18](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.18) — 2026-10-05
+
+### Fixes
+
+- A notch that opened on one card alone no longer shows the rest of the panel as it closes. After Allow or Deny on a request, the whole panel was drawn for a moment before the notch shut, at its full height, and most plainly with *Reduce animations* on. The closing notch now keeps the card it was open on, and draws nothing in place of a request that has been answered. A glance and one of Cursor's own cards close the same way and are covered by the same fix.
+
 ## [0.9.17](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.17) — 2026-10-04
 
 ### Cursor

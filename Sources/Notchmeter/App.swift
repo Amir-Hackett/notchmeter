@@ -910,8 +910,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.prompt, false)
         // A panel that was opened for the request closes with it; one the pointer had opened stays.
         guard store.panelOpenedForPrompt else { return }
-        store.panelOpenedForPrompt = false
+        // Asked to close before the flag goes, so a panel takes what it was open on with it (PanelLeaving): with the
+        // flag cleared first, the panel was every part at once for the frames its close takes (0.9.17). The flag
+        // still goes here, for a panel that stays open all the same (Always open).
         for presenter in presenters where presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .notification) }
+        store.panelOpenedForPrompt = false
     }
 
     /// Escape on a panel with requests on it: every one goes back to its terminal (`Decision.pass`).

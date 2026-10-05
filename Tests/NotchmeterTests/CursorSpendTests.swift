@@ -280,8 +280,11 @@ import Testing
         {"billingCycleStart":"\(start)","billingCycleEnd":"\(end)","membershipType":"enterprise","limitType":"team","isUnlimited":false,
          "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null}},"teamUsage":{"onDemand":{"enabled":true,"used":0,"limit":null}}}
         """.utf8)
-        // Ten dollars in this cycle, fifty in the one before it.
-        let export = Self.events([(offset: -3600, cents: 400, model: "m"), (offset: -2 * 86_400.0, cents: 600, model: "m"), (offset: -12 * 86_400.0, cents: 5000, model: "m")])
+        // Ten dollars in this cycle, fifty in the one before it. Today's four are stamped a minute ago and not at a
+        // fixed hour: the cycle's sum leaves out an event later than now, which one an hour before midday is until
+        // eleven, so the sum came to six dollars on every run before then (0.9.17).
+        let recent = max(Calendar.current.startOfDay(for: Date()), Date().addingTimeInterval(-60)).timeIntervalSince(Self.midday)
+        let export = Self.events([(offset: recent, cents: 400, model: "m"), (offset: -2 * 86_400.0, cents: 600, model: "m"), (offset: -12 * 86_400.0, cents: 5000, model: "m")])
         func answer(summary: Data, period: (Int, Data), export: Data) -> @Sendable (URL, Int) -> (Int, Data) {
             { url, _ in
                 switch url {
