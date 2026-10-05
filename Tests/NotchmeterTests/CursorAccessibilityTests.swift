@@ -30,7 +30,7 @@ import Testing
                                  CursorAXNode(role: "AXPopUpButton", label: "Always ask", children: [text("Always ask")]),
                                  button("Skip"), button("Switch ⌘⏎", [text("Switch"), text("⌘⏎")])])])
         let window = group([group([button("New Chat")]), card])
-        let found = CursorCards.detect(in: window, title: "plan.md — enrollhere")
+        let found = CursorCards.detect(in: window, title: "plan.md — storefront")
         #expect(found.count == 1)
         let mode = try #require(found.first)
         #expect(mode.kind == .modeSwitch)
@@ -251,42 +251,42 @@ import Testing
         func run(_ window: String, chat: String? = nil) -> CursorCard {
             CursorCard(kind: .run, window: window, chat: chat, heading: "ls", options: [.init(label: "Run", path: [0])])
         }
-        let sessions = [session("a", "enrollhere", 1), session("b", "enrollhere", 5), session("c", "notchmeter", 9), session("d", "enrollhere", 20, tool: .claude)]
-        #expect(CursorCards.session(for: run("plan.md — enrollhere"), among: sessions) == "b", "the most recent of the workspace's chats")
+        let sessions = [session("a", "storefront", 1), session("b", "storefront", 5), session("c", "notchmeter", 9), session("d", "storefront", 20, tool: .claude)]
+        #expect(CursorCards.session(for: run("plan.md — storefront"), among: sessions) == "b", "the most recent of the workspace's chats")
         #expect(CursorCards.session(for: run("notchmeter"), among: sessions) == "c")
         #expect(CursorCards.session(for: run("elsewhere"), among: sessions) == nil, "several chats and another workspace's window: no guess")
         #expect(CursorCards.session(for: run("elsewhere"), among: [session("a", nil, 1)]) == "a", "the only Cursor chat there is")
         #expect(CursorCards.session(for: run("x"), among: [session("r", "x", 1, host: "devbox")]) == nil, "a remote chat's window is not on this Mac")
 
         // A card that holds a turn belongs to a chat that is in one: eight rows and one of them working is no puzzle.
-        let idle = (0..<7).map { session("idle\($0)", "enrollhere", 100 + TimeInterval($0), working: false) }
+        let idle = (0..<7).map { session("idle\($0)", "storefront", 100 + TimeInterval($0), working: false) }
         #expect(CursorCards.session(for: run("Cursor Agents"), among: idle + [session("busy", "tools", 1)]) == "busy")
         #expect(CursorCards.session(for: run("worktree-folder-name"), among: idle + [session("busy", "tools", 1)]) == "busy",
                 "a worktree's window is titled by its folder and its session by its repository")
 
         // The Agents window names no workspace. Its chat's name settles it where a row carries that name; else the
         // chat heard from last.
-        let two = [session("x", "enrollhere", 1, title: "Find NB screener code"), session("y", "tools", 9, title: "Map Cursor plan ingestion")]
-        #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find NB screener code"), among: two) == "x")
+        let two = [session("x", "storefront", 1, title: "Find the checkout code"), session("y", "tools", 9, title: "Map Cursor plan ingestion")]
+        #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find the checkout code"), among: two) == "x")
         #expect(CursorCards.session(for: run("Cursor Agents", chat: "Some other name"), among: two) == "y")
         // Cursor's own name for a chat is the row's session name; its title is whatever was last typed.
         var named = two
-        named[0].title = "called and i heard hello"
-        named[0].sessionName = "Find NB screener code"
-        #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find NB screener code"), among: named) == "x")
+        named[0].title = "ran it and it printed hello"
+        named[0].sessionName = "Find the checkout code"
+        #expect(CursorCards.session(for: run("Cursor Agents", chat: "Find the checkout code"), among: named) == "x")
         #expect(CursorCards.session(for: run("Cursor Agents"), among: two) == "y")
 
         // Whose names are worth reading: several chats could own the card, its window names the chat, and no row
         // carries that name yet.
         #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Some other name"), among: two).map(\.id) == ["x", "y"])
-        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Find NB screener code"), among: two).isEmpty, "a row already has it")
+        #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Find the checkout code"), among: two).isEmpty, "a row already has it")
         #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents"), among: two).isEmpty, "the window names no chat")
         #expect(CursorCards.unnamedCandidates(for: run("Cursor Agents", chat: "Anything"), among: [two[0]]).isEmpty, "one candidate needs no name")
         #expect(CursorCards.chatName("  Three   echoes\nplan ") == "Three echoes", "cleaned as a name read from Cursor is")
 
         // A plan card holds no turn, so an idle chat can own one.
-        let plan = CursorCard(kind: .plan, window: "enrollhere", heading: "p", options: [.init(label: "Build", path: [0])])
-        #expect(CursorCards.session(for: plan, among: [session("i", "enrollhere", 1, working: false), session("w", "tools", 5)]) == "i")
+        let plan = CursorCard(kind: .plan, window: "storefront", heading: "p", options: [.init(label: "Build", path: [0])])
+        #expect(CursorCards.session(for: plan, among: [session("i", "storefront", 1, working: false), session("w", "tools", 5)]) == "i")
     }
 
     @Test func buildFindsOnlyAnUnambiguousPlanCard() {
@@ -907,10 +907,10 @@ import Testing
         let asked = Asked()
         store.cursorChatNameReader = { ids in
             asked.record(ids)
-            return ["aaaa-1111": "Holiday greeting line", "bbbb-2222": "Usage export"]
+            return ["aaaa-1111": "Release calendar", "bbbb-2222": "Usage export"]
         }
         var card = run("Cursor Agents")
-        card.chat = "Holiday greeting line"
+        card.chat = "Release calendar"
 
         store.cursorCardsSeen([card], now: t0.addingTimeInterval(2))
         #expect(store.cursorCards.isEmpty, "not put on the chat heard from last while the names are being read")

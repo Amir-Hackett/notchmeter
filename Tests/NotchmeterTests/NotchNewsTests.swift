@@ -244,11 +244,11 @@ import Testing
     }
 
     @Test func theSessionsTitleNamesThePeekBeforeTheFolder() {
-        let words = news(.finished, project: "enrollhere-admin-support-tools").words(hidesFigures: false, title: "Fix the queue sheet")
-        #expect(words.name == "Fix the queue sheet")
+        let words = news(.finished, project: "storefront-checkout-service").words(hidesFigures: false, title: "Fix the checkout total")
+        #expect(words.name == "Fix the checkout total")
         #expect(news(.finished, project: "p").words(hidesFigures: false, title: nil).name == "p", "No title, the folder.")
         #expect(news(.finished, project: "p").words(hidesFigures: false, title: "").name == "p")
-        #expect(news(.finished, project: "p").words(hidesFigures: true, title: "Fix the queue sheet").name == nil,
+        #expect(news(.finished, project: "p").words(hidesFigures: true, title: "Fix the checkout total").name == nil,
                 "While the screen is shared no name at all, title or folder.")
     }
 
