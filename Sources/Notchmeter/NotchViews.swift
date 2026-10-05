@@ -1134,6 +1134,31 @@ enum PanelLead {
     }
 }
 
+/// What a panel is open on: a request's card alone, a session's card alone, or everything. The store's three
+/// (`UsageStore.panelOpenedForPrompt`, `attentionNotice`, `promptFocus`), read together.
+struct PanelOpening {
+    var promptOnly = false
+    var notice: AttentionNotice?
+    var focus: String?
+    /// Cursor's own cards on the notice's session and the note under them, as the notice's card draws them. Part of
+    /// what the panel is open on, so a panel on its way closed keeps them too: a notch open on one of Cursor's cards
+    /// closes because that card has left the store, and drawn from the store it was the bare notice, a third
+    /// shorter, for the frames the close takes.
+    var noticeCards: [CursorCard] = []
+    var noticeNote: String?
+}
+
+/// What a panel that has begun to close was open on, kept by its presenter until it opens again. The collapse
+/// clears the store's three at once, for everything that asks whether a card has the panel, but the panel is still
+/// on screen for as long as the close takes: a frame or two with Reduce Motion on, the whole morph with it off.
+/// Drawn from the store in that time it was the whole panel, at the whole panel's height, in place of the card
+/// (0.9.17: every part flashed after Allow on a panel a request had opened). Drawn from this it stays the card it
+/// was, or nothing where the request has ended.
+@MainActor @Observable
+final class PanelLeaving {
+    var opening: PanelOpening?
+}
+
 /// The panel's content, never taller than the screen's usable height: past that it scrolls, with no scroller and
 /// no bounce while it fits. The cap is read from the screen at each layout unless `maxHeight` overrides it.
 struct NotchExpandedView: View {
@@ -1151,6 +1176,9 @@ struct NotchExpandedView: View {
     /// Drawn in the card an edge layout opens, rather than under the notch: the two keep different materials until
     /// one is chosen (`PanelMaterial.unchosen`), and the material moves the colours (PanelLook).
     var edgeCard = false
+    /// The panel under the notch is told what it was open on once it has begun to close (PanelLeaving); every other
+    /// build of this view reads the store.
+    var leaving: PanelLeaving? = nil
     @State private var contentHeight: CGFloat = 0
     /// Set as the live panel appears, which is what starts the stagger.
     @State private var appeared = false
@@ -1280,12 +1308,16 @@ struct NotchExpandedView: View {
         AdvicePlacement.assign(store.advice, tools: store.visibleTools, cost: spendCard != nil, sessions: showsSessions)
     }
 
+    /// What this panel is open on: the store's word, or, once it has begun to close, what it was open on then.
+    private var opening: PanelOpening { leaving?.opening ?? store.panelOpening }
+
     /// What the panel draws right now: the one card of a prompt-only or notice-only opening, else every part.
     var shownParts: [PanelPart] {
-        if store.panelOpenedForPrompt { return store.sessions.pending(now: Date()).isEmpty ? [] : [.prompt] }
+        let opening = self.opening
+        if opening.promptOnly { return store.sessions.pending(now: Date()).isEmpty ? [] : [.prompt] }
         let pendingSessions = store.sessions.pending(now: Date()).map(\.session.id)
-        if PanelLead.noticeLeads(notice: store.attentionNotice?.session.id, pendingSessions: pendingSessions,
-                                 promptOnly: false, focus: store.promptFocus) { return [.notice] }
+        if PanelLead.noticeLeads(notice: opening.notice?.session.id, pendingSessions: pendingSessions,
+                                 promptOnly: false, focus: opening.focus) { return [.notice] }
         return parts
     }
 
@@ -1295,10 +1327,11 @@ struct NotchExpandedView: View {
     private var content: some View {
         let pending = store.sessions.pending(now: Date())
         let pendingSessions = pending.map(\.session.id)
-        let promptOnly = store.panelOpenedForPrompt
-        let noticeLeads = PanelLead.noticeLeads(notice: store.attentionNotice?.session.id, pendingSessions: pendingSessions,
-                                                promptOnly: promptOnly, focus: store.promptFocus)
-        let lead = noticeLeads ? nil : PanelLead.request(pendingSessions: pendingSessions, focus: store.promptFocus).map { pending[$0] }
+        let opening = self.opening
+        let promptOnly = opening.promptOnly
+        let noticeLeads = PanelLead.noticeLeads(notice: opening.notice?.session.id, pendingSessions: pendingSessions,
+                                                promptOnly: promptOnly, focus: opening.focus)
+        let lead = noticeLeads ? nil : PanelLead.request(pendingSessions: pendingSessions, focus: opening.focus).map { pending[$0] }
         let arrived = self.arrived
         let simple = self.simple
         let placed = simple ? placedAdvice : [:]
@@ -1324,15 +1357,15 @@ struct NotchExpandedView: View {
             // A card the attention setting opened (SessionAttention.glance) is drawn the same way, alone with the one
             // link, unless a request is on the panel, which outranks it; a card the peek opened on its own session
             // outranks another session's request (PanelLead).
-            if noticeLeads, let notice = store.attentionNotice {
+            if noticeLeads, let notice = opening.notice {
                 NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,
                            canJump: NoticeCard.canJump(notice.session, enabled: prefs.jumpToTerminal),
                            jump: { actions.jump(notice.session) },
-                           cursorCards: store.cursorCards[notice.session.id] ?? [],
+                           cursorCards: opening.noticeCards,
                            cursorPressing: store.cursorPressing,
                            cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: notice.session.id) },
                            answerInCursor: { actions.answerInCursor(notice.session) },
-                           cursorNote: store.cursorActionNotes[notice.session.id])
+                           cursorNote: opening.noticeNote)
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.attentionNotice = nil } label: {
                     Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)
@@ -1342,7 +1375,8 @@ struct NotchExpandedView: View {
                 .modifier(PanelEntranceStep(index: 1, arrived: arrived))
             }
             if promptOnly || noticeLeads {
-                // The request has just ended and the panel is on its way closed: nothing else appears for the frame.
+                // The request has just ended and the panel is on its way closed: nothing else appears for the frames
+                // that takes (PanelLeaving keeps this true after the collapse has cleared the store's own).
                 EmptyView()
             } else {
                 let parts = self.parts

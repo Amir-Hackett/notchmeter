@@ -1330,6 +1330,8 @@
 "Background" = "后台";
 "Cursor asks to switch mode" = "Cursor 请求切换模式";
 "Open this plan in Cursor" = "在 Cursor 中打开此计划";
+"Open in Cursor" = "在 Cursor 中打开";
+"Show this plan here, with a button to open it in Cursor" = "在此显示此计划，并附上在 Cursor 中打开的按钮";
 "The mode this Cursor chat runs in" = "此 Cursor 对话运行的模式";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "在 Cursor 中按下此计划的 Build";
@@ -1342,6 +1344,7 @@
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "已在 Cursor 中打开：打开“镜像 Cursor 的卡片”即可从刘海构建";
 "Pressed %@ in Cursor" = "已在 Cursor 中按下 %@";
 "Require notch approval for every command" = "每条命令都需在刘海中批准";
+"Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "从刘海回应 Cursor 并不需要它：“镜像 Cursor 的卡片”会把 Cursor 自己的提示带到刘海。此项会另外询问每条命令，包括 Cursor 本会直接运行的。";
 "Pressed %@, but Cursor's card is still showing" = "已按下 %@，但 Cursor 的卡片仍在显示";
 "Cursor's card changed before the press; nothing was pressed" = "按下前 Cursor 的卡片已变化；未按下任何按钮";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor 运行的每条 shell 命令和 MCP 调用都会在刘海中等待 允许 或 拒绝，包括 Cursor 允许列表本会直接运行的。无人回应时，Cursor 会显示自己的提示；不会默默运行。";

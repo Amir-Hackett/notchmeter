@@ -76,7 +76,10 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.isPaused = { [weak self] in
             self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.expanded) } ?? false
         }
-        hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.expanded } ?? false }
+        hover.holdsOpen = { [weak self] in
+            self.map { PanelHolds.staysOpenOnOutsideClick(promptHeld: $0.promptHeld, onCursorCard: $0.store.attentionNotice?.forCursorCard == true,
+                                                          expanded: $0.expanded) } ?? false
+        }
         hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         hover.ringAt = { [weak self] point in self?.ringTargets.tool(at: point) }
@@ -177,7 +180,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         expanded = !held && (hover.mode == .always || expanded)
         layout(animated: panel.isVisible && wasExpanded != expanded)
         hover.adopt(expanded ? .expanded : .compact)
-        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu, parts: shownParts)
+        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu, parts: expanded ? shownParts : nil)
         hover.start()
         panel.orderFrontRegardless()
     }
@@ -261,10 +264,13 @@ final class EdgePanelController: NSObject, PanelPresenting {
             store.panelOpenedForPrompt = false
             store.attentionNotice = nil
             store.promptFocus = nil
+            // The card is taken off in this turn (`layout`).
+            store.panelClosed()
         case .none:
             return
         }
-        reporter.report(expanded ? .expanded : .compact, cause: cause, parts: shownParts)
+        // No parts on a close: the card is taken off in this same turn (`layout`), so it draws nothing on its way.
+        reporter.report(expanded ? .expanded : .compact, cause: cause, parts: expanded ? shownParts : nil)
         transitionSerial += 1
         let serial = transitionSerial
         let duration = layout(animated: true)
@@ -558,7 +564,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
                  // budget is set, and monthlyBudgetUSD reads it only while one is.
                  prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
-                 store.attentionNotice?.session.id, store.hooksInstalled, store.openCodePluginInstalled, store.openSessionLists, store.promptFocus,
+                 store.attentionNotice?.session.id, store.hooksInstalled, store.openCodePluginInstalled, store.openSessionLists, store.planPreviews, store.promptFocus,
                  store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent,
                  prefs.usageStyle, prefs.hourClock, prefs.sessionRows, prefs.sessionRowLead)
             layout(animated: false)

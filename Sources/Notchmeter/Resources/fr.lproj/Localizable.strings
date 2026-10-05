@@ -1330,6 +1330,8 @@
 "Background" = "Arrière-plan";
 "Cursor asks to switch mode" = "Cursor demande à changer de mode";
 "Open this plan in Cursor" = "Ouvrir ce plan dans Cursor";
+"Open in Cursor" = "Ouvrir dans Cursor";
+"Show this plan here, with a button to open it in Cursor" = "Afficher ce plan ici, avec un bouton pour l’ouvrir dans Cursor";
 "The mode this Cursor chat runs in" = "Le mode de ce chat Cursor";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Appuyer sur Build pour ce plan dans Cursor";
@@ -1342,6 +1344,7 @@
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Ouvert dans Cursor : activez « Refléter les cartes de Cursor » pour construire depuis l’encoche";
 "Pressed %@ in Cursor" = "%@ pressé dans Cursor";
 "Require notch approval for every command" = "Exiger l’approbation dans l’encoche pour chaque commande";
+"Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Inutile pour répondre à Cursor depuis l’encoche : « Refléter les cartes de Cursor » y amène les demandes de Cursor lui-même. Cette option demande en plus pour chaque commande, y compris celles que Cursor aurait exécutées sans demander.";
 "Pressed %@, but Cursor's card is still showing" = "%@ pressé, mais la carte de Cursor est toujours affichée";
 "Cursor's card changed before the press; nothing was pressed" = "La carte de Cursor a changé avant l’appui ; rien n’a été pressé";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Chaque commande shell et chaque appel MCP de Cursor attend Autoriser ou Refuser dans l’encoche, y compris ceux que la liste autorisée de Cursor exécuterait sans demander. Sans réponse, Cursor affiche sa propre demande ; rien ne s’exécute sur un silence.";

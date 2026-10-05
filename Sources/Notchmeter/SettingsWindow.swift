@@ -1656,6 +1656,9 @@ struct SettingsView: View {
         Toggle(L("Require notch approval for every command"), isOn: Binding(get: { prefs.cursorRequireApproval }, set: { prefs.cursorRequireApproval = $0 }))
             .disabled(!prefs.answersFromNotch(.cursor))
             .help(L("Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence."))
+        // On the page and not only in the tooltip: the switch's name reads as if the notch answers nothing with it
+        // off, when the one below is what brings Cursor's own prompts here (asked 2026-10-05).
+        pageText(L("Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking."))
         Toggle(L("Mirror Cursor's cards"), isOn: Binding(get: { prefs.cursorControl }, set: {
             prefs.cursorControl = $0
             if $0, !AXIsProcessTrusted() { LiveCursorUI.requestTrust() }

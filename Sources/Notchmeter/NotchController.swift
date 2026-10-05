@@ -114,24 +114,32 @@ extension PanelPresenting {
 
 /// Reports each change of the panel's state to the oracle (Oracle.swift); the first report is the launch state.
 /// An opening also says what it opened on — the parts in the order drawn, and whether they staggered in — so a
-/// tester can check that the Sessions card led while a session was working without taking a screenshot.
+/// tester can check that the Sessions card led while a session was working without taking a screenshot. A close
+/// under the notch says what the panel still draws on its way out (`leaving`), which is how a run with no eyes on
+/// it can tell a panel that closes as the card it was from one that is every part for the frames the close takes.
 struct PanelReporter {
     private var reported: HoverIntent.State?
 
     @MainActor
     mutating func report(_ state: HoverIntent.State, cause: PanelCause, parts: [PanelPart]? = nil) {
         guard reported != state else { return }
-        Oracle.shared.emit("panel", Self.fields(state: state, cause: reported == nil ? .launch : cause, parts: parts,
+        // The launch state closes nothing, so it has nothing to say it left.
+        Oracle.shared.emit("panel", Self.fields(state: state, cause: reported == nil ? .launch : cause,
+                                                parts: reported == nil && state == .compact ? nil : parts,
                                                 staggered: !AccessibilityDisplay.shared.motionReduced))
         reported = state
     }
 
-    /// `cards` and `entrance` ride on an opening only: a closed panel has no parts to report.
+    /// `cards` and `entrance` ride on an opening; `leaving` rides on a close that says what it drew on the way.
     static func fields(state: HoverIntent.State, cause: PanelCause, parts: [PanelPart]?, staggered: Bool) -> [String: Any] {
         var fields: [String: Any] = ["state": state.rawValue, "cause": cause.rawValue]
-        if state == .expanded, let parts {
+        guard let parts else { return fields }
+        switch state {
+        case .expanded:
             fields["cards"] = parts.map(\.name)
             fields["entrance"] = staggered ? "staggered" : "none"
+        case .compact:
+            fields["leaving"] = parts.map(\.name)
         }
         return fields
     }
@@ -173,6 +181,16 @@ struct PanelHolds {
     /// app) it must not mean "ignore the pointer coming in", or the card would be there and unreachable.
     static func pausesHover(menuOpen: Bool, held: Bool, promptHeld: Bool, expanded: Bool) -> Bool {
         menuOpen || held || (promptHeld && expanded)
+    }
+
+    /// Whether a click somewhere else leaves an open panel open: while a request is on it, and while it is open on
+    /// one of Cursor's own cards alone (AttentionNotice.forCursorCard). Both are a question the assistant is stopped
+    /// on, and the next click is nearly always in the window being worked in, not a wish to be rid of the card: until
+    /// 0.9.18 that click closed the notch on Cursor's card, which is then not opened again for that card, so Run had
+    /// to be fetched from the whole panel. A click on the readouts, the shortcut, a swipe and, under Open on hover,
+    /// the pointer coming in and leaving still close it, and *Show the whole panel* makes it a panel like any other.
+    static func staysOpenOnOutsideClick(promptHeld: Bool, onCursorCard: Bool, expanded: Bool) -> Bool {
+        expanded && (promptHeld || onCursorCard)
     }
 }
 
@@ -407,6 +425,17 @@ final class NotchController: NSObject, PanelPresenting {
     private let ringLabel = RingLabelPresenter()
     /// The hover machine has decided to open and the transition has not yet adopted it (`act`, `expand`).
     private var expanding = false
+    /// What the panel was open on when it began to close, for the view still on screen while it does (PanelLeaving).
+    private let leaving = PanelLeaving()
+    /// The closes whose morph has not finished (`compact`); `leaving` is let go when the last one has.
+    private var closing = 0
+    /// What the panel on its way closed is drawn from, for a test to read.
+    var leavingOpening: PanelOpening? { leaving.opening }
+    /// What the notch itself can be told to do.
+    enum Move { case expand, compact, hide }
+    /// Carries an opening or a close out on the notch itself: DynamicNotchKit's own, unless a test has put its own
+    /// here, so the order of the queued opens and closes can be driven and counted with no window on screen.
+    var carryOut: ((Move) async -> Void)?
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -424,9 +453,10 @@ final class NotchController: NSObject, PanelPresenting {
         self.actions = actions
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
         let targets = ringTargets
+        let leaving = leaving
         let room = NotchPeek.windowRoom(screen: screen.frame, notch: Self.notchRect(on: screen))
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
-            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true)
+            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true, leaving: leaving)
         } compactLeading: {
             NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
         } compactTrailing: {
@@ -443,7 +473,10 @@ final class NotchController: NSObject, PanelPresenting {
         hover.isPaused = { [weak self] in
             self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.hover.state == .expanded) } ?? false
         }
-        hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.hover.state == .expanded } ?? false }
+        hover.holdsOpen = { [weak self] in
+            self.map { PanelHolds.staysOpenOnOutsideClick(promptHeld: $0.promptHeld, onCursorCard: $0.store.attentionNotice?.forCursorCard == true,
+                                                          expanded: $0.hover.state == .expanded) } ?? false
+        }
         hover.isOffScreen = { [weak self] in
             guard let self, let window = self.notch.windowController?.window, window.isVisible else { return false }
             return !window.isOnActiveSpace
@@ -531,6 +564,8 @@ final class NotchController: NSObject, PanelPresenting {
         hover.start()
         applyWindowBehaviour()
         let open = !held && (hover.mode == .always || hover.state == .expanded)
+        // Decided here, in this turn, and only carried out in the task (`expand`, `compact`).
+        if open { hover.adopt(.expanded) } else { leave() }
         Task {
             if open {
                 await self.expand(cause: .always)
@@ -578,7 +613,7 @@ final class NotchController: NSObject, PanelPresenting {
     /// shortcut says to stay: a window that joins every space draws over full-screen apps whatever its
     /// collection behaviour. Returns whether the panel may now be shown again, which is the caller's to do:
     /// `show()` asks this first, and showing from in here would run it twice.
-    @discardableResult private func apply(fullScreen verdict: FullScreen.Verdict) -> Bool {
+    @discardableResult func apply(fullScreen verdict: FullScreen.Verdict) -> Bool {
         let hide = verdict.isActive && !prefs.showsOverFullScreen(verdict.apps)
         guard hide != suppressedForFullScreen else { return false }
         suppressedForFullScreen = hide
@@ -650,45 +685,93 @@ final class NotchController: NSObject, PanelPresenting {
         switch output {
         case .expand:
             if !hover.isOffScreen() { store.refreshAll(force: false) }
-            // The machine adopts the open state inside the task; until then news arriving in the same turn (a glance
-            // or Open the panel for the very message that made it) must not put up a peek the panel then covers.
+            // The opening is carried out inside the task; until then news arriving in the same turn (a glance or
+            // Open the panel for the very message that made it) must not put up a peek the panel then covers.
             expanding = true
             Task { await self.expand(cause: cause) }
         case .collapse:
+            leave()
             Task { await self.compact(cause: cause) }
         case .none:
             break
         }
     }
 
+    /// The decision to close, in the turn that makes it: the panel keeps what it was open on (PanelLeaving) and the
+    /// store's own three are cleared, for everything that asks whether a card has the panel. Not left to `compact`,
+    /// a turn later. Whoever asked for the close clears what the panel was opened on straight after asking
+    /// (App.promptEnded, App.cursorCardsChanged), which is too late to keep it; and an opening asked for in the
+    /// same turn sets those three for itself, which a clear that ran after it took away again, so the panel opened
+    /// on every part (closing Settings with a request pending, since 0.7.0).
+    private func leave() {
+        hover.adopt(.compact)
+        // Kept from the first close of a run of them: a second one asked for while the panel is still on its way
+        // out finds the store already cleared, and that is not what the panel on screen was open on.
+        if leaving.opening == nil { leaving.opening = store.panelOpening }
+        store.panelOpenedForPrompt = false
+        store.attentionNotice = nil
+        store.promptFocus = nil
+    }
+
     private func expand(cause: PanelCause) async {
+        // The machine has closed again since this opening was asked for, so it is not carried out. The mirror of the
+        // check in `compact`, where the case that happens is described.
+        guard hover.state == .expanded else {
+            expanding = false
+            return
+        }
         refreshRegions()
         configureTransition(closing: false)
+        // This opening is drawn from the store again.
+        leaving.opening = nil
         // Reaching the peek with the pointer is reaching for its session: under On hover the dwell opens the panel
         // before any click can land, so it opens on the session the way the click does (NotchNews.opensOnSession).
         if prefs.notchNews, let news = store.peek, NotchNews.opensOnSession(cause) { focus(on: news) }
-        hover.adopt(.expanded)
         expanding = false
         reporter.report(.expanded, cause: cause, parts: NotchExpandedView(store: store, prefs: prefs, actions: actions).shownParts)
         // The panel covers the strip the words were in and the edge the light spilled from.
         store.endPeek()
         refreshGlow()
         let serial = beginTransition()
-        await notch.expand(on: screen)
-        if PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
+        if let carryOut { await carryOut(.expand) } else { await notch.expand(on: screen) }
+        // Only a panel that is still open takes the keyboard. The wait above is DynamicNotchKit's 0.4 s, and a panel
+        // closed inside it (the shortcut twice, a request answered at once, a jump from a panel just opened) was
+        // made key all the same, closed, with the keys going to it. Held to the machine and not to the transition's
+        // serial: a second opening inside the wait (a setting applied) is no reason for the first to lose the keys.
+        if hover.state == .expanded, PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
         endTransition(serial)
     }
 
     private func compact(cause: PanelCause) async {
+        // The machine has opened again since this close was asked for, so it is not carried out: a request that ends
+        // and a glance for the same session arrive in one turn (a Stop for a session whose request is still on the
+        // notch), and so do a window of the app's own closing and the request it had kept waiting. Carried out all
+        // the same, the close took the machine back to closed under an opening that then found DynamicNotchKit
+        // still open and did nothing, and its own change of state, which DynamicNotchKit puts off by a turn, shut
+        // the panel afterwards: a panel the machine read as open, closed, with the glance's own clock lost. The
+        // panel stays where it is, and the opening after this draws what it is now open on.
+        guard hover.state == .compact else { return }
         configureTransition(closing: true)
-        hover.adopt(.compact)
-        store.panelOpenedForPrompt = false
-        store.attentionNotice = nil
-        store.promptFocus = nil
-        reporter.report(.compact, cause: cause)
+        // What the view on screen draws from here until it has gone, read the way it reads it.
+        reporter.report(.compact, cause: cause,
+                        parts: NotchExpandedView(store: store, prefs: prefs, actions: actions, leaving: leaving).shownParts)
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
-        await notch.compact(on: screen)
+        closing += 1
+        // Stood aside for a full-screen app the notch is hidden, and what closes is a panel opened over that app all
+        // the same (a request, the shortcut). It goes back to hidden: closed to its strip, the strip stayed over the
+        // app until the app left full screen. Hiding a notch already hidden does nothing.
+        let move: Move = suppressedForFullScreen ? .hide : .compact
+        if let carryOut { await carryOut(move) } else if move == .hide { await notch.hide() } else { await notch.compact(on: screen) }
+        closing -= 1
+        // The panel has gone, and with it the need for what it was open on: a notice is a copy of its session,
+        // title and all, which `UsageStore.dropTitles` cannot reach here. Counted and not left to the serial: a
+        // second close asked for while the first is still on screen returns at once (DynamicNotchKit is already
+        // compact) and is then the latest transition, with the first's panel not yet gone.
+        if closing == 0, hover.state == .compact {
+            leaving.opening = nil
+            store.panelClosed()
+        }
         endTransition(serial)
         refreshGlow()
     }
@@ -852,7 +935,7 @@ final class NotchController: NSObject, PanelPresenting {
                  // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
                  // budget is set, and monthlyBudgetUSD reads it only while one is.
                  prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled, store.openCodePluginInstalled,
-                 store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
+                 store.openSessionLists, store.planPreviews, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
                  prefs.notchNewsStyle, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
                  prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent, prefs.usageStyle, prefs.hourClock,
                  prefs.closedWhileWorking, prefs.closedWhenQuiet, store.closedNotchPhase, prefs.sessionRows, prefs.sessionRowLead)

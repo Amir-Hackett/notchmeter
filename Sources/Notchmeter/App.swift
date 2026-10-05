@@ -229,6 +229,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
         store.cursorCardsChanged = { [weak self] started, ended in self?.cursorCardsChanged(started: started, ended: ended) }
+        store.handedOff = { [weak self] in self?.handedOff() }
+        store.panelIsOpen = { [weak self] in self?.presenters.contains { $0.hover.state == .expanded } ?? false }
         // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
         store.canPeek = { [weak self] in
             self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
@@ -281,13 +283,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.jump = { [weak self] session in
             guard let self, self.prefs.jumpToTerminal else { return }
             self.jumper.jump(session)
+            // Where there is a window to go to, the panel gets out of its way, as it does for a plan (`handedOff`),
+            // and at once: whether the jump landed is only known when its script returns, which for a terminal
+            // asked for Automation the first time is after a prompt, with the panel standing over it meanwhile, and
+            // a script that raised the terminal and then could not find the pane reports a jump that did not land.
+            if NoticeCard.canJump(session, enabled: true) { self.handedOff() }
         }
         actions.answerInCursor = { [weak self] session in
             guard let self else { return }
             if session.host == nil, let terminal = session.terminal, TerminalJump.resolve(terminal) != .none {
                 self.jumper.jump(session)
-            } else {
-                CursorPlanOpener.activateCursor()
+                self.handedOff()
+            } else if CursorPlanOpener.activateCursor() {
+                self.handedOff()
             }
         }
         actions.offerHook = { [weak self] tool in self?.offerHook(for: tool) }
@@ -480,6 +488,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let notice = AttentionNotice(session: session, event: event)
             store.attentionNotice = notice
             presenter.glance(for: NoticeCard.duration(for: notice))
+            // A glance that opened nothing (Always open, with the panel put away by the shortcut) leaves no card
+            // behind: the next opening would have shown it alone, for news long past.
+            if presenter.hover.state != .expanded { store.attentionNotice = nil }
         case .openPanel: presenter.expandNow(cause: .notification)
         case .nothing: break
         }
@@ -895,6 +906,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Something on the panel sent the user to another app (a plan opened in Cursor, a row's jump to its terminal,
+    /// *Answer in Cursor*): the panel closes, because it stands over the middle of the screen and, under Open on
+    /// click, nothing else closes it until a click somewhere else. A panel with a request on it stays, since
+    /// closing it would leave the hook held with no card to answer it on, and Always open stays as it always does.
+    private func handedOff() {
+        guard store.sessions.pending(now: Date()).isEmpty else { return }
+        dismissOpenPanels(cause: .handOff)
+    }
+
     /// One of the app's own windows went while a request was showing: `promptRequested` declined to open over it,
     /// so the card is opened now, on the newest request, the way it would have been had the window not been up.
     /// Nothing happens while another window still holds the panel, or when no request is left.
@@ -910,8 +930,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.prompt, false)
         // A panel that was opened for the request closes with it; one the pointer had opened stays.
         guard store.panelOpenedForPrompt else { return }
+        // Asked to close before the flag goes, so a panel takes what it was open on with it (PanelLeaving): with the
+        // flag cleared first, the panel was every part at once for the frames its close takes (0.9.17). The flag
+        // still goes here, for a panel that stays open all the same (Always open).
+        dismissOpenPanels(cause: .notification)
         store.panelOpenedForPrompt = false
-        for presenter in presenters where presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .notification) }
+    }
+
+    /// Closes every panel that is open. The notch's goes first: it keeps what it was open on as it begins to close
+    /// (NotchController.leave), and an edge layout's collapse clears the store in that same turn, which asked for
+    /// first left the notch nothing to keep (All displays, with a panel open on each).
+    private func dismissOpenPanels(cause: PanelCause) {
+        let open = presenters.filter { $0.hover.state == .expanded }
+        for presenter in open.filter({ $0 is NotchController }) + open.filter({ !($0 is NotchController) }) {
+            presenter.hover.dismiss(cause: cause)
+        }
     }
 
     /// Escape on a panel with requests on it: every one goes back to its terminal (`Decision.pass`).

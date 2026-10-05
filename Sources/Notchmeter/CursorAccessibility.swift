@@ -3,9 +3,10 @@ import ApplicationServices
 import Foundation
 import os
 
-/// What a row's plan buttons ask for (SessionsCard, UsageStore.cursorPlanAction).
+/// What a row's plan buttons ask for (SessionsCard, UsageStore.cursorPlanAction): View Plan shows the plan on the
+/// row, Open in Cursor on that preview goes to the plan itself, and Build presses Cursor's own Build.
 enum CursorPlanAction: String, Sendable {
-    case view, build
+    case view, open, build
 }
 
 /// Cursor's own cards — a command waiting for Run, a mode-switch confirmation, a created plan's Build, a question
@@ -627,7 +628,8 @@ enum CursorPlanOpener {
         return true
     }
 
-    @MainActor static func activateCursor() {
-        NSRunningApplication.runningApplications(withBundleIdentifier: TerminalJump.BundleID.cursor).first?.activate()
+    /// Brings Cursor forward, and says whether there was a Cursor to bring.
+    @MainActor @discardableResult static func activateCursor() -> Bool {
+        NSRunningApplication.runningApplications(withBundleIdentifier: TerminalJump.BundleID.cursor).first?.activate() ?? false
     }
 }

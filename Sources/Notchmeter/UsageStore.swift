@@ -293,6 +293,19 @@ final class UsageStore {
     /// content (NotchController.expandedContentSize): a list opened in view state alone grew the drawn card and
     /// not the window, and the footer was cut off under it. Here the measure sees it and the observation re-sizes.
     var openSessionLists: Set<String> = []
+    /// The plans shown on their chats' rows (View Plan), by session id, each with the file it was read from so a
+    /// chat that has made another plan since is not shown the old one. Open as the row's lists are, under
+    /// "<session id>/plan" in `openSessionLists`; this is what the row then draws, the measuring copy of the panel
+    /// reads it the same way, and the panels re-size for a change to either (NotchController.observeContent). A plan's name and summary are its author's words:
+    /// read only when the preview is opened, held only while it is open, never logged, and dropped with the titles
+    /// (`dropTitles`).
+    private(set) var planPreviews: [String: ShownPlan] = [:]
+
+    struct ShownPlan: Equatable, Sendable {
+        let file: String
+        let preview: CursorPlanFiles.Preview
+    }
+
     /// The Simple panel's rows open in place ("tool:claude", "cost", "notes"; SimplePanel.swift), held here for the
     /// same reason as `openSessionLists`: the measuring copy of the panel has to see a row open to size the window.
     var openPanelRows: Set<String> = []
@@ -300,6 +313,20 @@ final class UsageStore {
     /// one drawn when several sessions hold requests, and its own card outranks another session's request. Nil the
     /// rest of the time; cleared by every collapse.
     var promptFocus: String?
+    /// What an open panel is on, as the three above say it (PanelOpening), with the notice's session's Cursor cards
+    /// and note. A card that is leaving its row as this is read (`cursorCardsLeaving`) still counts: the panel that
+    /// was open on it takes this as it begins to close.
+    var panelOpening: PanelOpening {
+        var opening = PanelOpening(promptOnly: panelOpenedForPrompt, notice: attentionNotice, focus: promptFocus)
+        if let id = attentionNotice?.session.id {
+            opening.noticeCards = cursorCards[id] ?? cursorCardsLeaving[id] ?? []
+            opening.noticeNote = cursorActionNotes[id]
+        }
+        return opening
+    }
+    /// The cards that have just left their chats' rows, by session id, only for as long as `cursorCardsChanged` is
+    /// being told so (cursorCardsSeen).
+    @ObservationIgnored private var cursorCardsLeaving: [String: [CursorCard]] = [:]
     /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
     /// rest of the time and always while Preferences.notchNews is off.
     private(set) var peek: NotchNews?
@@ -336,6 +363,17 @@ final class UsageStore {
     /// arrives is one change to the panel and not a close and an open racing each other. Wired by the app
     /// delegate, which opens the panel on the card and closes it again.
     @ObservationIgnored var cursorCardsChanged: (_ started: [AgentSession], _ ended: [String]) -> Void = { _, _ in }
+    /// Opens a plan file in Cursor and says whether it could (CursorPlanOpener, `cursorPlanAction`); a test swaps it
+    /// so that no app is launched.
+    @ObservationIgnored var openPlan: (String) -> Bool = { CursorPlanOpener.open($0) }
+    /// Whether a panel is open on any display; wired by the app delegate to its presenters (`panelClosed`).
+    @ObservationIgnored var panelIsOpen: () -> Bool = { false }
+    /// Reads what View Plan shows of a plan file, or nil for one that is gone, not one of Cursor's own, or says
+    /// nothing (CursorPlanFiles.preview); a test swaps it for a plan of its own.
+    @ObservationIgnored var readPlan: (String) -> CursorPlanFiles.Preview? = { CursorPlanFiles.allowed($0).flatMap(CursorPlanFiles.preview(in:)) }
+    /// Something on the panel sent the user to another app (a plan opened in Cursor); wired by the app delegate,
+    /// which closes the panel so it is not left standing over what was just opened.
+    @ObservationIgnored var handedOff: () -> Void = {}
     /// When each card last left a row, by card id, and how soon after that the same card coming back is the same
     /// card seen again and no new wait to open the panel on: Cursor redraws its chat as it streams, and a card can
     /// be out of its tree for a read. Kept for that long only.
@@ -741,6 +779,7 @@ final class UsageStore {
         peek = peek?.withoutTitle()
         glowNews = glowNews?.withoutTitle()
         latestNews = latestNews?.withoutTitle()
+        closePlanPreviews()
         cursorNamesTried = [:]
         let reader = coworkReader
         Task { await reader.dropTitles() }
@@ -1538,6 +1577,8 @@ final class UsageStore {
             return live.contains(String(key[..<slash.lowerBound]))
         }
         if kept != openSessionLists { openSessionLists = kept }
+        // A plan shown on a row goes with the row, words and all.
+        if planPreviews.keys.contains(where: { !live.contains($0) }) { planPreviews = planPreviews.filter { live.contains($0.key) } }
     }
 
     /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
@@ -1862,8 +1903,13 @@ final class UsageStore {
             try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled, let self else { return }
             signalRelease = nil
-            sweepSessions()
-            armSignalRelease()
+            // One reading of the clock for the sweep and for the look ahead. Each taking its own, a state that fell
+            // due between the two was not yet due for the sweep and already past for `nextRelease`, which names only
+            // what is still to come: nothing retired it until the thirty-second sweep (a second quiet Cursor turn
+            // due a millisecond after the first, in CI on 2026-10-05).
+            let now = Date()
+            sweepSessions(now: now)
+            armSignalRelease(now: now)
         }
     }
 
@@ -2417,6 +2463,7 @@ final class UsageStore {
             sessions = tracker
             pruneOpenSessionLists()
         }
+        followPlanPreview(key, file: follower.planFile)
         // One follow-up, whether a hook arrived during the read or the transcript grew after this read started.
         guard grew || cursorPlanAgain[path] != nil else { return }
         let again = cursorPlanAgain.removeValue(forKey: path) ?? (sessionID, host)
@@ -2823,7 +2870,11 @@ extension UsageStore {
         let gone = before.keys.filter { bySession[$0] == nil }
         // Before the notices below, so a panel this opens on the card is already open when the attention setting
         // is asked what to do about the wait, as a request's is.
-        if !fresh.isEmpty || !gone.isEmpty { cursorCardsChanged(fresh, gone) }
+        if !fresh.isEmpty || !gone.isEmpty {
+            cursorCardsLeaving = before.filter { gone.contains($0.key) }
+            cursorCardsChanged(fresh, gone)
+            cursorCardsLeaving = [:]
+        }
         for (session, card) in started {
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
@@ -2897,10 +2948,28 @@ extension UsageStore {
     func cursorPlanAction(_ file: String, _ action: CursorPlanAction, sessionID: String) {
         switch action {
         case .view:
-            if !CursorPlanOpener.open(file) { noteCursorAction(L("The plan file is gone"), for: sessionID) }
+            // View Plan shows the plan here first, with Open in Cursor under it: what the plan is can be read
+            // without leaving the notch, and going to it is one more press (asked 2026-10-05). A second press folds
+            // it away. Where a plan's words may not be drawn (titles off, the screen shared), or the file says
+            // nothing to show, View Plan goes to Cursor as Open in Cursor does.
+            let wordsShown = prefs.sessionTitles && !hidesFigures
+            // Folded only when it is this plan that is shown: one left open from a plan the chat has since replaced
+            // is not drawn (SessionsCard), so folding it was a press that did nothing, and it is replaced instead.
+            if wordsShown, planPreviews[sessionID]?.file == file {
+                closePlanPreview(sessionID)
+            } else if wordsShown, let preview = readPlan(file) {
+                // The words before the key: the key is what re-sizes the panel, and the measure has to find them.
+                planPreviews[sessionID] = ShownPlan(file: file, preview: preview)
+                openSessionLists.insert(SessionsCard.listKey(sessionID, .plan))
+                Oracle.shared.emit("sessionRow", ["session": sessionID, "list": SessionsCard.Disclosure.plan.rawValue, "expanded": true])
+            } else {
+                openPlanInCursor(file, sessionID: sessionID)
+            }
+        case .open:
+            openPlanInCursor(file, sessionID: sessionID)
         case .build:
             guard prefs.cursorControl, cursorUI.trusted else {
-                _ = CursorPlanOpener.open(file)
+                _ = openPlan(file)
                 // With the switch on, what is missing is the permission, and the note says which.
                 noteCursorAction(prefs.cursorControl
                     ? L("Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter.")
@@ -2916,11 +2985,62 @@ extension UsageStore {
                 if let card = CursorCards.planCard(named: name, in: cards), let build = CursorCards.buildOption(of: card) {
                     self.pressCursorCard(card, option: build.label, sessionID: sessionID)
                 } else {
-                    _ = CursorPlanOpener.open(file)
+                    _ = openPlan(file)
                     self.noteCursorAction(L("Opened in Cursor: its Build card is not on screen, so press Build there"), for: sessionID)
                 }
             }
         }
+    }
+
+    /// The plan itself, in Cursor. It is Cursor's to show, so the panel gets out of its way (`handedOff`): left open
+    /// it stood over the plan it had just opened, under Open on click until a click somewhere else, and read as a
+    /// button that had done nothing (2026-10-05). The preview on the row is folded away with it.
+    private func openPlanInCursor(_ file: String, sessionID: String) {
+        guard openPlan(file) else {
+            noteCursorAction(L("The plan file is gone"), for: sessionID)
+            return
+        }
+        closePlanPreview(sessionID)
+        handedOff()
+    }
+
+    /// Folds a row's plan away and lets go of its words.
+    private func closePlanPreview(_ sessionID: String) {
+        guard planPreviews.removeValue(forKey: sessionID) != nil else { return }
+        openSessionLists.remove(SessionsCard.listKey(sessionID, .plan))
+        Oracle.shared.emit("sessionRow", ["session": sessionID, "list": SessionsCard.Disclosure.plan.rawValue, "expanded": false])
+    }
+
+    /// Every plan shown on a row folded away, and its words let go: *Show what a session is working on* was turned
+    /// off, and with it off nothing a plan says is held (`dropTitles`); or the last open panel has closed
+    /// (`panelClosed`).
+    func closePlanPreviews() {
+        for id in Array(planPreviews.keys) { closePlanPreview(id) }
+    }
+
+    /// A panel has closed and gone from the screen (NotchController.compact, EdgePanelController.act). A plan shown
+    /// on a row is a reading of its file from when it was opened, so once no panel is left open to show it, it is
+    /// let go, and the next View Plan reads the file as it is then. One open on another display keeps it.
+    func panelClosed() {
+        guard !panelIsOpen() else { return }
+        closePlanPreviews()
+    }
+
+    /// A plan shown on a row whose chat has since made another, or has none now, is let go: the row no longer
+    /// draws it (SessionsCard), and it is not held unseen.
+    private func dropStalePlanPreviews() {
+        for (id, shown) in planPreviews where sessions.sessions[id]?.planFile != shown.file { closePlanPreview(id) }
+    }
+
+    /// A read of a chat's plan has landed (`cursorPlanRead`), which it does when the plan's file has changed: a plan
+    /// shown on that row is read again, so its summary is not an older one beside a Build that acts on the file as
+    /// it is now, and one shown for a plan the chat no longer has is let go.
+    private func followPlanPreview(_ sessionID: String, file: String?) {
+        guard !planPreviews.isEmpty else { return }
+        dropStalePlanPreviews()
+        guard let file, let shown = planPreviews[sessionID], shown.file == file, prefs.sessionTitles,
+              let fresh = readPlan(file), fresh != shown.preview else { return }
+        planPreviews[sessionID] = ShownPlan(file: file, preview: fresh)
     }
 
     /// Puts what a press or plan action came to under the session's row, and takes it down again after a while:

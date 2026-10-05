@@ -6,6 +6,10 @@ import AppKit
 /// a notification's Open button, or the state it launched in.
 enum PanelCause: String {
     case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, dashboard, shareCard, menu, notification, launch, glance, fullScreen
+    /// Closed because something on the panel sent the user to another app (a plan opened in Cursor, a row's jump,
+    /// *Answer in Cursor*; AppDelegate.handedOff): the panel stands over the middle of the screen, where what was
+    /// opened is.
+    case handOff
     /// Opened on one of Cursor's own cards, or closed after it (AppDelegate.cursorCardsChanged). Not `notification`:
     /// that opening takes the keyboard (PanelKeyPolicy), and a card nobody asked for must not take it from the app
     /// being typed in. Its buttons have no shortcuts.

@@ -48,6 +48,12 @@ import Testing
         #expect(PanelHolds.pausesHover(menuOpen: true, held: false, promptHeld: false, expanded: false))
         #expect(PanelHolds.pausesHover(menuOpen: false, held: true, promptHeld: false, expanded: true))
         #expect(!PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: false, expanded: true))
+        // A click somewhere else leaves a panel open while a request is on it, and while it is open on one of
+        // Cursor's own cards alone (0.9.18: that click closed the notch, which is not opened twice for one card).
+        #expect(PanelHolds.staysOpenOnOutsideClick(promptHeld: true, onCursorCard: false, expanded: true))
+        #expect(PanelHolds.staysOpenOnOutsideClick(promptHeld: false, onCursorCard: true, expanded: true))
+        #expect(!PanelHolds.staysOpenOnOutsideClick(promptHeld: false, onCursorCard: false, expanded: true), "any other panel closes on it")
+        #expect(!PanelHolds.staysOpenOnOutsideClick(promptHeld: true, onCursorCard: true, expanded: false), "a closed panel holds nothing")
         #expect(!PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: false, expanded: false))
     }
 

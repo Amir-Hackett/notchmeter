@@ -586,6 +586,29 @@ import Testing
     let t0 = Date(timeIntervalSince1970: 1_790_000_000)
     func cursor(_ event: String) -> Hook.Message { Hook.Message(event: event, needsInput: false, sessionID: "c1", project: "p", tool: .cursor) }
 
+    /// At any one reading of the clock a quiet turn is either nudged or named by `nextRelease` as still to come,
+    /// never neither, which is why the sweep and the look ahead after it read the clock once
+    /// (UsageStore.armSignalRelease). Each reading its own, a turn due between the two was left to the
+    /// thirty-second sweep: not yet due for the first, already past for the second.
+    @Test func aQuietTurnIsNudgedOrStillToComeAndNeverNeither() {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(5))
+        let due = t0.addingTimeInterval(5 + SessionTracker.quietAfterDefault)
+        for offset in [-1, -0.001, 0, 0.001, 1] {
+            let now = due.addingTimeInterval(offset)
+            var swept = tracker
+            let nudged = !swept.quietNudges(now: now).isEmpty
+            let toCome = swept.nextRelease(now: now) == due
+            #expect(nudged != toCome, "at \(offset) s from when it is due")
+            #expect(nudged == (offset >= 0))
+        }
+        // The gap the two readings left: swept a millisecond early, looked ahead a millisecond late.
+        var early = tracker
+        #expect(early.quietNudges(now: due.addingTimeInterval(-0.001)).isEmpty)
+        #expect(early.nextRelease(now: due.addingTimeInterval(0.001)) == nil, "which is the turn nothing then retired")
+    }
+
     @Test func aQuietTurnWithNothingRunningIsNudgedOnce() throws {
         var tracker = SessionTracker()
         tracker.apply(cursor("UserPromptSubmit"), now: t0)

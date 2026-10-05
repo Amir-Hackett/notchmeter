@@ -46,7 +46,7 @@ enum CursorCapabilities {
         }
         out.append(Entry(feature: "mode switch", source: cards ? .accessibility : .openOnly, reason: cardsReason))
         out.append(Entry(feature: "build", source: cards ? .accessibility : .openOnly, reason: cardsReason))
-        out.append(Entry(feature: "view plan", source: .openOnly, reason: "opens the plan file in Cursor"))
+        out.append(Entry(feature: "view plan", source: .openOnly, reason: "shows the plan on its row; Open in Cursor opens the plan file"))
         out.append(Entry(feature: "questions", source: .openOnly, reason: "Cursor's question card is not recognised yet"))
         return out
     }

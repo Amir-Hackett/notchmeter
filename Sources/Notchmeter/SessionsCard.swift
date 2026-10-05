@@ -401,7 +401,18 @@ struct SessionsCard: View {
                                        open: Set(Disclosure.allCases.filter { store.openSessionLists.contains(Self.listKey(row.id, $0)) }),
                                        toggle: { toggle(row.id, $0) }, embedded: embedded,
                                        advice: lines.onRow[row.id]?.map(\.text) ?? [],
-                                       planAction: { plan, action in store.cursorPlanAction(plan.file, action, sessionID: row.id) },
+                                       planAction: { plan, action in
+                                           // The preview opens and folds the way the row's lists do.
+                                           let act = { store.cursorPlanAction(plan.file, action, sessionID: row.id) }
+                                           if action == .view, !AccessibilityDisplay.shared.motionReduced {
+                                               withAnimation(.easeOut(duration: 0.18), act)
+                                           } else {
+                                               act()
+                                           }
+                                       },
+                                       // Only the plan this row has now, and no words where words are hidden.
+                                       planPreview: store.hidesFigures || !prefs.sessionTitles ? nil
+                                           : store.planPreviews[row.id].flatMap { $0.file == row.plan?.file ? $0.preview : nil },
                                        cursorCards: store.cursorCards[row.id] ?? [],
                                        cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: row.id) },
                                        cursorPressing: store.cursorPressing,
@@ -476,7 +487,9 @@ struct SessionsCard: View {
 
 extension SessionsCard {
     /// The lists a row can open in place.
-    enum Disclosure: String, CaseIterable, Sendable { case agents, todos, models, teammates, denials }
+    /// `plan` is the Cursor plan View Plan shows on its chat's row (UsageStore.planPreviews), opened and closed by
+    /// the store, which reads the plan as it opens it; the rest are opened here (`toggle`).
+    enum Disclosure: String, CaseIterable, Sendable { case agents, todos, models, teammates, denials, plan }
 
     /// The key a row's open list is held under (UsageStore.openSessionLists).
     static func listKey(_ session: String, _ list: Disclosure) -> String { "\(session)/\(list.rawValue)" }
@@ -535,8 +548,10 @@ private struct SessionRow: View {
     /// The advice lines this row carries instead of the sheet drawing them (AdvicePlacement.sessionLines), read
     /// after the row's own value.
     var advice: [String] = []
-    /// View Plan or Build on the row's Cursor plan (UsageStore.cursorPlanAction).
+    /// View Plan, Open in Cursor or Build on the row's Cursor plan (UsageStore.cursorPlanAction), and the plan View
+    /// Plan has put on the row, while it is open and its words may be drawn.
     var planAction: (SessionsCard.Row.PlanMark, CursorPlanAction) -> Void = { _, _ in }
+    var planPreview: CursorPlanFiles.Preview? = nil
     /// Cursor's own cards on this session (UsageStore.cursorCards), the press for one of their buttons, and what
     /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons.
     var cursorCards: [CursorCard] = []
@@ -584,6 +599,11 @@ private struct SessionRow: View {
             }
             if open.contains(.denials), !row.denials.isEmpty {
                 denialList.padding(.leading, SessionRow.textInset)
+            }
+            if open.contains(.plan), let plan = row.plan, let planPreview {
+                PlanPreviewView(preview: planPreview, canBuild: plan.state == .ready,
+                                open: { planAction(plan, .open) }, build: { planAction(plan, .build) })
+                    .padding(.leading, SessionRow.textInset)
             }
             ForEach(cursorCards, id: \.id) { card in
                 CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
@@ -814,12 +834,18 @@ private struct SessionRow: View {
                     .help(L("A Cursor background agent"))
             }
             if let plan = row.plan {
+                // Where a plan's words are hidden View Plan goes straight to Cursor, and is drawn as the plain
+                // button it then is; otherwise it opens the plan on the row, and says so the way a list does.
+                let shown = open.contains(.plan) && planPreview != nil
                 Button { planAction(plan, .view) } label: {
-                    ExtraChip(symbol: "doc.text", text: L("View Plan"), chevron: nil)
+                    ExtraChip(symbol: "doc.text", text: L("View Plan"), chevron: hideDetails ? nil : shown)
                 }
                 .buttonStyle(.plain)
-                .help(L("Open this plan in Cursor"))
-                if plan.state == .ready {
+                .help(hideDetails ? L("Open this plan in Cursor") : L("Show this plan here, with a button to open it in Cursor"))
+                .accessibilityLabel(L("View Plan"))
+                .accessibilityValue(hideDetails ? "" : shown ? L("Expanded") : L("Collapsed"))
+                // Build moves onto the preview while it is open, beside Open in Cursor.
+                if plan.state == .ready, !shown {
                     Button { planAction(plan, .build) } label: {
                         ExtraChip(symbol: "hammer", text: L("Build"), chevron: nil)
                     }

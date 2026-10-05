@@ -1313,6 +1313,8 @@
 "Background" = "バックグラウンド";
 "Cursor asks to switch mode" = "Cursor がモードの切り替えを求めています";
 "Open this plan in Cursor" = "このプランを Cursor で開く";
+"Open in Cursor" = "Cursor で開く";
+"Show this plan here, with a button to open it in Cursor" = "このプランをここに表示し、Cursor で開くボタンを添えます";
 "The mode this Cursor chat runs in" = "この Cursor チャットのモード";
 "Build" = "Build";
 "Press Build on this plan in Cursor" = "Cursor でこのプランの Build を押す";
@@ -1325,6 +1327,7 @@
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Cursor で開きました。ノッチからビルドするには「Cursor のカードを映す」をオンにしてください";
 "Pressed %@ in Cursor" = "Cursor で %@ を押しました";
 "Require notch approval for every command" = "すべてのコマンドにノッチでの承認を求める";
+"Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "ノッチから Cursor に答えるだけなら不要です。「Cursor のカードを映す」が Cursor 自身の確認をノッチに届けます。この設定はそれに加えて、Cursor が確認なしで実行したはずのものも含め、すべてのコマンドについて尋ねます。";
 "Pressed %@, but Cursor's card is still showing" = "%@ を押しましたが、Cursor のカードはまだ表示されています";
 "Cursor's card changed before the press; nothing was pressed" = "押す前に Cursor のカードが変わりました。何も押していません";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor が実行するシェルコマンドと MCP 呼び出しはすべて、ノッチで 許可 か 拒否 を待ちます。Cursor の許可リストなら確認なしで実行するものも含みます。応答がなければ Cursor 自身の確認が表示され、黙って実行されることはありません。";

@@ -79,3 +79,49 @@ struct CursorCardView: View {
         }
     }
 }
+
+/// The plan View Plan puts on its chat's row (UsageStore.planPreviews): the plan's name, Cursor's own summary of it,
+/// and the way to the plan itself. Drawn as one of Cursor's cards is, since it is Cursor's plan; the rest of the
+/// plan, its steps and its diagrams, is read in Cursor, which Open in Cursor brings forward as the panel closes.
+struct PlanPreviewView: View {
+    let preview: CursorPlanFiles.Preview
+    /// The plan is ready and not yet built, so the row's Build is offered here while the preview is open.
+    let canBuild: Bool
+    let open: () -> Void
+    let build: () -> Void
+
+    /// A summary runs to this many lines on the row and is cut there; Cursor has the whole of it.
+    static let summaryLines = 8
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let name = preview.name {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: "doc.text").imageScale(.small)
+                    Text(verbatim: name).fontWeight(.semibold).lineLimit(2).truncationMode(.tail)
+                }
+                .font(.caption)
+            }
+            if let summary = preview.summary {
+                Text(verbatim: summary).font(.caption2).foregroundStyle(Caption.style)
+                    .lineLimit(Self.summaryLines).truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 6) {
+                Button(L("Open in Cursor"), action: open)
+                    .buttonStyle(PromptButtonStyle(filled: !canBuild))
+                    .accessibilityHint(L("Open this plan in Cursor"))
+                if canBuild {
+                    Button(L("Build"), action: build)
+                        .buttonStyle(PromptButtonStyle(filled: true))
+                        .accessibilityHint(L("Press Build on this plan in Cursor"))
+                }
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Themed.wash(Palette.calm, 0.12)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(preview.name ?? L("View Plan"))
+    }
+}

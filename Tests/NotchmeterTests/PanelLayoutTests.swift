@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -94,14 +95,107 @@ import Testing
         #expect(panel.allowsToolTipsWhenApplicationIsInactive)
     }
 
+    /// A panel a card opened is still on screen for the frames its close takes, after the collapse has cleared what
+    /// it was opened on. Drawn from the store in that time it was every part, at the whole panel's height, in place
+    /// of the card (0.9.17, after Allow); it draws what it was open on, and nothing once the request has ended.
+    @MainActor @Test func aPanelOnItsWayClosedDrawsWhatItWasOpenOnAndNotEveryPart() throws {
+        let (store, prefs) = DemoFixtures.store(now: Date(), moment: .permissionRequest, suite: "NotchmeterTests.panelLeaving")
+        defer { UserDefaults.standard.removePersistentDomain(forName: "NotchmeterTests.panelLeaving") }
+        let actions = NotchActions()
+        let leaving = PanelLeaving()
+        func panel() -> NotchExpandedView { NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000, leaving: leaving) }
+        func height() -> CGFloat {
+            let host = NSHostingView(rootView: panel())
+            host.layoutSubtreeIfNeeded()
+            return host.fittingSize.height
+        }
+        let whole = panel().shownParts, wholeHeight = height()
+        #expect(whole.count > 1)
+
+        // A request's card: the presenter takes what the panel is on as it begins to close, then the store's go.
+        store.panelOpenedForPrompt = true
+        #expect(panel().shownParts == [.prompt])
+        let card = height()
+        #expect(card < wholeHeight)
+        leaving.opening = store.panelOpening
+        store.panelOpenedForPrompt = false
+        #expect(panel().shownParts == [.prompt], "the card it was open on, not every part")
+        #expect(height() == card)
+        #expect(NotchExpandedView(store: store, prefs: prefs, actions: actions).shownParts == whole, "every other build of the view reads the store")
+        // Answered: the request leaves, and nothing takes its place on the way out.
+        let request = try #require(store.sessions.pending(now: Date()).first?.request.id)
+        store.decide(request, .allow)
+        #expect(panel().shownParts.isEmpty)
+        #expect(height() < card)
+
+        // A session's card (a glance, one of Cursor's own cards) is kept the same way.
+        let session = try #require(store.sessions.all.first)
+        leaving.opening = nil
+        store.attentionNotice = AttentionNotice(session: session, event: .waiting(blocking: true))
+        #expect(panel().shownParts == [.notice])
+        leaving.opening = store.panelOpening
+        store.attentionNotice = nil
+        #expect(panel().shownParts == [.notice])
+        #expect(height() < wholeHeight)
+
+        // The next opening is drawn from the store again: every part, without the request that was answered.
+        leaving.opening = nil
+        #expect(panel().shownParts == whole.filter { $0 != .prompt })
+    }
+
+    /// A notch open on one of Cursor's own cards closes because that card has left the store. What it was open on
+    /// includes the card, so it closes as the card it was, and not as the bare notice, a third shorter, that the
+    /// store alone gives by then.
+    @MainActor @Test func aNotchOpenOnOneOfCursorsCardsClosesAsThatCard() throws {
+        let (store, prefs) = DemoFixtures.store(now: Date(), moment: .cursorNotch, suite: "NotchmeterTests.cursorCardLeaving")
+        defer { UserDefaults.standard.removePersistentDomain(forName: "NotchmeterTests.cursorCardLeaving") }
+        prefs.cursorControl = true
+        store.cursorCardsSeen(DemoFixtures.cursorNotchCards)
+        let waiting = try #require(store.sessions.all.first { !(store.cursorCards[$0.id] ?? []).isEmpty })
+        let card = try #require(store.cursorCards[waiting.id]?.first)
+        var notice = AttentionNotice(session: waiting, event: .waiting(blocking: true))
+        notice.forCursorCard = true
+        store.attentionNotice = notice
+        let actions = NotchActions()
+        let leaving = PanelLeaving()
+        func height() -> CGFloat {
+            let host = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000, leaving: leaving))
+            host.layoutSubtreeIfNeeded()
+            return host.fittingSize.height
+        }
+        let open = height()
+        #expect(store.panelOpening.noticeCards == [card])
+
+        // The card is answered. The store says so, and the panel takes what it was open on as it is told
+        // (NotchController.leave, from AppDelegate.cursorCardsChanged), before the store's own are cleared.
+        store.cursorCardsChanged = { _, ended in
+            guard ended.contains(waiting.id) else { return }
+            leaving.opening = store.panelOpening
+            store.attentionNotice = nil
+        }
+        store.cursorCardsSeen(DemoFixtures.cursorNotchCards.filter { $0.id != card.id })
+        #expect(store.cursorCards[waiting.id] == nil, "the card has left its row")
+        #expect(leaving.opening?.noticeCards == [card], "and is still what the closing panel is open on")
+        #expect(height() == open, "the same card for the frames of the close")
+        // Nothing is lent past the telling: a notice for the same chat a moment later has no card to show.
+        store.attentionNotice = notice
+        #expect(store.panelOpening.noticeCards.isEmpty)
+    }
+
     @Test func anOpeningTellsTheOracleItsCardsAndEntrance() {
         let open = PanelReporter.fields(state: .expanded, cause: .dwell, parts: [.header, .sessions, .spend], staggered: true)
         #expect(open["cards"] as? [String] == ["header", "sessions", "cost"])
         #expect(open["entrance"] as? String == "staggered")
         let reduced = PanelReporter.fields(state: .expanded, cause: .dwell, parts: [.prompt], staggered: false)
         #expect(reduced["entrance"] as? String == "none")
-        let closed = PanelReporter.fields(state: .compact, cause: .exit, parts: [.header], staggered: true)
-        #expect(closed["cards"] == nil && closed["entrance"] == nil)
+        let closed = PanelReporter.fields(state: .compact, cause: .exit, parts: nil, staggered: true)
+        #expect(closed["cards"] == nil && closed["entrance"] == nil && closed["leaving"] == nil)
         #expect(closed["state"] as? String == "compact")
+        // A close under the notch says what the panel still draws on its way out: nothing after an answered
+        // request's card, the one card after a glance, never `cards`.
+        let answered = PanelReporter.fields(state: .compact, cause: .notification, parts: [], staggered: true)
+        #expect(answered["leaving"] as? [String] == [] && answered["cards"] == nil && answered["entrance"] == nil)
+        let glanced = PanelReporter.fields(state: .compact, cause: .glance, parts: [.notice], staggered: false)
+        #expect(glanced["leaving"] as? [String] == ["notice"])
     }
 }

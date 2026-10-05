@@ -116,6 +116,19 @@ enum AssetRenderer {
             cursorPrefs.notifyWaiting = false
             cursorPrefs.cursorControl = true
             cursor.hookInstalledTools = [.cursor]
+            // View Plan (0.9.18), for the site: the same three chats before any of Cursor's own cards, with the ready
+            // chat's plan shown on its row, its name and Cursor's summary with Open in Cursor and Build under them
+            // (DemoFixtures.cursorPlanPreview). Folded away again for the pictures that follow.
+            let readyChat = SessionTracker.key(tool: .cursor, session: DemoFixtures.cursorNotchChats.ready, host: nil)
+            if let plan = cursor.sessions.sessions[readyChat]?.planFile {
+                cursor.readPlan = { _ in DemoFixtures.cursorPlanPreview }
+                cursor.cursorPlanAction(plan, .view, sessionID: readyChat)
+                try at(scale: siteScale) {
+                    try write(panelCrop(SessionsCard(store: cursor, prefs: cursorPrefs, actions: actions), prefs: cursorPrefs).image,
+                              png: directory.appendingPathComponent("cursor-plan.png"))
+                }
+                cursor.cursorPlanAction(plan, .view, sessionID: readyChat)
+            }
             cursor.openSessionLists = [SessionsCard.listKey(SessionTracker.key(tool: .cursor, session: DemoFixtures.cursorNotchChats.building, host: nil), .todos)]
             cursor.cursorCardsSeen(DemoFixtures.cursorNotchCards, now: now)
             try at(scale: siteScale) {
