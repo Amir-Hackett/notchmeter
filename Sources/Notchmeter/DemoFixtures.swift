@@ -838,9 +838,9 @@ extension DemoFixtures {
         }
         let chats = cursorNotchChats
         // A plan made in Plan mode and not yet built: View Plan and Build are on its row.
-        feed(380, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"n-1","workspace_roots":["/Users/me/web-app"],"composer_mode":"plan","model":"claude-opus-4-7","prompt":"Plan the holiday greeting line"}"#)
-        plan(chats.ready, 300, file: "/Users/me/.cursor/plans/holiday_greeting_1a2b3c4d.plan.md", [
-            #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"Holiday greeting line","todos":[{"id":"a","content":"Publish the holiday calendar"},{"id":"b","content":"Record the greeting"},{"id":"c","content":"Route the inbound line to it"},{"id":"d","content":"Call the number and listen"}]}}]}}"#,
+        feed(380, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"n-1","workspace_roots":["/Users/me/web-app"],"composer_mode":"plan","model":"claude-opus-4-7","prompt":"Plan the settings dark mode"}"#)
+        plan(chats.ready, 300, file: "/Users/me/.cursor/plans/settings_dark_mode_1a2b3c4d.plan.md", [
+            #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"Settings dark mode","todos":[{"id":"a","content":"Add the colour tokens"},{"id":"b","content":"Move the settings page onto them"},{"id":"c","content":"Check contrast in both themes"},{"id":"d","content":"Ship it behind a flag"}]}}]}}"#,
         ])
         feed(290, #"{"hook_event_name":"stop","conversation_id":"n-1","workspace_roots":["/Users/me/web-app"],"status":"completed"}"#)
         // A plan being built: the turn is named for the plan, and a command is waiting on Cursor's own Run card.
@@ -858,8 +858,8 @@ extension DemoFixtures {
     /// What View Plan shows for the ready chat's plan (`cursor-plan.png`): the name the fixture's `CreatePlan` gave it
     /// and an overview as Cursor writes one, a sentence or two on what the plan does. Made up, like the chats.
     static let cursorPlanPreview = CursorPlanFiles.Preview(
-        name: "Holiday greeting line",
-        summary: "Play a recorded holiday greeting on the main support line on the dates in the holiday calendar, then fall back to the normal menu. Publish the calendar first, record the greeting, and switch the line over behind a flag so it can be turned off the same day.")
+        name: "Settings dark mode",
+        summary: "Give the settings page a dark theme. Define the colour tokens, move the page's styles onto them, and check contrast in both themes, then ship it behind a flag so it can be turned off the same day.")
 
     /// The cards Cursor's windows would be showing for `cursorNotch`: the building chat's Run prompt and the
     /// third chat's mode switch, as CursorCards.detect reads them.

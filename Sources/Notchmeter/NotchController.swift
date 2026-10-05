@@ -182,6 +182,16 @@ struct PanelHolds {
     static func pausesHover(menuOpen: Bool, held: Bool, promptHeld: Bool, expanded: Bool) -> Bool {
         menuOpen || held || (promptHeld && expanded)
     }
+
+    /// Whether a click somewhere else leaves an open panel open: while a request is on it, and while it is open on
+    /// one of Cursor's own cards alone (AttentionNotice.forCursorCard). Both are a question the assistant is stopped
+    /// on, and the next click is nearly always in the window being worked in, not a wish to be rid of the card: until
+    /// 0.9.18 that click closed the notch on Cursor's card, which is then not opened again for that card, so Run had
+    /// to be fetched from the whole panel. A click on the readouts, the shortcut, a swipe and, under Open on hover,
+    /// the pointer coming in and leaving still close it, and *Show the whole panel* makes it a panel like any other.
+    static func staysOpenOnOutsideClick(promptHeld: Bool, onCursorCard: Bool, expanded: Bool) -> Bool {
+        expanded && (promptHeld || onCursorCard)
+    }
 }
 
 /// The right-click / Options menu shared by every panel style and the menu bar item.
@@ -456,7 +466,10 @@ final class NotchController: NSObject, PanelPresenting {
         hover.isPaused = { [weak self] in
             self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.hover.state == .expanded) } ?? false
         }
-        hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.hover.state == .expanded } ?? false }
+        hover.holdsOpen = { [weak self] in
+            self.map { PanelHolds.staysOpenOnOutsideClick(promptHeld: $0.promptHeld, onCursorCard: $0.store.attentionNotice?.forCursorCard == true,
+                                                          expanded: $0.hover.state == .expanded) } ?? false
+        }
         hover.isOffScreen = { [weak self] in
             guard let self, let window = self.notch.windowController?.window, window.isVisible else { return false }
             return !window.isOnActiveSpace
