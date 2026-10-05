@@ -389,11 +389,14 @@ enum CursorPlanFiles {
                 let top = !indented(lines[index])
                 index += 1
                 guard top, line.hasPrefix("name:") || line.hasPrefix("overview:") else { continue }
-                // A scalar wrapped over several lines runs on under its key, indented.
+                // A scalar wrapped over several lines runs on under its key, indented. A key with nothing beside it
+                // holds a list or a mapping on those lines, which is not the plan's name or what it does.
+                let bareKey = line == "name:" || line == "overview:"
                 while index < close, indented(lines[index]) {
-                    line += " " + bare(lines[index])
+                    if !bareKey { line += " " + bare(lines[index]) }
                     index += 1
                 }
+                if bareKey { continue }
                 if line.hasPrefix("name:") { name = said(field("name", in: line)) } else { overview = said(field("overview", in: line)) }
             }
             body = lines[(close + 1)...]
@@ -417,7 +420,8 @@ enum CursorPlanFiles {
             let opensComment = line.hasPrefix("<!--")
             let numbered = line.first?.isNumber == true && [". ", ") "].contains { line.drop(while: \.isNumber).hasPrefix($0) }
             // A list, a table and a quotation are not a summary either: a plan that opens on one has none here.
-            let block = ["- ", "* ", "+ ", "|", ">"].contains { line.hasPrefix($0) } || numbered
+            let rule = line.count >= 3 && "-*_".contains(line.first ?? " ") && Set(line.filter { $0 != " " }).count == 1
+            let block = ["- ", "* ", "+ ", "|", ">"].contains { line.hasPrefix($0) } || numbered || rule
             if line.isEmpty || line.hasPrefix("#") || opensFence || opensComment || block {
                 // A paragraph ends at the first of these after it began.
                 if !paragraph.isEmpty { break }

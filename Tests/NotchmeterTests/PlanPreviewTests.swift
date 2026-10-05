@@ -88,6 +88,9 @@ import Testing
         let dressed = CursorPlanFiles.preview(parsing: "# Dressed\n\n<!-- a note to self\nover two lines -->\n~~~\nls\n~~~\n- a list\n- of things\n\n| a | table |\n\n> a quotation\n\n1. numbered\n\nThe first prose there is.\n")
         #expect(dressed == CursorPlanFiles.Preview(name: "Dressed", summary: "The first prose there is."), "comments, code, lists, tables and quotations are not a summary")
         #expect(CursorPlanFiles.preview(parsing: "# Only a list\n\n- one\n- two\n") == CursorPlanFiles.Preview(name: "Only a list", summary: nil))
+        let nested = CursorPlanFiles.preview(parsing: "---\nname:\n  - a\n  - b\noverview:\n  nested: thing\n---\n\n# Named in the text\n\n---\n\nAnd summed up after a rule.\n")
+        #expect(nested == CursorPlanFiles.Preview(name: "Named in the text", summary: "And summed up after a rule."),
+                "a list or a mapping under a key is not its text, and a rule is not prose")
     }
 
     /// Only the head of a file is read, on the main actor as the row opens, whatever the file's size; a byte-order

@@ -366,6 +366,8 @@ final class UsageStore {
     /// Opens a plan file in Cursor and says whether it could (CursorPlanOpener, `cursorPlanAction`); a test swaps it
     /// so that no app is launched.
     @ObservationIgnored var openPlan: (String) -> Bool = { CursorPlanOpener.open($0) }
+    /// Whether a panel is open on any display; wired by the app delegate to its presenters (`panelClosed`).
+    @ObservationIgnored var panelIsOpen: () -> Bool = { false }
     /// Reads what View Plan shows of a plan file, or nil for one that is gone, not one of Cursor's own, or says
     /// nothing (CursorPlanFiles.preview); a test swaps it for a plan of its own.
     @ObservationIgnored var readPlan: (String) -> CursorPlanFiles.Preview? = { CursorPlanFiles.allowed($0).flatMap(CursorPlanFiles.preview(in:)) }
@@ -1901,8 +1903,13 @@ final class UsageStore {
             try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled, let self else { return }
             signalRelease = nil
-            sweepSessions()
-            armSignalRelease()
+            // One reading of the clock for the sweep and for the look ahead. Each taking its own, a state that fell
+            // due between the two was not yet due for the sweep and already past for `nextRelease`, which names only
+            // what is still to come: nothing retired it until the thirty-second sweep (a second quiet Cursor turn
+            // due a millisecond after the first, in CI on 2026-10-05).
+            let now = Date()
+            sweepSessions(now: now)
+            armSignalRelease(now: now)
         }
     }
 
@@ -3005,11 +3012,18 @@ extension UsageStore {
     }
 
     /// Every plan shown on a row folded away, and its words let go: *Show what a session is working on* was turned
-    /// off, and with it off nothing a plan says is held (`dropTitles`); or the panel they were shown in has closed
-    /// (NotchController.compact, EdgePanelController.act), since what is shown is a reading of the file from when
-    /// it was opened.
+    /// off, and with it off nothing a plan says is held (`dropTitles`); or the last open panel has closed
+    /// (`panelClosed`).
     func closePlanPreviews() {
         for id in Array(planPreviews.keys) { closePlanPreview(id) }
+    }
+
+    /// A panel has closed and gone from the screen (NotchController.compact, EdgePanelController.act). A plan shown
+    /// on a row is a reading of its file from when it was opened, so once no panel is left open to show it, it is
+    /// let go, and the next View Plan reads the file as it is then. One open on another display keeps it.
+    func panelClosed() {
+        guard !panelIsOpen() else { return }
+        closePlanPreviews()
     }
 
     /// A plan shown on a row whose chat has since made another, or has none now, is let go: the row no longer

@@ -177,7 +177,9 @@ import Testing
         #expect(store.cursorCards[waiting.id] == nil, "the card has left its row")
         #expect(leaving.opening?.noticeCards == [card], "and is still what the closing panel is open on")
         #expect(height() == open, "the same card for the frames of the close")
-        #expect(store.panelOpening.noticeCards.isEmpty, "nothing is kept of it once the telling is over")
+        // Nothing is lent past the telling: a notice for the same chat a moment later has no card to show.
+        store.attentionNotice = notice
+        #expect(store.panelOpening.noticeCards.isEmpty)
     }
 
     @Test func anOpeningTellsTheOracleItsCardsAndEntrance() {

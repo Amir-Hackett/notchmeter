@@ -264,9 +264,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
             store.panelOpenedForPrompt = false
             store.attentionNotice = nil
             store.promptFocus = nil
-            // The card is taken off in this turn (`layout`), so a plan shown on a row goes now: the next View Plan
-            // reads its file as it is then.
-            store.closePlanPreviews()
+            // The card is taken off in this turn (`layout`).
+            store.panelClosed()
         case .none:
             return
         }

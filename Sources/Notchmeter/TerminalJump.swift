@@ -343,28 +343,23 @@ enum TerminalJump {
 
         init() {}
 
-        /// Jumps to `session`'s terminal, or does nothing for a session with none, or one on another Mac. `landed`
-        /// is called, on the main actor, only for a jump that found its window: one whose terminal has quit goes
-        /// nowhere, and whoever asked must not behave as if the user had been taken somewhere.
-        func jump(_ session: AgentSession, landed: (@MainActor @Sendable () -> Void)? = nil) {
+        /// Jumps to `session`'s terminal, or does nothing for a session with none, or one on another Mac.
+        func jump(_ session: AgentSession) {
             guard session.host == nil, let terminal = session.terminal else {
                 Oracle.shared.emit("jump", ["session": session.id, "strategy": "none", "ok": false])
                 return
             }
             let strategy = TerminalJump.resolve(terminal)
             Oracle.shared.emit("jump", ["session": session.id, "strategy": strategy.name])
-            perform(strategy, session: session.id, landed: landed)
+            perform(strategy, session: session.id)
         }
 
-        func perform(_ strategy: Strategy, session: String, landed: (@MainActor @Sendable () -> Void)? = nil) {
+        func perform(_ strategy: Strategy, session: String) {
             queue.async {
                 let ok = Self.run(strategy)
                 Oracle.shared.emit("jump", ["session": session, "strategy": strategy.name, "ok": ok])
                 if !ok { log.info("jump \(strategy.name, privacy: .public) for \(session, privacy: .public) did not land") }
-                DispatchQueue.main.async {
-                    NSApp.deactivate()
-                    if ok { landed?() }
-                }
+                DispatchQueue.main.async { NSApp.deactivate() }
             }
         }
 

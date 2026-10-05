@@ -20,6 +20,7 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 - A panel opened and closed again within a moment, by the shortcut pressed twice or a request answered at once, no longer takes the keyboard after it has closed.
 - Under *Always open* with *Glance* set, news that arrived while the panel was put away no longer comes back as a lone card the next time the panel opens.
 - A request ending while the notch is standing aside for a full-screen app no longer brings the notch back over that app.
+- A waiting or finished mark, or the nudge for a quiet Cursor turn, that fell due in the instant another was being retired could come up to thirty seconds late. It comes on time.
 
 ## [0.9.17](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.17) — 2026-10-04
 

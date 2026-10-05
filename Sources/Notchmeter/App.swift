@@ -230,6 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
         store.cursorCardsChanged = { [weak self] started, ended in self?.cursorCardsChanged(started: started, ended: ended) }
         store.handedOff = { [weak self] in self?.handedOff() }
+        store.panelIsOpen = { [weak self] in self?.presenters.contains { $0.hover.state == .expanded } ?? false }
         // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
         store.canPeek = { [weak self] in
             self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
@@ -281,14 +282,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         actions.jump = { [weak self] session in
             guard let self, self.prefs.jumpToTerminal else { return }
-            // Where the jump lands, the panel gets out of its way, as it does for a plan (`handedOff`). One that
-            // lands nowhere, its terminal having quit, leaves the panel where it is.
-            self.jumper.jump(session) { [weak self] in self?.handedOff() }
+            self.jumper.jump(session)
+            // Where there is a window to go to, the panel gets out of its way, as it does for a plan (`handedOff`),
+            // and at once: whether the jump landed is only known when its script returns, which for a terminal
+            // asked for Automation the first time is after a prompt, with the panel standing over it meanwhile, and
+            // a script that raised the terminal and then could not find the pane reports a jump that did not land.
+            if NoticeCard.canJump(session, enabled: true) { self.handedOff() }
         }
         actions.answerInCursor = { [weak self] session in
             guard let self else { return }
             if session.host == nil, let terminal = session.terminal, TerminalJump.resolve(terminal) != .none {
-                self.jumper.jump(session) { [weak self] in self?.handedOff() }
+                self.jumper.jump(session)
+                self.handedOff()
             } else if CursorPlanOpener.activateCursor() {
                 self.handedOff()
             }

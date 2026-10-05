@@ -431,9 +431,11 @@ final class NotchController: NSObject, PanelPresenting {
     private var closing = 0
     /// What the panel on its way closed is drawn from, for a test to read.
     var leavingOpening: PanelOpening? { leaving.opening }
+    /// What the notch itself can be told to do.
+    enum Move { case expand, compact, hide }
     /// Carries an opening or a close out on the notch itself: DynamicNotchKit's own, unless a test has put its own
     /// here, so the order of the queued opens and closes can be driven and counted with no window on screen.
-    var carryOut: ((HoverIntent.State) async -> Void)?
+    var carryOut: ((Move) async -> Void)?
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -611,7 +613,7 @@ final class NotchController: NSObject, PanelPresenting {
     /// shortcut says to stay: a window that joins every space draws over full-screen apps whatever its
     /// collection behaviour. Returns whether the panel may now be shown again, which is the caller's to do:
     /// `show()` asks this first, and showing from in here would run it twice.
-    @discardableResult private func apply(fullScreen verdict: FullScreen.Verdict) -> Bool {
+    @discardableResult func apply(fullScreen verdict: FullScreen.Verdict) -> Bool {
         let hide = verdict.isActive && !prefs.showsOverFullScreen(verdict.apps)
         guard hide != suppressedForFullScreen else { return false }
         suppressedForFullScreen = hide
@@ -731,13 +733,12 @@ final class NotchController: NSObject, PanelPresenting {
         store.endPeek()
         refreshGlow()
         let serial = beginTransition()
-        if let carryOut { await carryOut(.expanded) } else { await notch.expand(on: screen) }
-        // Only a panel that is still this opening's takes the keyboard. The wait above is DynamicNotchKit's 0.4 s,
-        // and a panel closed inside it (the shortcut twice, a request answered at once, a jump from a panel just
-        // opened) was made key all the same, closed, with the keys going to it.
-        if serial == transitionSerial, hover.state == .expanded, PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) {
-            window?.makeKey()
-        }
+        if let carryOut { await carryOut(.expand) } else { await notch.expand(on: screen) }
+        // Only a panel that is still open takes the keyboard. The wait above is DynamicNotchKit's 0.4 s, and a panel
+        // closed inside it (the shortcut twice, a request answered at once, a jump from a panel just opened) was
+        // made key all the same, closed, with the keys going to it. Held to the machine and not to the transition's
+        // serial: a second opening inside the wait (a setting applied) is no reason for the first to lose the keys.
+        if hover.state == .expanded, PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
         endTransition(serial)
     }
 
@@ -750,13 +751,6 @@ final class NotchController: NSObject, PanelPresenting {
         // the panel afterwards: a panel the machine read as open, closed, with the glance's own clock lost. The
         // panel stays where it is, and the opening after this draws what it is now open on.
         guard hover.state == .compact else { return }
-        // Stood aside for a full-screen app, the notch is hidden, and a close would bring it back, compact, over
-        // that app (a request ending on a display that has since gone full-screen). There is nothing on screen to
-        // keep a copy for either.
-        guard !suppressedForFullScreen else {
-            leaving.opening = nil
-            return
-        }
         configureTransition(closing: true)
         // What the view on screen draws from here until it has gone, read the way it reads it.
         reporter.report(.compact, cause: cause,
@@ -764,7 +758,11 @@ final class NotchController: NSObject, PanelPresenting {
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
         closing += 1
-        if let carryOut { await carryOut(.compact) } else { await notch.compact(on: screen) }
+        // Stood aside for a full-screen app the notch is hidden, and what closes is a panel opened over that app all
+        // the same (a request, the shortcut). It goes back to hidden: closed to its strip, the strip stayed over the
+        // app until the app left full screen. Hiding a notch already hidden does nothing.
+        let move: Move = suppressedForFullScreen ? .hide : .compact
+        if let carryOut { await carryOut(move) } else if move == .hide { await notch.hide() } else { await notch.compact(on: screen) }
         closing -= 1
         // The panel has gone, and with it the need for what it was open on: a notice is a copy of its session,
         // title and all, which `UsageStore.dropTitles` cannot reach here. Counted and not left to the serial: a
@@ -772,9 +770,7 @@ final class NotchController: NSObject, PanelPresenting {
         // compact) and is then the latest transition, with the first's panel not yet gone.
         if closing == 0, hover.state == .compact {
             leaving.opening = nil
-            // And a plan shown on a row is a reading of its file from when it was opened: with the panel gone it
-            // is let go, so the next View Plan reads the file as it is then.
-            store.closePlanPreviews()
+            store.panelClosed()
         }
         endTransition(serial)
         refreshGlow()
