@@ -877,9 +877,9 @@ extension DemoFixtures {
         var approval = CursorCard(kind: .run, window: "api-server", heading: "Create /Users/me/notes/export-plan.md",
                                   options: [.init(label: "Skip", path: [0]), .init(label: "Run", path: [1])])
         approval.command = false
-        var question = CursorCard(kind: .question, window: "scout", heading: "Which queue should retries go through?",
+        var question = CursorCard(kind: .question, window: "scout", heading: "Which test runner should the new tests use?",
                                   options: [.init(label: "Skip", path: [3]), .init(label: "Continue", path: [4])])
-        let choices = ["A The existing Redis queue, which the importer already uses", "B A new table in Postgres", "C Other..."]
+        let choices = ["A Vitest, which the rest of the project already uses", "B Jest", "C Other..."]
         question.choices = choices
         question.questions = [.init(text: question.heading, choices: choices.enumerated().map { index, label in
             .init(label: label, path: [index], picked: index == 0, typed: index == 2)

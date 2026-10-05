@@ -1313,15 +1313,15 @@ import Testing
         #expect(!CursorCardView.answersHere(shown, hideDetails: false) && CursorCardView.offered(shown, hideDetails: false).isEmpty)
         // Every other card keeps its buttons whatever is hidden.
         #expect(CursorCardView.offered(run("proj"), hideDetails: true).map(\.label) == ["Skip", "Run"])
-        // A choice is drawn as its letter, set apart, and then its words: "B A new table" read as one run of words.
-        #expect(CursorCardView.lettered("B A new table in Postgres") == ("B", "A new table in Postgres"))
+        // A choice is drawn as its letter, set apart, and then its words: "B A second runner" read as one run of words.
+        #expect(CursorCardView.lettered("B A second runner") == ("B", "A second runner"))
         #expect(CursorCardView.lettered("A apple") == ("A", "apple"))
         #expect(CursorCardView.lettered("D Other...") == ("D", "Other..."))
         #expect(CursorCardView.lettered("apple") == (nil, "apple"), "a label with no letter of its own is drawn as it is")
         #expect(CursorCardView.lettered("a pple") == (nil, "a pple"))
         #expect(CursorCardView.lettered("A ") == (nil, "A "))
         // Where a choice is only listed, or spoken, it is one line of words.
-        #expect(CursorCardView.listed("B A new table in Postgres") == "B. A new table in Postgres")
+        #expect(CursorCardView.listed("B A second runner") == "B. A second runner")
         #expect(CursorCardView.listed("apple") == "apple")
         // Drawn, the card with its choices to press is the taller of the two.
         func height(_ card: CursorCard, hidden: Bool) -> CGFloat {
