@@ -13,8 +13,8 @@
 # notch opening on it alone, and closing when the card is answered in Cursor. Since 0.9.18 what a panel a card opened
 # still draws as it closes (the oracle's `leaving`): the card after one of Cursor's, nothing after a held call nobody
 # answered, and never every part, which is what it drew for the frames the close takes until then. Only a close under
-# a notch says it, so those two checks bite on a Mac that has one and pass unasked on a runner, which has none and
-# gets the edge layout.
+# a notch says it, and the run reads which layout it has from the screens the app lists at launch: with a notch each
+# of those closes must say exactly that, and without one (a runner, a login session off the console) must say nothing.
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
@@ -271,6 +271,15 @@ expect_none "a command that worked between failures ends the run" "$stuck and o.
 opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "cursorCard" and o.get("cards") == ["notice"]'
 closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "cursorCard"'
 opened_before="$(count "$opened")"; closed_before="$(count "$closed")"
+# What each close below must say it drew on its way out (the oracle's `leaving`). Under a notch the panel is on
+# screen for the frames the close takes and says what it still draws; an edge layout takes its card off in the turn
+# that closes it and says nothing. The run's own preferences put the panel on the built-in display, which is the
+# one with the notch when any screen has one.
+if [ "$(count 'o["event"] == "screens" and any(s.get("notch") for s in o.get("screens", []))')" -ge 1 ]; then
+  card_left='["notice"]'; prompt_left='[]'; layout="under the notch"
+else
+  card_left='None'; prompt_left='None'; layout="in the edge layout, which says nothing of a close"
+fi
 cursor e2e-card card-proj beforeSubmitPrompt
 cards '[{"kind":"run","window":"card-proj","heading":"ls -la","options":["Skip","Run"]}]'
 wait_for "Cursor's own card reaches its chat's row" 'o["event"] == "session" and o.get("action") == "cursorCard" and o.get("session") == "cursor:e2e-card"' 1 10
@@ -281,8 +290,8 @@ sleep 3
 cards '[]'
 wait_for "answered in Cursor, the notch closes with the card" "$closed" $((closed_before + 1)) 10
 # The panel on its way closed is still that card (0.9.18): drawn from the store, which the collapse has cleared by
-# then, it was every part of the panel at its full height. A close with no `leaving` is the edge layout's.
-expect_none "and under a notch it closes as that card, not as the whole panel" "$closed and o.get(\"leaving\") not in (None, [\"notice\"])"
+# then, it was every part of the panel at its full height.
+expect_none "and it closes as that card, not as the whole panel ($layout)" "$closed and o.get(\"leaving\") != $card_left"
 cursor e2e-card card-proj stop
 
 # *Require notch approval* with nobody at the notch: the call is held, the app's own hold runs out, and the hook
@@ -305,7 +314,7 @@ HELD_PID=""
 wait_for "and the app says it passed it back" 'o["event"] == "decision" and o.get("session") == "cursor:e2e-approve" and o.get("behavior") == "pass"' 1 5
 wait_for "and the notch closes with the request" "$prompt_closed" $((prompt_closed_before + 1)) 10
 # Nothing in the card's place once the request has ended, least of all every part (0.9.18).
-expect_none "and under a notch nothing takes the card's place on the way" "$prompt_closed and o.get(\"leaving\") not in (None, [])"
+expect_none "and nothing takes the card's place on the way ($layout)" "$prompt_closed and o.get(\"leaving\") != $prompt_left"
 
 # A compaction another assistant reports, start and end.
 hook codex '{"hook_event_name":"PreCompact","session_id":"e2e-codex","cwd":"'"$WORK"'/loud-proj","model":"gpt-5.5","trigger":"auto"}'
