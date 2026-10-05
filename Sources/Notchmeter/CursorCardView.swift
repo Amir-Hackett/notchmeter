@@ -79,8 +79,9 @@ struct CursorCardView: View {
                 Text(verbatim: heading).font(.caption2).foregroundStyle(Caption.style).lineLimit(2).truncationMode(.tail)
             }
             if !answered, !hideDetails, card.questions.count > 1 {
-                // Several questions that are only shown (read from Cursor's database, with its window out of
-                // reach): each after the first with its own words, and every one's choices under it.
+                // Several questions that are only shown (read from Cursor's database with its window out of reach,
+                // or from a window that does not say what is picked): each after the first with its own words,
+                // and every one's choices under it, so one question's choices do not read as another's.
                 ForEach(Array(card.questions.enumerated()), id: \.offset) { number, question in
                     VStack(alignment: .leading, spacing: 1) {
                         if number > 0, let text = question.text {

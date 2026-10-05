@@ -76,11 +76,14 @@ struct CursorCard: Equatable, Sendable, Identifiable {
     /// Every choice of a question card as Cursor letters it ("A apple"), in its order, one question's after
     /// another's. All there is of a card that can only be shown (`questions` is then empty).
     var choices: [String] = []
-    /// A question card's questions, when it can be answered from the notch: Cursor's window says which choices are
-    /// picked and takes a press on Continue (Cursor 3.23.12, 2026-10-05). A choice is picked with a press and the
-    /// card is then sent with Continue, as in Cursor: the window does not say whether a question takes one answer
-    /// or several, so the notch never sends on a pick. Empty for a card that is only shown and answered in Cursor.
-    /// What is picked is not part of `id`: a card is the same card while it is being answered.
+    /// A question card's questions, each with its own choices. Where the card can be answered from the notch
+    /// (`answerable`: Cursor's window says which choices are picked and takes a press on Continue, Cursor 3.23.12,
+    /// 2026-10-05), a choice is picked with a press and the card is then sent with Continue, as in Cursor: the
+    /// window does not say whether a question takes one answer or several, so the notch never sends on a pick.
+    /// Where it can only be shown they are kept to be drawn, each question with its own choices, and nothing of
+    /// them is pressed: with no `options` the card is not `answerable`. Empty only for a card read without them
+    /// (the stand-in's older form). What is picked is not part of `id`: a card is the same card while it is
+    /// being answered.
     var questions: [Question] = []
     /// Read from Cursor's own database and not from its window (CursorQuestions): the question is known, and
     /// where its window is does not matter, but there is nothing of it to press. Not part of `id`.
@@ -102,10 +105,12 @@ struct CursorCard: Equatable, Sendable, Identifiable {
     }
     /// Whether the card holds the turn until it is answered (a plan card waits for nobody).
     var blocksTurn: Bool { kind != .plan }
-    /// The same card with nothing to press: a question's choices as words, to be answered in Cursor.
+    /// The same card with nothing to press: its questions and their choices as words, to be answered in Cursor.
     var shownOnly: CursorCard {
         var card = CursorCard(kind: kind, window: window, chat: chat, heading: heading, options: [], fingerprint: fingerprint)
         card.choices = choices
+        // For display alone: with no options the card is not `answerable`, and nothing of it is pressed.
+        card.questions = questions
         card.command = command
         card.fromDatabase = fromDatabase
         return card
@@ -269,7 +274,9 @@ enum CursorCards {
                                   heading: asked.questions.first.flatMap(\.text) ?? heading(.question, texts: gathered.texts, commands: []),
                                   options: asked.answerable ? asked.options : [], fingerprint: hasher.finalize())
             card.choices = asked.labels
-            card.questions = asked.answerable ? asked.questions : []
+            // Kept whether or not the card can be answered: one that is only shown still shows each question
+            // with its own choices. What makes it answerable is its Skip and Continue, which it then has not got.
+            card.questions = asked.questions
             found.append(card)
             gathered.kinds.insert(.question)
             emitted = true
@@ -523,7 +530,8 @@ extension CursorCards {
     /// the notch showed there, by its words and by whether it is picked, and is not the one that is typed. Nil
     /// when the card has moved on since the notch drew it, and nothing is pressed.
     static func pickTarget(question: Int, choice: Int, shown: CursorCard, read: CursorCard) -> CursorCard.Choice? {
-        guard shown.id == read.id, shown.questions.indices.contains(question), read.questions.indices.contains(question),
+        guard shown.answerable, read.answerable, shown.id == read.id,
+              shown.questions.indices.contains(question), read.questions.indices.contains(question),
               shown.questions[question].choices.indices.contains(choice), read.questions[question].choices.indices.contains(choice) else { return nil }
         let wanted = shown.questions[question].choices[choice], target = read.questions[question].choices[choice]
         guard target.label == wanted.label, target.picked == wanted.picked, !target.typed else { return nil }
@@ -532,7 +540,7 @@ extension CursorCards {
 
     /// Whether the choice at that place reads as picked; nil when the card no longer has it, or says nothing of picks.
     static func picked(question: Int, choice: Int, in card: CursorCard) -> Bool? {
-        guard card.questions.indices.contains(question), card.questions[question].choices.indices.contains(choice) else { return nil }
+        guard card.answerable, card.questions.indices.contains(question), card.questions[question].choices.indices.contains(choice) else { return nil }
         return card.questions[question].choices[choice].picked
     }
 }

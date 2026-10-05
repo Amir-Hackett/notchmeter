@@ -1329,9 +1329,9 @@
 "Require notch approval for every command" = "모든 명령에 노치 승인 요구";
 "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "노치에서 Cursor에 답하는 데는 필요하지 않습니다. ‘Cursor 카드 미러링’이 Cursor 자체 카드를 노치로 가져옵니다. 이 설정은 그에 더해, Cursor가 묻지 않고 실행했을 것까지 포함해 모든 명령에 대해 묻습니다.";
 "Pressed %@, but Cursor's card is still showing" = "%@ 눌렀지만 Cursor 카드가 아직 보입니다";
-"Pressed %@, but Cursor does not show it picked" = "%@ 눌렀지만 Cursor에서 선택된 것으로 보이지 않습니다";
+"Pressed %@, but Cursor does not show it picked" = "%@ 선택지를 눌렀지만 Cursor에서 선택된 것으로 표시되지 않습니다";
 "Cursor's card changed before the press; nothing was pressed" = "누르기 전에 Cursor 카드가 바뀌었습니다. 아무것도 누르지 않았습니다";
-"Cursor would not take the press; answer it in Cursor" = "Cursor가 누름을 받지 않았습니다. Cursor에서 답하세요";
+"Cursor would not take the press; answer it in Cursor" = "Cursor가 버튼 입력을 받아들이지 않았습니다. Cursor에서 답하세요";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor가 실행하는 모든 셸 명령과 MCP 호출이 노치에서 허용 또는 거부를 기다립니다. Cursor 허용 목록이 묻지 않고 실행할 것도 포함됩니다. 답이 없으면 Cursor가 자체 확인을 보여 주며, 아무 응답 없이 실행되지 않습니다.";
 "Presses this button on Cursor's card" = "Cursor 카드의 이 버튼을 누릅니다";
 "Picks this choice on Cursor's card" = "Cursor 카드에서 이 선택지를 고릅니다";

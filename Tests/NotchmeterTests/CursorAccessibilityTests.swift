@@ -131,7 +131,8 @@ import Testing
         #expect(card.kind == .question)
         #expect(card.heading == "Which fruit?", "the question, not the card's own furniture or its numbering")
         #expect(card.choices == ["A apple", "B banana", "C cherry", "D Other..."], "as Cursor letters them")
-        #expect(card.options.isEmpty && card.questions.isEmpty, "read without what says a choice is picked, nothing is offered to press")
+        #expect(card.options.isEmpty && !card.answerable, "read without what says a choice is picked, nothing is offered to press")
+        #expect(card.questions.map(\.text) == ["Which fruit?"], "and the question is kept, to be shown")
         #expect(card.blocksTurn)
         #expect(CursorCards.detect(in: group([questionCard()]), title: "proj").count == 1)
         let next = try #require(CursorCards.detect(in: group([questionCard("Which colours?", ["red", "green", "blue"])]), title: "proj").first)
@@ -227,13 +228,19 @@ import Testing
     @Test func aQuestionCardThatDoesNotSayWhatIsPickedIsShownAndAnsweredInCursor() throws {
         // Letters with no classes: a press on a choice could not be checked, so none is offered.
         let silent = try #require(CursorCards.detect(in: group([askedCard(classes: false)]), title: "proj").first)
-        #expect(silent.questions.isEmpty && silent.options.isEmpty)
+        #expect(!silent.answerable && silent.options.isEmpty)
         #expect(silent.choices.count == 8 && silent.heading == "Pick a fruit", "it is still shown, every choice of it")
+        // Each question with its own choices: shown as one flat list, the second question's read as more of the first's.
+        #expect(silent.questions.map(\.text) == ["Pick a fruit", "Pick a color"])
+        #expect(silent.questions.map { $0.choices.map(\.label) } == [["A apple", "B banana", "C cherry", "D Other..."], ["A red", "B green", "C blue", "D Other..."]])
+        // Kept to be drawn, and for nothing else: no choice of such a card is a thing to press.
+        #expect(CursorCards.pickTarget(question: 0, choice: 0, shown: silent, read: silent) == nil)
+        #expect(CursorCards.picked(question: 0, choice: 0, in: silent) == nil)
         // Continue as a bare text, with nothing round it to take a press: the answers could not be sent.
         var bare = askedCard()
         bare.children[3] = text("Continue")
         let unsent = try #require(CursorCards.detect(in: group([bare]), title: "proj").first)
-        #expect(unsent.questions.isEmpty && unsent.options.isEmpty && unsent.choices.count == 8)
+        #expect(!unsent.answerable && unsent.options.isEmpty && unsent.choices.count == 8 && unsent.questions.count == 2)
         // Without one of its three words it is not known for a question card at all.
         var skipless = askedCard()
         skipless.children.remove(at: 2)
@@ -302,14 +309,15 @@ import Testing
         }
         rename(&renamed)
         let shown = try #require(CursorCards.detect(in: group([renamed]), title: "proj").first)
-        #expect(shown.questions.isEmpty && shown.options.isEmpty && shown.choices.count == 8)
+        #expect(!shown.answerable && shown.options.isEmpty && shown.choices.count == 8)
         // Read with and without what says a choice is picked, it is the same card: a read that came back short of
         // a letter has not seen another one.
         let answered = try #require(CursorCards.detect(in: group([askedCard()]), title: "proj").first)
         #expect(shown.id == answered.id)
         #expect(try #require(CursorCards.detect(in: group([askedCard(classes: false)]), title: "proj").first).id == answered.id)
-        #expect(answered.shownOnly.id == answered.id && answered.shownOnly.questions.isEmpty && answered.shownOnly.options.isEmpty)
+        #expect(answered.shownOnly.id == answered.id && !answered.shownOnly.answerable && answered.shownOnly.options.isEmpty)
         #expect(answered.shownOnly.choices == answered.choices)
+        #expect(answered.shownOnly.questions == answered.questions, "its questions are kept, each with its own choices, to be drawn")
     }
 
     @Test func aPickIsMadeOnlyAgainstTheCardAsTheNotchShowedIt() throws {
@@ -350,7 +358,8 @@ import Testing
                           text("Skip"), text("Continue")])
         let shown = try #require(CursorCards.detect(in: flat, title: "proj").first)
         #expect(shown.choices == ["A one", "B two", "A three", "B four"] && shown.heading == "First?")
-        #expect(shown.questions.isEmpty && shown.options.isEmpty)
+        #expect(!shown.answerable && shown.options.isEmpty)
+        #expect(shown.questions.map(\.text) == ["First?", "Second?"] && shown.questions.map { $0.choices.count } == [2, 2])
     }
 
     @Test func anApprovalThatIsNotACommandSaysWhatItIsFor() throws {

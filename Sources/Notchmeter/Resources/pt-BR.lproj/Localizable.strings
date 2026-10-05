@@ -1348,7 +1348,7 @@
 "Pressed %@, but Cursor's card is still showing" = "%@ pressionado, mas o cartão do Cursor ainda aparece";
 "Pressed %@, but Cursor does not show it picked" = "%@ pressionado, mas o Cursor não o mostra como selecionado";
 "Cursor's card changed before the press; nothing was pressed" = "O cartão do Cursor mudou antes do clique; nada foi pressionado";
-"Cursor would not take the press; answer it in Cursor" = "O Cursor não aceitou o toque; responda no Cursor";
+"Cursor would not take the press; answer it in Cursor" = "O Cursor não aceitou o clique; responda no Cursor";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cada comando de shell e chamada MCP do Cursor espera Permitir ou Negar no notch, inclusive os que a lista de permissões do Cursor rodaria sem perguntar. Sem resposta, o Cursor mostra o próprio pedido; nada roda no silêncio.";
 "Presses this button on Cursor's card" = "Pressiona este botão no cartão do Cursor";
 "Picks this choice on Cursor's card" = "Escolhe esta opção no cartão do Cursor";
