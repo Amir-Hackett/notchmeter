@@ -114,24 +114,32 @@ extension PanelPresenting {
 
 /// Reports each change of the panel's state to the oracle (Oracle.swift); the first report is the launch state.
 /// An opening also says what it opened on — the parts in the order drawn, and whether they staggered in — so a
-/// tester can check that the Sessions card led while a session was working without taking a screenshot.
+/// tester can check that the Sessions card led while a session was working without taking a screenshot. A close
+/// under the notch says what the panel still draws on its way out (`leaving`), which is how a run with no eyes on
+/// it can tell a panel that closes as the card it was from one that is every part for the frames the close takes.
 struct PanelReporter {
     private var reported: HoverIntent.State?
 
     @MainActor
     mutating func report(_ state: HoverIntent.State, cause: PanelCause, parts: [PanelPart]? = nil) {
         guard reported != state else { return }
-        Oracle.shared.emit("panel", Self.fields(state: state, cause: reported == nil ? .launch : cause, parts: parts,
+        // The launch state closes nothing, so it has nothing to say it left.
+        Oracle.shared.emit("panel", Self.fields(state: state, cause: reported == nil ? .launch : cause,
+                                                parts: reported == nil && state == .compact ? nil : parts,
                                                 staggered: !AccessibilityDisplay.shared.motionReduced))
         reported = state
     }
 
-    /// `cards` and `entrance` ride on an opening only: a closed panel has no parts to report.
+    /// `cards` and `entrance` ride on an opening; `leaving` rides on a close that says what it drew on the way.
     static func fields(state: HoverIntent.State, cause: PanelCause, parts: [PanelPart]?, staggered: Bool) -> [String: Any] {
         var fields: [String: Any] = ["state": state.rawValue, "cause": cause.rawValue]
-        if state == .expanded, let parts {
+        guard let parts else { return fields }
+        switch state {
+        case .expanded:
             fields["cards"] = parts.map(\.name)
             fields["entrance"] = staggered ? "staggered" : "none"
+        case .compact:
+            fields["leaving"] = parts.map(\.name)
         }
         return fields
     }
@@ -409,6 +417,8 @@ final class NotchController: NSObject, PanelPresenting {
     private var expanding = false
     /// What the panel was open on when it began to close, for the view still on screen while it does (PanelLeaving).
     private let leaving = PanelLeaving()
+    /// The closes whose morph has not finished (`compact`); `leaving` is let go when the last one has.
+    private var closing = 0
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -695,10 +705,19 @@ final class NotchController: NSObject, PanelPresenting {
         store.panelOpenedForPrompt = false
         store.attentionNotice = nil
         store.promptFocus = nil
-        reporter.report(.compact, cause: cause)
+        // What the view on screen draws from here until it has gone, read the way it reads it.
+        reporter.report(.compact, cause: cause,
+                        parts: NotchExpandedView(store: store, prefs: prefs, actions: actions, leaving: leaving).shownParts)
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
+        closing += 1
         await notch.compact(on: screen)
+        closing -= 1
+        // The panel has gone, and with it the need for what it was open on: a notice is a copy of its session,
+        // title and all, which `UsageStore.dropTitles` cannot reach here. Counted and not left to the serial: a
+        // second close asked for while the first is still on screen returns at once (DynamicNotchKit is already
+        // compact) and is then the latest transition, with the first's panel not yet gone.
+        if closing == 0, hover.state == .compact { leaving.opening = nil }
         endTransition(serial)
         refreshGlow()
     }

@@ -149,8 +149,14 @@ import Testing
         #expect(open["entrance"] as? String == "staggered")
         let reduced = PanelReporter.fields(state: .expanded, cause: .dwell, parts: [.prompt], staggered: false)
         #expect(reduced["entrance"] as? String == "none")
-        let closed = PanelReporter.fields(state: .compact, cause: .exit, parts: [.header], staggered: true)
-        #expect(closed["cards"] == nil && closed["entrance"] == nil)
+        let closed = PanelReporter.fields(state: .compact, cause: .exit, parts: nil, staggered: true)
+        #expect(closed["cards"] == nil && closed["entrance"] == nil && closed["leaving"] == nil)
         #expect(closed["state"] as? String == "compact")
+        // A close under the notch says what the panel still draws on its way out: nothing after an answered
+        // request's card, the one card after a glance, never `cards`.
+        let answered = PanelReporter.fields(state: .compact, cause: .notification, parts: [], staggered: true)
+        #expect(answered["leaving"] as? [String] == [] && answered["cards"] == nil && answered["entrance"] == nil)
+        let glanced = PanelReporter.fields(state: .compact, cause: .glance, parts: [.notice], staggered: false)
+        #expect(glanced["leaving"] as? [String] == ["notice"])
     }
 }

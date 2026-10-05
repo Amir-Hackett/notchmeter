@@ -10,7 +10,9 @@
 # on with nobody answering (both hand the call back to Cursor's own prompt). The answers themselves, pressed on
 # the notch, are scripts/e2e-cursor.sh. And a Cursor chat's run of failed commands, which may be stuck. Since 0.9.17
 # one of Cursor's own cards, through a stand-in for its window (--e2e-cursor-cards): the card on its chat's row, the
-# notch opening on it alone, and closing when the card is answered in Cursor.
+# notch opening on it alone, and closing when the card is answered in Cursor. Since 0.9.18 what a panel a card opened
+# still draws as it closes (the oracle's `leaving`): the card after one of Cursor's, nothing after a held call nobody
+# answered, and never every part, which is what it drew for the frames the close takes until then.
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
@@ -266,7 +268,10 @@ expect_none "a command that worked between failures ends the run" "$stuck and o.
 # card alone, to stay; answered in Cursor (the card leaves its window), the notch closes with it.
 opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "cursorCard" and o.get("cards") == ["notice"]'
 closed='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "cursorCard"'
-opened_before="$(count "$opened")"; closed_before="$(count "$closed")"
+# The panel on its way closed is still that card (0.9.18): drawn from the store, which the collapse has cleared by
+# then, it was every part of the panel at its full height.
+left_card="$closed and o.get(\"leaving\") == [\"notice\"]"
+opened_before="$(count "$opened")"; closed_before="$(count "$closed")"; left_card_before="$(count "$left_card")"
 cursor e2e-card card-proj beforeSubmitPrompt
 cards '[{"kind":"run","window":"card-proj","heading":"ls -la","options":["Skip","Run"]}]'
 wait_for "Cursor's own card reaches its chat's row" 'o["event"] == "session" and o.get("action") == "cursorCard" and o.get("session") == "cursor:e2e-card"' 1 10
@@ -276,14 +281,20 @@ sleep 3
   || { echo "FAIL: the notch closed while the card was still waiting" >&2; exit 1; }
 cards '[]'
 wait_for "answered in Cursor, the notch closes with the card" "$closed" $((closed_before + 1)) 10
+wait_for "and closes as that card, not as the whole panel" "$left_card" $((left_card_before + 1)) 5
 cursor e2e-card card-proj stop
 
 # *Require notch approval* with nobody at the notch: the call is held, the app's own hold runs out, and the hook
 # hands the call to Cursor's own prompt. Nothing runs on silence.
+prompt_opened='o["event"] == "panel" and o.get("state") == "expanded" and o.get("cause") == "notification" and o.get("cards") == ["prompt"]'
+# Nothing in the card's place once the request has ended, and not every part (0.9.18).
+prompt_left='o["event"] == "panel" and o.get("state") == "compact" and o.get("cause") == "notification" and o.get("leaving") == []'
+prompt_opened_before="$(count "$prompt_opened")"; prompt_left_before="$(count "$prompt_left")"
 cursor e2e-approve loud-proj beforeSubmitPrompt
 held_shell e2e-approve 'echo held' >"$WORK/held.out" &
 HELD_PID=$!
 wait_for "a shell command is held for the notch" "$heard and o.get(\"session\") == \"e2e-approve\" and o.get(\"request\") == \"permission\"" 1 10
+wait_for "and the notch opens on its card alone" "$prompt_opened" $((prompt_opened_before + 1)) 10
 # The app's hold is 15 seconds; a hook still waiting well past it is a failure, not something to sit out.
 for _ in $(seq 1 45); do kill -0 "$HELD_PID" 2>/dev/null || break; sleep 1; done
 if kill -0 "$HELD_PID" 2>/dev/null; then echo "FAIL: the held hook was still waiting 45 s on" >&2; exit 1; fi
@@ -292,6 +303,7 @@ HELD_PID=""
 [ "$(cat "$WORK/held.out")" = '{"permission":"ask"}' ] && echo "ok: unanswered, the held call goes to Cursor's own prompt" \
   || { echo "FAIL: the unanswered call printed: $(cat "$WORK/held.out")" >&2; exit 1; }
 wait_for "and the app says it passed it back" 'o["event"] == "decision" and o.get("session") == "cursor:e2e-approve" and o.get("behavior") == "pass"' 1 5
+wait_for "and the notch closes with nothing in the card's place, not as the whole panel" "$prompt_left" $((prompt_left_before + 1)) 10
 
 # A compaction another assistant reports, start and end.
 hook codex '{"hook_event_name":"PreCompact","session_id":"e2e-codex","cwd":"'"$WORK"'/loud-proj","model":"gpt-5.5","trigger":"auto"}'

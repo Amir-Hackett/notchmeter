@@ -177,7 +177,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         expanded = !held && (hover.mode == .always || expanded)
         layout(animated: panel.isVisible && wasExpanded != expanded)
         hover.adopt(expanded ? .expanded : .compact)
-        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu, parts: shownParts)
+        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu, parts: expanded ? shownParts : nil)
         hover.start()
         panel.orderFrontRegardless()
     }
@@ -264,7 +264,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
         case .none:
             return
         }
-        reporter.report(expanded ? .expanded : .compact, cause: cause, parts: shownParts)
+        // No parts on a close: the card is taken off in this same turn (`layout`), so it draws nothing on its way.
+        reporter.report(expanded ? .expanded : .compact, cause: cause, parts: expanded ? shownParts : nil)
         transitionSerial += 1
         let serial = transitionSerial
         let duration = layout(animated: true)
