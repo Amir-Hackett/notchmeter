@@ -152,6 +152,17 @@ enum AssetRenderer {
                 try write(panelCrop(SessionsCard(store: cursor, prefs: cursorPrefs, actions: actions), prefs: cursorPrefs).image,
                           png: directory.appendingPathComponent("cursor-cards.png"))
             }
+            // The notch opened on a question Cursor asks (0.9.19), for the site: the chat's card alone, as a question
+            // arrives, with its choices to pick, one of them picked, and Cursor's own Skip and Continue under them.
+            if let asking = cursor.sessions.all.first(where: { (cursor.cursorCards[$0.id] ?? []).contains { $0.kind == .question } }) {
+                var notice = AttentionNotice(session: asking, event: .waiting(blocking: true))
+                notice.forCursorCard = true
+                cursor.attentionNotice = notice
+                let opened = try Stage(store: cursor, prefs: cursorPrefs, actions: actions)
+                try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale),
+                          png: directory.appendingPathComponent("cursor-question.png"))
+                cursor.attentionNotice = nil
+            }
             // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
             // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
             // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.
