@@ -229,6 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
         store.cursorCardsChanged = { [weak self] started, ended in self?.cursorCardsChanged(started: started, ended: ended) }
+        store.handedOff = { [weak self] in self?.handedOff() }
         // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
         store.canPeek = { [weak self] in
             self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
@@ -893,6 +894,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if store.attentionNotice?.forCursorCard == true, presenters.contains(where: { $0.hover.state == .expanded }) {
             store.attentionNotice = nil
         }
+    }
+
+    /// A button on the panel sent the user to another app (View Plan): the panel closes, because it stands over the
+    /// middle of the screen and, under Open on click, nothing else closes it until a click somewhere else. A panel
+    /// with a request on it stays, since closing it would leave the hook held with no card to answer it on, and
+    /// Always open stays as it always does.
+    private func handedOff() {
+        guard store.sessions.pending(now: Date()).isEmpty else { return }
+        for presenter in presenters where presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .handOff) }
     }
 
     /// One of the app's own windows went while a request was showing: `promptRequested` declined to open over it,

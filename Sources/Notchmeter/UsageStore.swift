@@ -338,6 +338,12 @@ final class UsageStore {
     /// arrives is one change to the panel and not a close and an open racing each other. Wired by the app
     /// delegate, which opens the panel on the card and closes it again.
     @ObservationIgnored var cursorCardsChanged: (_ started: [AgentSession], _ ended: [String]) -> Void = { _, _ in }
+    /// Opens a plan file in Cursor and says whether it could (CursorPlanOpener, `cursorPlanAction`); a test swaps it
+    /// so that no app is launched.
+    @ObservationIgnored var openPlan: (String) -> Bool = { CursorPlanOpener.open($0) }
+    /// A button on the panel sent the user to another app (View Plan); wired by the app delegate, which closes the
+    /// panel so it is not left standing over what was just opened.
+    @ObservationIgnored var handedOff: () -> Void = {}
     /// When each card last left a row, by card id, and how soon after that the same card coming back is the same
     /// card seen again and no new wait to open the panel on: Cursor redraws its chat as it streams, and a card can
     /// be out of its tree for a read. Kept for that long only.
@@ -2899,10 +2905,13 @@ extension UsageStore {
     func cursorPlanAction(_ file: String, _ action: CursorPlanAction, sessionID: String) {
         switch action {
         case .view:
-            if !CursorPlanOpener.open(file) { noteCursorAction(L("The plan file is gone"), for: sessionID) }
+            // The plan is Cursor's to show, so the panel gets out of its way (`handedOff`): left open it stood over
+            // the plan it had just opened, under Open on click until a click somewhere else, and read as a button
+            // that had done nothing (2026-10-05).
+            if openPlan(file) { handedOff() } else { noteCursorAction(L("The plan file is gone"), for: sessionID) }
         case .build:
             guard prefs.cursorControl, cursorUI.trusted else {
-                _ = CursorPlanOpener.open(file)
+                _ = openPlan(file)
                 // With the switch on, what is missing is the permission, and the note says which.
                 noteCursorAction(prefs.cursorControl
                     ? L("Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter.")
@@ -2918,7 +2927,7 @@ extension UsageStore {
                 if let card = CursorCards.planCard(named: name, in: cards), let build = CursorCards.buildOption(of: card) {
                     self.pressCursorCard(card, option: build.label, sessionID: sessionID)
                 } else {
-                    _ = CursorPlanOpener.open(file)
+                    _ = openPlan(file)
                     self.noteCursorAction(L("Opened in Cursor: its Build card is not on screen, so press Build there"), for: sessionID)
                 }
             }
