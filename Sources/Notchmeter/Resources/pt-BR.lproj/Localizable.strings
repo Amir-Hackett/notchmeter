@@ -1346,9 +1346,12 @@
 "Require notch approval for every command" = "Exigir aprovação no notch para cada comando";
 "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Não é necessário para responder ao Cursor pelo notch: “Espelhar os cartões do Cursor” traz os pedidos do próprio Cursor para o notch. Esta opção pergunta também sobre cada comando, inclusive os que o Cursor teria rodado sem perguntar.";
 "Pressed %@, but Cursor's card is still showing" = "%@ pressionado, mas o cartão do Cursor ainda aparece";
+"Pressed %@, but Cursor does not show it picked" = "%@ pressionado, mas o Cursor não o mostra como selecionado";
 "Cursor's card changed before the press; nothing was pressed" = "O cartão do Cursor mudou antes do clique; nada foi pressionado";
+"Cursor would not take the press; answer it in Cursor" = "O Cursor não aceitou o toque; responda no Cursor";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cada comando de shell e chamada MCP do Cursor espera Permitir ou Negar no notch, inclusive os que a lista de permissões do Cursor rodaria sem perguntar. Sem resposta, o Cursor mostra o próprio pedido; nada roda no silêncio.";
 "Presses this button on Cursor's card" = "Pressiona este botão no cartão do Cursor";
+"Picks this choice on Cursor's card" = "Escolhe esta opção no cartão do Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Mostra os cartões Run, de troca de modo e de plano do Cursor na linha da sessão e pressiona o botão escolhido. Lê as janelas do Cursor pela Acessibilidade, nunca a tela.";
 "Cursor is waiting to run a command" = "O Cursor está esperando para rodar um comando";
 "Cursor is asking a question" = "O Cursor está fazendo uma pergunta";

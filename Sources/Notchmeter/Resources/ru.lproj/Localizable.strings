@@ -1346,9 +1346,12 @@
 "Require notch approval for every command" = "Требовать подтверждения в вырезе для каждой команды";
 "Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Не нужно, чтобы отвечать Cursor из выреза: «Отражать карточки Cursor» приносит туда собственные запросы Cursor. Эта настройка спрашивает ещё и о каждой команде, включая те, что Cursor выполнил бы без вопроса.";
 "Pressed %@, but Cursor's card is still showing" = "Нажато %@, но карточка Cursor всё ещё видна";
+"Pressed %@, but Cursor does not show it picked" = "Нажато %@, но Cursor не показывает его выбранным";
 "Cursor's card changed before the press; nothing was pressed" = "Карточка Cursor изменилась до нажатия; ничего не нажато";
+"Cursor would not take the press; answer it in Cursor" = "Cursor не принял нажатие; ответьте в Cursor";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Каждая команда оболочки и каждый вызов MCP в Cursor ждут Разрешить или Запретить в вырезе, даже те, что список разрешённого Cursor выполнил бы без вопроса. Без ответа Cursor показывает свой запрос; без ответа ничего не запускается.";
 "Presses this button on Cursor's card" = "Нажимает эту кнопку на карточке Cursor";
+"Picks this choice on Cursor's card" = "Выбирает этот вариант на карточке Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Показывает карточки Cursor с Run, сменой режима и планом в строке сессии и нажимает выбранную кнопку. Читает окна Cursor через Универсальный доступ, никогда не экран.";
 "Cursor is waiting to run a command" = "Cursor ждёт, чтобы выполнить команду";
 "Cursor is asking a question" = "Cursor задаёт вопрос";

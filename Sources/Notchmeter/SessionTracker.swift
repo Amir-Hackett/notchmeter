@@ -440,6 +440,10 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var quietFalseAlarms = 0
     /// The standing wait is one of Cursor's own cards, seen through Accessibility (CursorAccessibility): proof, not a guess.
     var cardWait = false
+    /// That wait began on a chat whose turn had ended: a question can outlive the turn that asked it
+    /// (CursorQuestions). When the card goes with no event to say what came next, the chat is back where it was,
+    /// not in a turn nobody started.
+    var cardWaitFromIdle = false
     /// A wait that may not be one (a turn gone quiet), as the banner, its sound and the notice word it. A wait
     /// Cursor's own card proved ends like a nudge but is said as the wait it is.
     var mayBeWaiting: Bool { quietNudge && !cardWait }
@@ -844,7 +848,10 @@ struct SessionTracker: Equatable, Sendable {
         let started = !session.isWaiting
         session.quietNudge = true
         session.cardWait = true
-        if started { session.state = .waiting(since: now) }
+        if started {
+            session.cardWaitFromIdle = session.state == .idle
+            session.state = .waiting(since: now)
+        }
         sessions[id] = session
         return started ? session : nil
     }
@@ -854,7 +861,8 @@ struct SessionTracker: Equatable, Sendable {
         guard var session = sessions[id], session.cardWait else { return false }
         session.cardWait = false
         let ended = session.isWaiting && session.pending == nil
-        if ended { session.state = .working(since: now) }
+        if ended { session.state = session.cardWaitFromIdle ? .idle : .working(since: now) }
+        session.cardWaitFromIdle = false
         sessions[id] = session
         return ended
     }

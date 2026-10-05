@@ -35,6 +35,8 @@ struct NoticeCard: View {
     var cursorCards: [CursorCard] = []
     var cursorPressing: Set<String> = []
     var cursorPress: (CursorCard, String) -> Void = { _, _ in }
+    /// Picks a choice of a question card: the card, the question's place and the choice's.
+    var cursorPick: (CursorCard, Int, Int) -> Void = { _, _, _ in }
     var answerInCursor: () -> Void = {}
     var cursorNote: String? = nil
     @Environment(\.density) private var density
@@ -68,6 +70,7 @@ struct NoticeCard: View {
             }
             ForEach(cursorCards, id: \.id) { card in
                 CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
+                               pick: { cursorPick(card, $0, $1) },
                                pressing: cursorPressing.contains(card.id), answerInCursor: answerInCursor)
             }
             if let cursorNote {

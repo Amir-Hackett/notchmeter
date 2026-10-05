@@ -47,7 +47,10 @@ enum CursorCapabilities {
         out.append(Entry(feature: "mode switch", source: cards ? .accessibility : .openOnly, reason: cardsReason))
         out.append(Entry(feature: "build", source: cards ? .accessibility : .openOnly, reason: cardsReason))
         out.append(Entry(feature: "view plan", source: .openOnly, reason: "shows the plan on its row; Open in Cursor opens the plan file"))
-        out.append(Entry(feature: "questions", source: .openOnly, reason: "Cursor's question card is not recognised yet"))
+        // A choice is picked and the card sent with Continue, each a press on Cursor's own card; an answer that is
+        // typed is given in Cursor.
+        out.append(Entry(feature: "questions", source: cards ? .accessibility : .openOnly,
+                         reason: cards ? "picks a choice and presses Continue on Cursor's card; a typed answer is given in Cursor" : cardsReason))
         return out
     }
 
