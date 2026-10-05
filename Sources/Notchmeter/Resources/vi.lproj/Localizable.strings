@@ -1325,6 +1325,7 @@
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Đã mở trong Cursor: bật “Phản chiếu thẻ của Cursor” để xây dựng từ notch";
 "Pressed %@ in Cursor" = "Đã bấm %@ trong Cursor";
 "Require notch approval for every command" = "Yêu cầu duyệt trong notch cho mọi lệnh";
+"Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Không cần để trả lời Cursor từ notch: “Phản chiếu thẻ của Cursor” đưa các lời nhắc của chính Cursor tới đó. Tùy chọn này còn hỏi về mọi lệnh, kể cả những lệnh Cursor lẽ ra đã chạy mà không hỏi.";
 "Pressed %@, but Cursor's card is still showing" = "Đã bấm %@, nhưng thẻ của Cursor vẫn hiện";
 "Cursor's card changed before the press; nothing was pressed" = "Thẻ của Cursor đã đổi trước khi bấm; chưa bấm gì";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Mọi lệnh shell và lệnh gọi MCP mà Cursor chạy đều chờ Cho phép hoặc Từ chối trong notch, kể cả những lệnh danh sách cho phép của Cursor sẽ chạy mà không hỏi. Không ai trả lời thì Cursor hiện lời nhắc của chính nó; không có gì chạy âm thầm.";

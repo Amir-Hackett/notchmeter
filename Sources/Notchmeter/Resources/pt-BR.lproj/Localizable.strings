@@ -1342,6 +1342,7 @@
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Aberto no Cursor: ative “Espelhar os cartões do Cursor” para construir pelo notch";
 "Pressed %@ in Cursor" = "%@ pressionado no Cursor";
 "Require notch approval for every command" = "Exigir aprovação no notch para cada comando";
+"Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Não é necessário para responder ao Cursor pelo notch: “Espelhar os cartões do Cursor” traz para ele os pedidos do próprio Cursor. Esta opção pergunta também sobre cada comando, inclusive os que o Cursor teria rodado sem perguntar.";
 "Pressed %@, but Cursor's card is still showing" = "%@ pressionado, mas o cartão do Cursor ainda aparece";
 "Cursor's card changed before the press; nothing was pressed" = "O cartão do Cursor mudou antes do clique; nada foi pressionado";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cada comando de shell e chamada MCP do Cursor espera Permitir ou Negar no notch, inclusive os que a lista de permissões do Cursor rodaria sem perguntar. Sem resposta, o Cursor mostra o próprio pedido; nada roda no silêncio.";

@@ -1342,6 +1342,7 @@
 "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Открыто в Cursor: включите «Отражать карточки Cursor», чтобы собирать из выреза";
 "Pressed %@ in Cursor" = "В Cursor нажато %@";
 "Require notch approval for every command" = "Требовать подтверждения в вырезе для каждой команды";
+"Not needed to answer Cursor from the notch: Mirror Cursor's cards brings Cursor's own prompts to it. This asks about every command on top of those, including the ones Cursor would have run without asking." = "Не нужно, чтобы отвечать Cursor из выреза: «Отражать карточки Cursor» приносит туда собственные запросы Cursor. Эта настройка спрашивает ещё и о каждой команде, включая те, что Cursor выполнил бы без вопроса.";
 "Pressed %@, but Cursor's card is still showing" = "Нажато %@, но карточка Cursor всё ещё видна";
 "Cursor's card changed before the press; nothing was pressed" = "Карточка Cursor изменилась до нажатия; ничего не нажато";
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Каждая команда оболочки и каждый вызов MCP в Cursor ждут Разрешить или Запретить в вырезе, даже те, что список разрешённого Cursor выполнил бы без вопроса. Без ответа Cursor показывает свой запрос; без ответа ничего не запускается.";
