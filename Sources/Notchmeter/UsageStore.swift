@@ -160,7 +160,8 @@ final class UsageStore {
     @ObservationIgnored var cursorChats = CursorSubagents.Places()
     @ObservationIgnored private var cursorUnplaced: [String: [(message: Hook.Message, at: Date, reply: HookSocket.Reply?)]] = [:]
     /// Stands in for that read of Cursor's database, so no test opens a real one. Nil from it is a read that failed.
-    @ObservationIgnored var cursorParentReader: (@Sendable (Set<String>) -> [String: CursorSubagents.Place]?)?
+    /// Its second word is whether a subagent's chat's name may be read with the rest (CursorChatNames.allowed).
+    @ObservationIgnored var cursorParentReader: (@Sendable (Set<String>, Bool) -> [String: CursorSubagents.Record]?)?
     /// The waits between its re-reads (CursorSubagents.retries); a test's are shorter.
     @ObservationIgnored var cursorParentRetries = CursorSubagents.retries
     /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
@@ -2574,16 +2575,19 @@ final class UsageStore {
     }
 
     /// The read of Cursor's database that says whose chat a conversation is; nil where there is none to read.
-    private var cursorParentRead: (@Sendable (Set<String>) -> [String: CursorSubagents.Place]?)? {
+    private var cursorParentRead: (@Sendable (Set<String>, Bool) -> [String: CursorSubagents.Record]?)? {
         if let reader = cursorParentReader { return reader }
         guard let database = (providers[.cursor] as? CursorProvider)?.stateDatabase else { return nil }
-        return { CursorSubagents.read(ids: $0, database: database) }
+        return { CursorSubagents.read(ids: $0, names: $1, database: database) }
     }
 
-    private func askCursorParent(of id: String, read: @escaping @Sendable (Set<String>) -> [String: CursorSubagents.Place]?, attempt: Int) {
+    private func askCursorParent(of id: String, read: @escaping @Sendable (Set<String>, Bool) -> [String: CursorSubagents.Record]?, attempt: Int) {
         Task { [weak self] in
             if attempt > 0, let self { try? await Task.sleep(for: self.cursorParentRetries[attempt - 1]) }
-            let found = await Task.detached(priority: .userInitiated) { read([id]) }.value
+            // A subagent's chat's name is read only while a title may be: decided as the read begins, and again
+            // before the name is kept.
+            let names = self.map { CursorChatNames.allowed(titles: $0.prefs.sessionTitles, hidesFigures: $0.hidesFigures) } ?? false
+            let found = await Task.detached(priority: .userInitiated) { read([id], names) }.value
             self?.cursorParentAnswered(found, of: id, read: read, attempt: attempt)
         }
     }
@@ -2593,14 +2597,17 @@ final class UsageStore {
     /// running, since this may be that subagent's chat, not saved yet. A read that failed, or one that still
     /// finds nothing, leaves the conversation a chat of its own, which is what it was before any of this was
     /// asked; if it is a subagent's after all, its end says so (placedCursorEvent).
-    private func cursorParentAnswered(_ found: [String: CursorSubagents.Place]?, of id: String,
-                                      read: @escaping @Sendable (Set<String>) -> [String: CursorSubagents.Place]?, attempt: Int) {
+    private func cursorParentAnswered(_ found: [String: CursorSubagents.Record]?, of id: String,
+                                      read: @escaping @Sendable (Set<String>, Bool) -> [String: CursorSubagents.Record]?, attempt: Int) {
         let running = sessions.all.contains { $0.tool == .cursor && $0.host == nil && !$0.agents.isEmpty }
         if let found, found[id] == nil, cursorChats[id] == nil, running, attempt < cursorParentRetries.count, cursorUnplaced[id] != nil {
             askCursorParent(of: id, read: read, attempt: attempt + 1)
             return
         }
-        if case .child(let parent)? = found?[id] { placeCursorSubagent(id, under: parent, from: "Cursor's database", now: Date()) }
+        if let record = found?[id], case .child(let parent) = record.place {
+            placeCursorSubagent(id, under: parent, from: "Cursor's database", now: Date())
+            nameCursorSubagent(id, record)
+        }
         // Placed one way or the other before its events come back, or they would only be asked about again.
         if cursorChats[id] == nil {
             cursorChats.settle(id, as: .own)
@@ -2613,6 +2620,17 @@ final class UsageStore {
             if event.message.request != nil, event.reply?.isPeerClosed == true { continue }
             hookReceived(event.message, now: event.at, reply: event.reply)
         }
+    }
+
+    /// What Cursor's record of a subagent's chat says of the subagent, put on its line of its conversation's row
+    /// (SessionTracker.describeAgent): the chat it runs as, so the model that chat's events name is the line's,
+    /// and Cursor's name for the chat, kept only while a title may be.
+    private func nameCursorSubagent(_ child: String, _ record: CursorSubagents.Record) {
+        guard let call = record.call, case .child(let parent)? = cursorChats[child] else { return }
+        let name = CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures) ? record.name : nil
+        var tracker = sessions
+        tracker.describeAgent(on: SessionTracker.key(tool: .cursor, session: cursorChats.top(of: parent), host: nil), call: call, chat: child, name: name)
+        if tracker != sessions { sessions = tracker }
     }
 
     /// `child` is the chat a subagent of `parent` runs as: its events are that chat's row's from here on, and a

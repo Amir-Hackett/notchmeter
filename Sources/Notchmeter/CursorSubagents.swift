@@ -19,6 +19,12 @@ import Foundation
 /// once; that conversation's events wait for it, in order, so a subagent is never given a row to take away
 /// again. `subagentStop` names the subagent's chat as well (`child_conversation_id`), which places one the
 /// database could not.
+///
+/// Since 0.9.22 the same read says what a subagent is doing, for its line on the row: of a chat that is a
+/// subagent's, and of no other, `$.subagentInfo.toolCallId`, the tool call that started it, which its
+/// `subagentStart` names too and so matches the chat to its line; and `$.name`, Cursor's own name for the chat,
+/// which is the few words the subagent was started with. The name is the session's work in other words, so it is
+/// read and held only as a title is (CursorChatNames.allowed), and never logged.
 enum CursorSubagents {
     /// Where a conversation stands.
     enum Place: Equatable, Sendable {
@@ -41,6 +47,16 @@ enum CursorSubagents {
     /// being compacted. It counts as activity there and as nothing else.
     static let chatEvent = "SubagentChat"
 
+    /// What the database holds of one conversation: where it stands, and for a subagent's chat what its line on
+    /// the row is matched and named by.
+    struct Record: Equatable, Sendable {
+        var place: Place
+        /// The tool call that started the subagent (`subagentInfo.toolCallId`), as its `subagentStart` names it.
+        var call: String? = nil
+        /// Cursor's name for the chat, cleaned as a title is; nil where names were not to be read.
+        var name: String? = nil
+    }
+
     /// The chat a record's chat works for, as Cursor itself decides it (the `isSubagent` it keeps beside each
     /// header): the parent its `subagentInfo` names, unless the chat is one of several answers to one prompt,
     /// which Cursor lists as chats.
@@ -49,37 +65,46 @@ enum CursorSubagents {
         THEN json_extract(value, '$.subagentInfo.parentComposerId') END
         """
 
-    /// The place of each of `ids` the database holds a chat for; one it holds nothing of is absent. Nil when the
-    /// database could not be read at all (not there, not copied, not opened), which says nothing of any chat. A
-    /// subagent's subagent is placed under the chat at the top, where its row is.
-    static func read(ids: Set<String>, database: URL) -> [String: Place]? {
+    /// The columns read of a chat's record: the chat it works for, and, only of a chat that works for one, the
+    /// tool call that started it and (where `names`) its name.
+    private static func columns(names: Bool) -> String {
+        let name = names ? "CASE WHEN \(worksFor) IS NOT NULL THEN json_extract(value, '$.name') END" : "NULL"
+        return "\(worksFor), CASE WHEN \(worksFor) IS NOT NULL THEN json_extract(value, '$.subagentInfo.toolCallId') END, \(name)"
+    }
+
+    /// What the database holds of each of `ids`; one it holds nothing of is absent. Nil when the database could
+    /// not be read at all (not there, not copied, not opened), which says nothing of any chat. A subagent's
+    /// subagent is placed under the chat at the top, where its row is. `names` is whether a subagent's chat's
+    /// name is read with the rest (CursorChatNames.allowed).
+    static func read(ids: Set<String>, names: Bool = false, database: URL) -> [String: Record]? {
         let ids = ids.filter(CursorChatNames.isConversationID)
         guard !ids.isEmpty else { return [:] }
         guard FileManager.default.fileExists(atPath: database.path) else { return nil }
         return try? CursorProvider.withStateCopy(of: database) { db in
-            var places: [String: Place] = [:]
+            var records: [String: Record] = [:]
             for id in ids {
-                guard var place = record(db, id) else { continue }
+                guard var found = record(db, id, names: names) else { continue }
                 var seen: Set<String> = [id]
-                while case .child(let parent) = place, seen.count <= depth, seen.insert(parent).inserted,
-                      case .child(let above)? = record(db, parent), !seen.contains(above) {
-                    place = .child(of: above)
+                while case .child(let parent) = found.place, seen.count <= depth, seen.insert(parent).inserted,
+                      case .child(let above)? = record(db, parent, names: false)?.place, !seen.contains(above) {
+                    found.place = .child(of: above)
                 }
-                places[id] = place
+                records[id] = found
             }
-            return places
+            return records
         }
     }
 
     /// What the database says of one chat by itself; nil for a chat it holds nothing of. The header where there
     /// is one, a small row, and the chat's whole record only for a chat with no header yet: Cursor writes the
     /// record as it creates the chat and the header a moment later.
-    private static func record(_ db: OpaquePointer, _ id: String) -> Place? {
-        let found = CursorQuestions.rows(db, "SELECT \(worksFor) FROM composerHeaders WHERE composerId = ?1 LIMIT 1", id).first
-            ?? CursorQuestions.rows(db, "SELECT \(worksFor) FROM cursorDiskKV WHERE key = ?1 LIMIT 1", "composerData:" + id).first
-        guard let found else { return nil }
-        guard let parent = found.first ?? nil, CursorChatNames.isConversationID(parent), parent != id else { return .own }
-        return .child(of: parent)
+    private static func record(_ db: OpaquePointer, _ id: String, names: Bool) -> Record? {
+        let columns = columns(names: names)
+        let found = CursorQuestions.rows(db, "SELECT \(columns) FROM composerHeaders WHERE composerId = ?1 LIMIT 1", id).first
+            ?? CursorQuestions.rows(db, "SELECT \(columns) FROM cursorDiskKV WHERE key = ?1 LIMIT 1", "composerData:" + id).first
+        guard let found, found.count == 3 else { return nil }
+        guard let parent = found[0], CursorChatNames.isConversationID(parent), parent != id else { return Record(place: .own) }
+        return Record(place: .child(of: parent), call: Hook.callID(found[1]), name: Hook.title(fromPrompt: found[2]))
     }
 
     /// The places settled so far, the newest `kept` of them. A conversation let go of costs one more read if it
@@ -118,7 +143,8 @@ enum CursorSubagents {
     /// as activity only (`chatEvent`, and Codex's name for a subagent's prompt), since the parent's turn neither
     /// starts nor ends with it. A command it runs, a call held for the notch and a failed tool cross as they
     /// are: they are what the conversation is doing. A subagent it starts in turn, or the end of one, is counted
-    /// on the same row under that subagent's own id. The project and the branch cross only where the parent has
+    /// on the same row under that subagent's own id. Its model crosses as the subagent's (`agentModel`), never
+    /// as the conversation's. The project and the branch cross only where the parent has
     /// no row to carry them yet (`naming`): they are read from the same window and so are the parent's too, but
     /// a row that has its own is not renamed on a subagent's word.
     static func folded(_ message: Hook.Message, from child: String, into parent: String, naming: Bool) -> Hook.Message {
@@ -137,6 +163,10 @@ enum CursorSubagents {
         folded.toolFailure = message.toolFailure
         folded.source = message.source
         folded.truncated = message.truncated
+        // The model the chat's own event names is the subagent's, for its line; a subagent it starts in turn
+        // keeps what its own start said of it.
+        folded.agentModel = counted ? message.agentModel : message.reportedModel
+        folded.agentCall = counted ? message.agentCall : nil
         return folded
     }
 }

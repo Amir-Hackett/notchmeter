@@ -184,6 +184,14 @@ extension Hook {
         return id
     }
 
+    /// A tool call's id, as an assistant writes one (`toolu_…`, `call_…`, a UUID): letters, digits and the few
+    /// marks ids are joined with, 128 characters at most. Nil for anything else, which is no id of a vendor's.
+    static func callID(_ value: Any?) -> String? {
+        guard let id = value as? String, !id.isEmpty, id.count <= 128,
+              id.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || "-_:.".unicodeScalars.contains($0) }) else { return nil }
+        return id
+    }
+
     /// `PostModelSwitch`'s `to_model`, `from_model` and `source`; nil without a `to_model` shaped like an id. The
     /// cost fields beside them (`context_tokens`, `estimated_cache_write_usd`, `pricing`, `prompt_cache_warm`,
     /// `cache_ttl`) and `requested_model` are left in the payload: the notch shows the model a session runs on and

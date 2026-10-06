@@ -2,6 +2,30 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.22](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.22) — 2026-10-06
+
+0.9.20 and 0.9.21 were test builds and were not offered as updates, so these notes cover everything since 0.9.19.
+
+### Cursor's subagents
+
+- **A subagent's work is on its conversation's row, not on a row of its own.** Cursor runs a subagent as a chat of its own that no window lists, and what that chat sends names it alone, so each subagent stood on the Sessions card as a second session beside the conversation that started it. Notchmeter now reads from Cursor's database which chat a new conversation works for, before that conversation is given a row, and a subagent's commands and thoughts are activity on its conversation's row.
+- **Each subagent's line says what it is working on.** Open the subagent chip on a Cursor row and each running subagent's line carries the name Cursor gives its task and the model it runs on, where it said only *Subagent 1*. The name is shown as a title is: only with *Show what a session is working on* on and the screen not shared.
+- The conversation's row no longer goes quiet while its subagent works, so it is not shown as one that *may be waiting* some 45 seconds into a subagent's run. A subagent finishing is not the turn finishing and gives no tick, and the row keeps the conversation's own model while a subagent runs on another.
+- A command a subagent is held for under *Require notch approval* is answered on its conversation's row, and a held command is no longer taken off the notch by a subagent starting beside it.
+- Where Cursor's database cannot say whose chat a conversation is, the subagent has a row as before, and the row goes as the subagent ends, where Cursor's hook names the chat it ran as. A subagent left running after its conversation's turn has ended moves that row's clock and nothing else. All of this is for Cursor on this Mac.
+- What is read for it, through the same private copy as every other read of Cursor's state database: from a conversation's own record and that of each chat above it, the id of the chat it works for and one flag; and of a subagent's chat, the id of the tool call that started it and its name. It was worked out from Cursor 3.23.23's own code; Cursor's hooks reference documents none of it.
+
+### Cursor's questions
+
+- **A question Cursor asks is answered from the notch, and Cursor stays where it is.** The question is read from Cursor's own database, so its choices are buttons on the notch whether Cursor is in front, behind another app, minimised or hidden. Pick there and press **Continue**: Notchmeter finds Cursor's own card for the question, puts your picks on it and presses its Continue, without bringing Cursor forward. **Skip** works the same way.
+- A pick is made on the notch and nothing is sent until **Continue**, as in Cursor, and Continue is held until every question on the card has a pick. The choices are lettered as Cursor's own card letters them, and the typed choice, *Other...*, takes you to Cursor, where it is typed.
+- Where Cursor's own card cannot be reached, the row says *Could not reach this question in Cursor's window; answer it in Cursor*, nothing is sent, and the question keeps **Answer in Cursor**. That is a chat that is not the one its window is showing, a question card minimised to its header in Cursor, a window on another Space, perhaps a window that is itself minimised, or a question asked in Cursor's Agents window. Nor is an answer sent on a guess between two chats asking the same question.
+
+### Fixes
+
+- A question the agent asked with a word in bold or a command in it is no longer taken for a different question from the one Cursor's window shows.
+- A question answered from the notch is not put back on its row by a read of Cursor's database taken in the moment before Cursor had written the answer.
+
 ## [0.9.21](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.21) — 2026-10-06
 
 ### Cursor

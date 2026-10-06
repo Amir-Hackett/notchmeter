@@ -39,6 +39,7 @@ import Testing
         first.reportedModel = "small-fast"
         let naming = CursorSubagents.folded(first, from: "child-1", into: "parent-1", naming: true)
         #expect(naming.project == "atlas" && naming.branch == "main" && naming.reportedModel == nil)
+        #expect(naming.agentModel == "small-fast" && folded.agentModel == "small-fast", "the chat's model is its subagent's, for its line")
         #expect(folded.reportedModel == nil && folded.composerMode == nil && folded.title == nil && folded.transcriptPath == nil)
         #expect(folded.planFile == nil && !folded.planBuild && !folded.background && folded.context == nil && folded.compaction == nil)
         #expect(folded.toolFailure == thought.toolFailure, "a failed tool is what the conversation is doing")
@@ -57,6 +58,12 @@ import Testing
         // A subagent the subagent started is counted on the same row, under its own id.
         let nested = CursorSubagents.folded(event("SubagentStart", "child-1", agent: "grandchild-task"), from: "child-1", into: "parent-1", naming: false)
         #expect(nested.event == "SubagentStart" && nested.agentID == "grandchild-task" && nested.sessionID == "parent-1")
+        var named = event("SubagentStart", "child-1", agent: "grandchild-task")
+        named.agentCall = "toolu_02"
+        named.agentModel = "small-fast"
+        named.reportedModel = "big-model"
+        let kept = CursorSubagents.folded(named, from: "child-1", into: "parent-1", naming: false)
+        #expect(kept.agentCall == "toolu_02" && kept.agentModel == "small-fast" && kept.reportedModel == nil, "what its own start said of it")
     }
 
     @Test func theTrackerKeepsTheParentsTurnThroughItsSubagentsEvents() {
@@ -120,6 +127,44 @@ import Testing
         #expect(guessed.quietNudges(now: t0.addingTimeInterval(2 + guessed.quietAfter)).count == 1)
         guessed.apply(event("SubagentStart", "parent-1", agent: "task-1"), now: t0.addingTimeInterval(3 + guessed.quietAfter))
         #expect(guessed.sessions[key("parent-1")]?.isWorking == true)
+    }
+
+    @Test func aSubagentsLineSaysWhatCursorCallsItAndWhatItRunsOn() {
+        var tracker = SessionTracker()
+        tracker.apply(event("UserPromptSubmit", "parent-1"), now: t0)
+        var first = event("SubagentStart", "parent-1", agent: "agent-a")
+        first.agentCall = "toolu_01"
+        var second = event("SubagentStart", "parent-1", agent: "toolu_02")
+        second.agentModel = "small-fast"
+        tracker.apply(first, now: t0.addingTimeInterval(1))
+        tracker.apply(second, now: t0.addingTimeInterval(2))
+        tracker.apply(event("SubagentStart", "parent-1", agent: "agent-c"), now: t0.addingTimeInterval(3))
+        var details: [String: AgentDetail] { tracker.sessions[key("parent-1")]?.agentDetails ?? [:] }
+        #expect(details == ["agent-a": AgentDetail(call: "toolu_01"), "toolu_02": AgentDetail(model: Hook.tidyModelName("small-fast"))])
+        // Found by the call that started it, or by its own id where Cursor uses the call for both.
+        tracker.describeAgent(on: key("parent-1"), call: "toolu_01", chat: "child-1", name: "List the fonts")
+        tracker.describeAgent(on: key("parent-1"), call: "toolu_02", chat: "child-2", name: nil)
+        tracker.describeAgent(on: key("parent-1"), call: "toolu_09", chat: "child-9", name: "Nobody's")
+        tracker.describeAgent(on: "cursor:nobody", call: "toolu_01", chat: "child-1", name: "Nobody's")
+        #expect(details["agent-a"] == AgentDetail(call: "toolu_01", chat: "child-1", name: "List the fonts"))
+        #expect(details["toolu_02"] == AgentDetail(chat: "child-2", model: Hook.tidyModelName("small-fast")) && details.count == 2)
+        // The model its own chat's events name is the line's, whatever its start said.
+        var thought = event("afterAgentThought", "child-1")
+        thought.reportedModel = "big-model"
+        tracker.apply(CursorSubagents.folded(thought, from: "child-1", into: "parent-1", naming: false), now: t0.addingTimeInterval(4))
+        #expect(details["agent-a"]?.model == Hook.tidyModelName("big-model") && tracker.sessions[key("parent-1")]?.model == nil)
+        // A name held stays when the chat is described again without one, and goes with the titles.
+        tracker.describeAgent(on: key("parent-1"), call: "toolu_01", chat: "child-1", name: nil)
+        #expect(details["agent-a"]?.name == "List the fonts")
+        #expect(tracker.sessions[key("parent-1")]?.withoutTitles().agentDetails["agent-a"] == AgentDetail(call: "toolu_01", chat: "child-1", model: Hook.tidyModelName("big-model")))
+        // What was known of a subagent goes with it: stopped, timed out, or its turn ended.
+        tracker.apply(event("SubagentStop", "parent-1", agent: "agent-a"), now: t0.addingTimeInterval(5))
+        #expect(details.keys.sorted() == ["toolu_02"])
+        tracker.expire(now: t0.addingTimeInterval(2 + SessionTracker.agentTimeout))
+        #expect(details.isEmpty && tracker.sessions[key("parent-1")]?.agents.keys.sorted() == ["agent-c"])
+        tracker.apply(first, now: t0.addingTimeInterval(700))
+        tracker.apply(event("Stop", "parent-1"), now: t0.addingTimeInterval(701))
+        #expect(details.isEmpty)
     }
 
     @Test func aDroppedSessionLeavesNothingToComeBack() {
@@ -204,7 +249,8 @@ import Testing
         INSERT INTO composerHeaders (composerId, isSubagent, value) VALUES ('loop-2', 1, '{"subagentInfo":{"parentComposerId":"loop-1"}}');
         """)
         let ids: Set<String> = ["parent-1", "child-1", "fresh-1", "plain-1", "grand-1", "answer-1", "odd-1", "self-1", "torn-1", "unheard-1", "bad id;"]
-        let places = try #require(CursorSubagents.read(ids: ids, database: database))
+        let records = try #require(CursorSubagents.read(ids: ids, database: database))
+        let places = records.mapValues(\.place)
         #expect(places["parent-1"] == .own)
         #expect(places["child-1"] == .child(of: "parent-1"))
         #expect(places["fresh-1"] == .child(of: "parent-1"), "a chat with no header yet is read from its own record")
@@ -215,7 +261,7 @@ import Testing
         #expect(places["unheard-1"] == nil && places["bad id;"] == nil, "a chat the database holds nothing of is absent")
         #expect(places.count == 9)
         // Two chats each said to work for the other are read without going round for ever.
-        #expect(CursorSubagents.read(ids: ["loop-1"], database: database) == ["loop-1": .child(of: "loop-2")])
+        #expect(CursorSubagents.read(ids: ["loop-1"], database: database)?.mapValues(\.place) == ["loop-1": .child(of: "loop-2")])
         #expect(CursorSubagents.read(ids: ["child-1"], database: directory.appendingPathComponent("missing.vscdb")) == nil, "no database says nothing of any chat")
         // The header is believed where there is one, and the chat's whole record is not read beside it.
         var db: OpaquePointer?
@@ -229,10 +275,33 @@ import Testing
         for level in 1...8 { rows += "INSERT INTO composerHeaders (composerId, isSubagent, value) VALUES ('deep-\(level)', 1, '{\"subagentInfo\":{\"parentComposerId\":\"deep-\(level - 1)\"}}');" }
         #expect(sqlite3_exec(db, rows, nil, nil, nil) == SQLITE_OK)
         sqlite3_close(db)
-        #expect(CursorSubagents.read(ids: ["both-1"], database: database) == ["both-1": .own])
-        #expect(CursorSubagents.read(ids: ["deep-3"], database: database) == ["deep-3": .child(of: "deep-0")])
-        #expect(CursorSubagents.read(ids: ["deep-8"], database: database) == ["deep-8": .child(of: "deep-3")], "followed five chats up and no further")
+        #expect(CursorSubagents.read(ids: ["both-1"], database: database) == ["both-1": CursorSubagents.Record(place: .own)])
+        #expect(CursorSubagents.read(ids: ["deep-3"], database: database)?.mapValues(\.place) == ["deep-3": .child(of: "deep-0")])
+        #expect(CursorSubagents.read(ids: ["deep-8"], database: database)?.mapValues(\.place) == ["deep-8": .child(of: "deep-3")], "followed five chats up and no further")
         #expect(CursorSubagents.read(ids: [], database: database) == [:])
+    }
+
+    @Test func aSubagentsChatSaysWhatStartedItAndWhatItIsCalled() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-subagents-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try database(in: directory, """
+        INSERT INTO composerHeaders (composerId, isSubagent, value) VALUES ('parent-1', 0, '{"composerId":"parent-1","name":"Tidy the palette"}');
+        INSERT INTO composerHeaders (composerId, isSubagent, value) VALUES ('child-1', 1, '{"composerId":"child-1","name":"  List  the fonts  ","subagentInfo":{"parentComposerId":"parent-1","toolCallId":"toolu_01AbC-2"}}');
+        INSERT INTO cursorDiskKV (key, value) VALUES ('composerData:fresh-1', '{"composerId":"fresh-1","name":"Count the colours","subagentInfo":{"parentComposerId":"parent-1","toolCallId":"call_9"}}');
+        INSERT INTO composerHeaders (composerId, isSubagent, value) VALUES ('bare-1', 1, '{"composerId":"bare-1","subagentInfo":{"parentComposerId":"parent-1","toolCallId":"not a call id"}}');
+        INSERT INTO composerHeaders (composerId, isSubagent, value) VALUES ('grand-1', 1, '{"composerId":"grand-1","name":"Name the greys","subagentInfo":{"parentComposerId":"child-1","toolCallId":"toolu_02"}}');
+        """)
+        let ids: Set<String> = ["parent-1", "child-1", "fresh-1", "bare-1", "grand-1"]
+        let named = try #require(CursorSubagents.read(ids: ids, names: true, database: database))
+        #expect(named["child-1"] == CursorSubagents.Record(place: .child(of: "parent-1"), call: "toolu_01AbC-2", name: "List the fonts"))
+        #expect(named["fresh-1"] == CursorSubagents.Record(place: .child(of: "parent-1"), call: "call_9", name: "Count the colours"))
+        #expect(named["bare-1"] == CursorSubagents.Record(place: .child(of: "parent-1")), "a chat with no name and no call id worth the name says neither")
+        #expect(named["grand-1"] == CursorSubagents.Record(place: .child(of: "parent-1"), call: "toolu_02", name: "Name the greys"), "its own call and name, under the chat at the top")
+        #expect(named["parent-1"] == CursorSubagents.Record(place: .own), "a chat of its own is not read for a name here")
+        // Where names are not to be read, the call still is: it is an id.
+        let unnamed = try #require(CursorSubagents.read(ids: ids, names: false, database: database))
+        #expect(unnamed["child-1"] == CursorSubagents.Record(place: .child(of: "parent-1"), call: "toolu_01AbC-2"))
+        #expect(unnamed.values.allSatisfy { $0.name == nil })
     }
 
     @Test func aDatabaseWithoutCursorsTablesHoldsNothingOfAnyChat() throws {
@@ -258,12 +327,18 @@ import Testing
         #expect(stop.event == "SubagentStop" && stop.sessionID == "parent-1" && stop.agentID == "task-1")
         #expect(stop.childSessionID == "child-1")
         #expect(stop.reportedModel == nil, "the model on a subagent's event is the subagent's")
-        let start = try #require(parse(#"{"hook_event_name":"subagentStart","conversation_id":"parent-1","parent_conversation_id":"parent-1","subagent_id":"task-1","child_conversation_id":"child-1","model":"small-fast","subagent_model":"small-fast"}"#))
+        let start = try #require(parse(#"{"hook_event_name":"subagentStart","conversation_id":"parent-1","parent_conversation_id":"parent-1","subagent_id":"task-1","child_conversation_id":"child-1","model":"small-fast","subagent_model":"small-fast","tool_call_id":"toolu_01AbC-2","task":"List the fonts the page uses"}"#))
         #expect(start.reportedModel == nil && start.childSessionID == nil, "only the end is read for the chat")
+        #expect(start.agentCall == "toolu_01AbC-2" && start.agentModel == "small-fast", "what its line is matched and labelled by")
+        #expect(start.title == nil, "the task it was given is not read")
+        #expect(Hook.Message(userInfo: start.userInfo) == start)
+        #expect(stop.agentCall == nil && stop.agentModel == nil)
+        let odd = try #require(parse(#"{"hook_event_name":"subagentStart","conversation_id":"parent-1","subagent_id":"task-1","tool_call_id":"not a call id","subagent_model":"not a model!"}"#))
+        #expect(odd.agentCall == nil && odd.agentModel == nil)
         let shell = try #require(parse(#"{"hook_event_name":"afterShellExecution","conversation_id":"parent-1","child_conversation_id":"child-1","model":"big-model"}"#))
         #expect(shell.reportedModel == "big-model" && shell.childSessionID == nil)
-        let odd = try #require(parse(#"{"hook_event_name":"subagentStop","conversation_id":"parent-1","child_conversation_id":"not an id;"}"#))
-        #expect(odd.childSessionID == nil)
+        let oddStop = try #require(parse(#"{"hook_event_name":"subagentStop","conversation_id":"parent-1","child_conversation_id":"not an id;"}"#))
+        #expect(oddStop.childSessionID == nil)
         // Over the socket and back, and nothing on the line of an event that names none.
         #expect(Hook.Message(userInfo: stop.userInfo) == stop)
         #expect(start.userInfo[Hook.childSessionKey] == nil)
@@ -281,23 +356,38 @@ import Testing
 
     /// What a stand-in for the database was asked, and what it answers, from any thread.
     final class Database: Sendable {
-        private let state = OSAllocatedUnfairLock(initialState: (asked: [String](), answers: [[String: CursorSubagents.Place]?]()))
+        private let state = OSAllocatedUnfairLock(initialState: (asked: [String](), named: [Bool](), answers: [[String: CursorSubagents.Place]?]()))
+        /// What the database holds of a subagent's chat beyond whose it is, by conversation.
+        private let more: [String: (call: String, name: String?)]
         /// A conversation whose read takes this long, for what arrives while it is out.
         private let slow: (id: String, seconds: TimeInterval)?
         /// What the database holds of each conversation, where that is a rule and not a list of answers.
         private let rule: (@Sendable (String) -> CursorSubagents.Place?)?
         /// The answers in turn; the last one is every answer after it.
-        init(slow: (id: String, seconds: TimeInterval)? = nil, _ answers: [String: CursorSubagents.Place]?...) {
+        init(slow: (id: String, seconds: TimeInterval)? = nil, more: [String: (call: String, name: String?)] = [:], _ answers: [String: CursorSubagents.Place]?...) {
             self.slow = slow
+            self.more = more
             rule = nil
             state.withLock { $0.answers = answers }
         }
         init(rule: @escaping @Sendable (String) -> CursorSubagents.Place?) {
             slow = nil
+            more = [:]
             self.rule = rule
         }
         var asked: [String] { state.withLock { $0.asked } }
-        func read(_ ids: Set<String>) -> [String: CursorSubagents.Place]? {
+        /// Whether each read was to take names, in the order the reads were made.
+        var named: [Bool] { state.withLock { $0.named } }
+        func read(_ ids: Set<String>, names: Bool) -> [String: CursorSubagents.Record]? {
+            state.withLock { $0.named.append(names) }
+            return places(ids).map { places in
+                Dictionary(uniqueKeysWithValues: places.map { id, place in
+                    let more = place == .own ? nil : more[id]
+                    return (id, CursorSubagents.Record(place: place, call: more?.call, name: names ? more?.name : nil))
+                })
+            }
+        }
+        private func places(_ ids: Set<String>) -> [String: CursorSubagents.Place]? {
             if let slow, ids.contains(slow.id) { Thread.sleep(forTimeInterval: slow.seconds) }
             if let rule {
                 state.withLock { $0.asked.append(contentsOf: ids.sorted()) }
@@ -316,7 +406,7 @@ import Testing
         let prefs = Preferences(defaults: defaults)
         configure(prefs)
         let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
-        if let database { store.cursorParentReader = { database.read($0) } }
+        if let database { store.cursorParentReader = { database.read($0, names: $1) } }
         // The re-reads are the app's own in every way but their length.
         store.cursorParentRetries = CursorSubagents.retries.map { _ in .milliseconds(20) }
         return (store, defaults)
@@ -587,6 +677,50 @@ import Testing
         // The conversation whose place was let go of is still its own, unasked, for as long as it has a row.
         store.hookReceived(event("afterAgentThought", "parent-1"), now: t0.addingTimeInterval(2001))
         #expect(store.sessions.sessions[key("parent-1")]?.lastEvent == t0.addingTimeInterval(2001) && database.asked.count == children.count + 2)
+    }
+
+    @Test func aSubagentsLineIsNamedAsCursorNamesItsChat() async {
+        let database = Database(more: ["child-1": ("toolu_01", "List the fonts")], ["parent-1": .own, "child-1": .child(of: "parent-1")])
+        let suite = "NotchmeterTests.subagentNamed"
+        let (store, defaults) = store(suite, database: database)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.hookReceived(event("UserPromptSubmit", "parent-1"), now: t0)
+        await until { store.sessions.sessions[key("parent-1")] != nil }
+        var start = event("SubagentStart", "parent-1", agent: "agent-a")
+        start.agentCall = "toolu_01"
+        store.hookReceived(start, now: t0.addingTimeInterval(5))
+        var thought = event("afterAgentThought", "child-1")
+        thought.reportedModel = "small-fast"
+        store.hookReceived(thought, now: t0.addingTimeInterval(10))
+        await until { store.sessions.sessions[key("parent-1")]?.agentDetails["agent-a"]?.model != nil }
+        let parent = store.sessions.sessions[key("parent-1")]
+        #expect(parent?.agentDetails == ["agent-a": AgentDetail(call: "toolu_01", chat: "child-1", name: "List the fonts", model: Hook.tidyModelName("small-fast"))])
+        #expect(parent?.model == nil && store.sessions.count == 1)
+        #expect(database.named == [true, true], "titles are on, so the name may be read")
+        // On the card: the name and the model on the subagent's line, and the name hidden with the titles.
+        let shown = SessionsCard.rows(store.sessions.all, hideTitles: false, jump: false, now: t0.addingTimeInterval(20)).rows.first?.agents
+        #expect(shown == [SessionsCard.Row.Agent(id: "agent-a", since: t0.addingTimeInterval(5), name: "List the fonts", model: Hook.tidyModelName("small-fast"))])
+        let hidden = SessionsCard.rows(store.sessions.all, hideTitles: true, jump: false, now: t0.addingTimeInterval(20)).rows.first?.agents
+        #expect(hidden?.first?.name == nil && hidden?.first?.model == Hook.tidyModelName("small-fast"))
+        // Titles switched off take the name from what is held, too.
+        store.dropTitles()
+        #expect(store.sessions.sessions[key("parent-1")]?.agentDetails["agent-a"]?.name == nil)
+    }
+
+    @Test func withTitlesOffASubagentsNameIsNeitherReadNorKept() async {
+        let database = Database(more: ["child-1": ("toolu_01", "List the fonts")], ["parent-1": .own, "child-1": .child(of: "parent-1")])
+        let suite = "NotchmeterTests.subagentUnnamed"
+        let (store, defaults) = store(suite, database: database) { $0.sessionTitles = false }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.hookReceived(event("UserPromptSubmit", "parent-1"), now: t0)
+        await until { store.sessions.sessions[key("parent-1")] != nil }
+        var start = event("SubagentStart", "parent-1", agent: "agent-a")
+        start.agentCall = "toolu_01"
+        store.hookReceived(start, now: t0.addingTimeInterval(5))
+        store.hookReceived(event("afterAgentThought", "child-1"), now: t0.addingTimeInterval(10))
+        await until { store.sessions.sessions[key("parent-1")]?.agentDetails["agent-a"]?.chat != nil }
+        #expect(store.sessions.sessions[key("parent-1")]?.agentDetails == ["agent-a": AgentDetail(call: "toolu_01", chat: "child-1")])
+        #expect(database.named == [false, false])
     }
 
     @Test func withNoDatabaseToAskEveryChatIsItsOwnAsItAlwaysWas() {
