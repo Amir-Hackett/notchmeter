@@ -243,7 +243,7 @@ enum CursorQuestions {
 
     /// Every row of a statement with one bound text parameter, each column as text or nil. No rows for a
     /// statement that does not prepare: a Cursor whose database has no such table or column.
-    private static func rows(_ db: OpaquePointer, _ sql: String, _ parameter: String) -> [[String?]] {
+    static func rows(_ db: OpaquePointer, _ sql: String, _ parameter: String) -> [[String?]] {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else { return [] }
         defer { sqlite3_finalize(statement) }

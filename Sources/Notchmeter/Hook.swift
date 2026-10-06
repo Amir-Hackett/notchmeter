@@ -70,6 +70,8 @@ enum Hook {
     static let composerModeKey = "composerMode"
     static let backgroundKey = "background"
     static let contextKey = "context"
+    /// The chat a Cursor subagent ran as, on the `SubagentStop` that reports its end (0.9.21, CursorSubagents).
+    static let childSessionKey = "childSession"
     static let modelKey = "model"
     static let fromModelKey = "from_model"
     static let modelSourceKey = "model_source"
@@ -182,6 +184,9 @@ enum Hook {
         var background = false
         /// How full the context window was, 0…1, when a compaction began (Cursor's `context_usage_percent`).
         var context: Double?
+        /// The conversation a Cursor subagent ran as, which its `SubagentStop` names (`Hook.childSessionKey`): one
+        /// of Cursor's own ids, or nil.
+        var childSessionID: String?
         /// The models and the source of a `PostModelSwitch`.
         var modelSwitch: ModelSwitch?
         /// The MCP server an `Elicitation` or `ElicitationResult` names.
@@ -250,6 +255,7 @@ enum Hook {
             composerMode = Hook.composerMode(userInfo?[Hook.composerModeKey])
             background = userInfo?[Hook.backgroundKey] as? Bool == true
             context = Hook.contextFraction(userInfo?[Hook.contextKey])
+            childSessionID = (userInfo?[Hook.childSessionKey] as? String).flatMap { CursorChatNames.isConversationID($0) ? $0 : nil }
             if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
                 modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
                                           source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
@@ -295,6 +301,7 @@ enum Hook {
             if let composerMode { info[Hook.composerModeKey] = composerMode }
             if background { info[Hook.backgroundKey] = true }
             if let context { info[Hook.contextKey] = context }
+            if let childSessionID { info[Hook.childSessionKey] = childSessionID }
             if let modelSwitch {
                 info[Hook.modelKey] = modelSwitch.to
                 if let from = modelSwitch.from { info[Hook.fromModelKey] = from }
