@@ -54,7 +54,12 @@ the row ([docs/hooks.md](hooks.md#cursor)).
   nothing else, and logs none of it.
 - **What it writes.** `AXManualAccessibility` on Cursor's application element, which makes an Electron app build
   its accessibility tree, and `AXPress` on the one button you picked, after re-reading the card to make sure it
-  has not changed. Nothing else, in Cursor or anywhere. Turning the switch off, or quitting Notchmeter, sets
+  has not changed. For a question answered from the notch (0.9.20) the presses are the choices you picked and
+  then Continue, or Skip, on Cursor's own card, each choice read back before the next. Since 0.9.20 it also asks
+  Cursor to bring a window's contents up to date, for a window that is minimised or a Cursor that is hidden: what
+  is at the middle of the window (a question, not an action), and `AXScrollToVisible` on the window's page, which
+  moves nothing since the page is the whole of its window. Neither brings Cursor forward or moves its pointer or its
+  keyboard focus. Nothing else, in Cursor or anywhere. Turning the switch off, or quitting Notchmeter, sets
   `AXManualAccessibility` back to false.
 - **What Cursor does about it.** Asked for its tree, Cursor takes the asker for a screen reader: its editor's status
   bar shows *Screen Reader Optimized* while the tree is on (Cursor 3.23.12). `"editor.accessibilitySupport": "off"`

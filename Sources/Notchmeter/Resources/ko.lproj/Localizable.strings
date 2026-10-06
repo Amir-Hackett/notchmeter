@@ -1335,6 +1335,9 @@
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor가 실행하는 모든 셸 명령과 MCP 호출이 노치에서 허용 또는 거부를 기다립니다. Cursor 허용 목록이 묻지 않고 실행할 것도 포함됩니다. 답이 없으면 Cursor가 자체 확인을 보여 주며, 아무 응답 없이 실행되지 않습니다.";
 "Presses this button on Cursor's card" = "Cursor 카드의 이 버튼을 누릅니다";
 "Picks this choice on Cursor's card" = "Cursor 카드에서 이 선택지를 고릅니다";
+"Picks this choice; Continue sends it" = "이 선택지를 고릅니다. Continue를 누르면 전송됩니다";
+"Could not reach this question in Cursor's window; answer it in Cursor" = "Cursor 창에서 이 질문에 닿지 못했습니다. Cursor에서 답하세요";
+"Another chat is asking the same question; answer it in Cursor" = "다른 채팅이 같은 질문을 하고 있습니다. Cursor에서 답하세요";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Cursor의 Run, 모드 전환, 계획 카드를 세션 행에 보여 주고 고른 버튼을 누릅니다. Cursor 창은 손쉬운 사용으로 읽으며 화면은 읽지 않습니다.";
 "Cursor is waiting to run a command" = "Cursor가 명령 실행을 기다리고 있습니다";
 "Cursor is asking a question" = "Cursor가 질문하고 있습니다";

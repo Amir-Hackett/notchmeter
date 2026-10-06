@@ -2,6 +2,22 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.20](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.20) — 2026-10-06
+
+### Cursor
+
+- **A question Cursor asks is answered from the notch, and Cursor stays where it is.** The question is read from Cursor's own database, so its choices are buttons on the notch whether Cursor is in front, behind another app, minimised or hidden. Pick there and press **Continue**: Notchmeter finds Cursor's own card for the question, puts your picks on it and presses its Continue, without bringing Cursor forward. **Skip** works the same way. In 0.9.19 the choices were buttons only where the whole card could be read out of Cursor's window, and for a real question that failed: one with a file's name or a word in bold in it was not recognised, and kept **Answer in Cursor** even with Cursor in full view.
+- A pick is made on the notch and nothing is sent until **Continue**, as in Cursor. A question with one answer moves its pick, and pressing the picked choice again unpicks it; a question with several keeps each. The notch now knows which kind a question is from Cursor's database, where 0.9.19 showed whatever Cursor's card did with each press. Continue is held until every question on the card has a pick, as Cursor's own does nothing before then.
+- The choices are lettered as Cursor's own card letters them. The agent sometimes lists an *Other* of its own, which Cursor's card leaves out in favour of the typed choice it always adds; the notch leaves it out too, where 0.9.19 lettered every choice after it one on. The typed choice, *Other...*, ends each question and takes you to Cursor, where it is typed.
+- Where Cursor's own card cannot be reached, the row says *Could not reach this question in Cursor's window; answer it in Cursor*, nothing is sent, and the question keeps **Answer in Cursor**. That is a chat that is not the one its window is showing, a question card minimised to its header in Cursor, a window on another Space, perhaps a window that is itself minimised, or a question asked in Cursor's Agents window, which draws its card another way that is not pressed yet. Nor is an answer sent on a guess: a card that offers the same choices for another question is not taken for yours, and when two chats are asking the same question, or two a word apart, and Cursor's windows do not say which card is whose, the row says so and nothing is sent until one of them has been answered in Cursor.
+- A Cursor window behind another app's is read and pressed where it is, for a question as for Cursor's Run prompt, its mode switch and **Build**: Cursor keeps a covered window readable, and takes a press there (checked against Cursor 3.23.23). A minimised window, or a hidden Cursor, is the case that is not settled: Cursor does not draw such a window, and a card in it may not be there to press. Notchmeter now asks Cursor to bring a window up to date before it reads it for an answer, after any press from the notch, and once a second while a Cursor chat in a turn has said nothing for two seconds. The asking draws nothing and moves neither Cursor's pointer nor its keyboard focus. Where it does not bring a question's card, the row says so; a Run prompt or a mode switch it does not bring arrives as *Cursor may be waiting*, as before.
+- Without the Accessibility permission for *Mirror Cursor's cards*, or with *Show what a session is working on* off, a question is shown as before, with **Answer in Cursor**.
+
+### Fixes
+
+- A question the agent asked with a word in bold or a command in it is no longer taken for a different question from the one Cursor's window shows, which in 0.9.19 could put the same question on two chats' rows when both were working in one workspace.
+- A question answered from the notch is not put back on its row by a read of Cursor's database taken in the moment before Cursor had written the answer.
+
 ## [0.9.19](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.19) — 2026-10-05
 
 ### Cursor

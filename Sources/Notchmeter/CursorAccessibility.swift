@@ -60,6 +60,9 @@ struct CursorCard: Equatable, Sendable, Identifiable {
         /// The question's words, cut as a heading is; nil when it has none.
         let text: String?
         var choices: [Choice]
+        /// Whether Cursor takes more than one of the choices. Its window does not say and its database does, so
+        /// this is set only on a card read from there (CursorQuestions.card).
+        var several = false
     }
 
     struct Choice: Equatable, Sendable {
@@ -85,8 +88,10 @@ struct CursorCard: Equatable, Sendable, Identifiable {
     /// (the stand-in's older form). What is picked is not part of `id`: a card is the same card while it is
     /// being answered.
     var questions: [Question] = []
-    /// Read from Cursor's own database and not from its window (CursorQuestions): the question is known, and
-    /// where its window is does not matter, but there is nothing of it to press. Not part of `id`.
+    /// Read from Cursor's own database and not from its window (CursorQuestions): the question is known wherever
+    /// its window is. Its choices are picked on the notch's own card, and its Skip and Continue find Cursor's card
+    /// by the question's words when they are pressed (CursorCards.place), so its choices and buttons carry no
+    /// place in a window. Not part of `id`.
     var fromDatabase = false
     /// Whether a Run card is for a command, which heads it. Cursor shows the same Skip and Run for other things it
     /// wants approved, a file written outside the workspace for one, and the card then says what instead.
@@ -118,6 +123,9 @@ struct CursorCard: Equatable, Sendable, Identifiable {
     /// Whether a question card can be answered from the notch: it has its questions with their choices to press,
     /// and Cursor's own Continue to send them with.
     var answerable: Bool { kind == .question && !questions.isEmpty && !options.isEmpty }
+    /// Whether every question on the card has a choice picked, which is when Cursor's own Continue sends them: its
+    /// handler asks that of every question and does nothing before then (Cursor 3.23.12 and 3.23.23).
+    var complete: Bool { questions.allSatisfy { $0.choices.contains(where: \.picked) } }
 }
 
 enum CursorCards {
@@ -545,6 +553,426 @@ extension CursorCards {
     }
 }
 
+/// Finding Cursor's own card for a question the notch holds from Cursor's database (CursorQuestions).
+///
+/// Reading a question card whole out of a window (`asked`) asks a great deal of how Cursor draws it: its three
+/// words, and no button in it but its choices. Cursor draws the question itself from Markdown, so a real one holds
+/// whatever its words call for, a link or a file's name that is a button among them, and such a card was not
+/// recognised at all (0.9.19, reported 2026-10-06: a question that had reached the notch from the database kept
+/// *Answer in Cursor* with Cursor's window in view). The database says what is asked, so the window is not asked
+/// to say it again in a shape it may not keep. It is asked where the choices are: a choice's button is found by
+/// the choice's own words, which Cursor draws as plain text; the card is ended by the two groups that follow its
+/// last choice; and the words drawn before each question's choices have only to hold the question's, however
+/// they are laid out, which is what tells this card from another chat's with the same choices.
+extension CursorCards {
+    struct Placed: Equatable, Sendable {
+        struct Choice: Equatable, Sendable {
+            /// Child indexes from the window down to the choice's button.
+            let path: [Int]
+            /// Whether Cursor shows the choice picked; nil where its letter does not say (`letterClassSuffix`).
+            let picked: Bool?
+        }
+
+        /// A list for each question of the card, of its choices that are not typed, in the card's order.
+        var choices: [[Choice]]
+        /// The groups Cursor ends its card with.
+        var skip: [Int]
+        var send: [Int]
+    }
+
+    /// What a window holds that a question's card is found by, in the order Cursor lays it out: its buttons, each
+    /// by its words, and the groups drawn as Skip or Continue.
+    private enum Mark {
+        case button(label: String, node: CursorAXNode, path: [Int])
+        case end(word: String, path: [Int])
+    }
+
+    /// `drawn` is the window's text outside its buttons, each run with how many marks came before it, so the
+    /// words between two marks can be put together again (`place` checks a question's words against them).
+    private static func marks(_ node: CursorAXNode, path: [Int], into found: inout [Mark], drawn: inout [(before: Int, words: String)]) {
+        if node.role == "AXButton" {
+            // A choice's letter is a button inside the choice's own, and is not a choice. The choice that is typed
+            // is known by the field in it, whether or not Cursor gives it words.
+            if node.label != nil || node.children.contains(where: { $0.role == "AXTextArea" }) {
+                found.append(.button(label: drawnLabel(node.label ?? ""), node: node, path: path))
+            }
+            return
+        }
+        if node.role == "AXStaticText" || node.role == "AXHeading", let label = node.label, !label.isEmpty { drawn.append((found.count, label)) }
+        // A group of a word and its key and nothing more is looked at closely; a window is thousands of groups.
+        // A word of code that reads "skip" is a word of the question it is in, and is not drawn to take a press.
+        if node.role != "AXStaticText", !node.code, (1...3).contains(node.children.count), node.children.allSatisfy({ $0.children.count <= 2 }),
+           let word = questionEnd(of: node) {
+            // The innermost group that reads so is the one Cursor drew to take the press.
+            if let inner = node.children.firstIndex(where: { questionEnd(of: $0) != nil }) {
+                marks(node.children[inner], path: path + [inner], into: &found, drawn: &drawn)
+            } else {
+                found.append(.end(word: word.lowercased(), path: path))
+            }
+            return
+        }
+        for (index, child) in node.children.enumerated() { marks(child, path: path + [index], into: &found, drawn: &drawn) }
+    }
+
+    /// A question's words boiled down, to compare what the database holds with what Cursor's window draws of
+    /// them. Cursor draws a question from Markdown: a word in bold or a command reads the same with its marks
+    /// gone, and a link shows its words and not where it goes. So a link's target is dropped, and what is left
+    /// is its letters and digits alone, lowercased.
+    static func essence(_ text: String) -> [Character] {
+        // A link whole, its title with it, and one a card's cut fell in the middle of, which never closes.
+        let bare = text.replacingOccurrences(of: #"\]\([^)]*(\)|$)"#, with: "]", options: .regularExpression)
+        return Array(bare.lowercased().filter { $0.isLetter || $0.isNumber })
+    }
+
+    /// How much of a question, as the notch's card has it, is in a stretch of what a window draws: the share of
+    /// the question's runs of `questionRun` letters that the stretch holds. A run that long is the question's
+    /// own, where a pair of letters is anybody's; the question whole and in order is too much to ask of
+    /// Markdown drawn. A question shorter than one run is held to all of itself.
+    static let questionRun = 4
+    /// `fromTheStart` holds the stretch to where the question would end if it began the stretch, and one run
+    /// more: the words a card draws for a question begin with that question, so one whose words only turn up
+    /// further on, in a longer question, is another.
+    static func share(of question: String, in stretch: String, fromTheStart: Bool = false) -> Double {
+        let wanted = essence(question)
+        var there = essence(stretch)
+        if fromTheStart { there = Array(there.prefix(wanted.count + questionRun)) }
+        guard !wanted.isEmpty else { return 1 }
+        guard wanted.count >= questionRun else {
+            if fromTheStart { return there.starts(with: wanted) ? 1 : 0 }
+            return there.count >= wanted.count && (0...(there.count - wanted.count)).contains { Array(there[$0..<($0 + wanted.count)]) == wanted } ? 1 : 0
+        }
+        guard there.count >= questionRun else { return 0 }
+        let runs = Set((0...(there.count - questionRun)).map { String(there[$0..<($0 + questionRun)]) })
+        let found = (0...(wanted.count - questionRun)).filter { runs.contains(String(wanted[$0..<($0 + questionRun)])) }.count
+        return Double(found) / Double(wanted.count - questionRun + 1)
+    }
+    /// The share of a question's words that the words under its number must hold for the card to be its. Half:
+    /// a file's path in the question may be drawn as the file's name alone, and what tells one question from
+    /// another over the same choices is whole sentences, which share next to nothing.
+    static let questionShare = 0.5
+    /// The word that heads Cursor's question card, in its header before the first question's number.
+    static let questionHeader = "questions"
+    /// How many buttons a question's own words may hold before its first choice, a file's name each.
+    static let questionReach = 24
+
+    /// A button's words as the notch's card and Cursor's are compared: runs of white space as one space, since
+    /// Cursor draws a choice as running text, and cut as a card cuts a choice.
+    static func drawnLabel(_ label: String) -> String {
+        choiceLabel(label.split(whereSeparator: \.isWhitespace).joined(separator: " "))
+    }
+
+    /// A choice's words without the letter Cursor puts before them ("A apple"): what the choice says, by which a
+    /// window's card and the database's are told for the same question (CursorQuestions.same).
+    static func words(ofChoice label: String) -> String {
+        let line = drawnLabel(label)
+        guard line.count > 2, let first = line.first, first.isLetter, first.isUppercase, line.dropFirst().first == " " else { return line }
+        return String(line.dropFirst(2))
+    }
+
+    /// Where `card`, a question read from Cursor's database, is drawn in a window. The card found has to be that
+    /// card whole and no other, since what is pressed on it is an answer: each of its questions in order, as
+    /// Cursor numbers them ("1" and "." before the first, as its own two runs of text, then "2"); under each
+    /// number the question's words, which have to begin with the question as the card has it (`share`), a button
+    /// among them where the words name a file; then its choices and no others, each a button of the same letter
+    /// and words, one directly after another; then the choice that is typed, which ends every question of
+    /// Cursor's; and after the last question's, directly, Skip and then Continue. A card that offers the same
+    /// choices for another question, one that holds this question among others, and one whose choices merely end
+    /// with these, are each another chat's and none of them is found. Nil when the window does not hold all of
+    /// that. A chat keeps what it has asked above what it is asking, so the last place the card is found is the
+    /// one that is waiting.
+    static func place(of card: CursorCard, in window: CursorAXNode) -> Placed? {
+        placing(of: card, in: window).placed
+    }
+
+    /// `place`, with how many cards in the window were this one in everything but the words of a question: a
+    /// count for the log, which tells a question that was not there from one that was not taken for itself.
+    static func placing(of card: CursorCard, in window: CursorAXNode) -> (placed: Placed?, otherwise: Int) {
+        guard card.kind == .question, !card.questions.isEmpty else { return (nil, 0) }
+        var found: [Mark] = []
+        var drawn: [(before: Int, words: String)] = []
+        marks(window, path: [], into: &found, drawn: &drawn)
+        func typed(_ node: CursorAXNode) -> Bool { node.children.contains { $0.role == "AXTextArea" } }
+        /// How many runs of text, from `index`, are a question's number: "2" and ".", or "2." as one. None when
+        /// they are not that number drawn directly before mark `at`.
+        func numbered(_ number: Int, from index: Int, before at: Int) -> Int {
+            guard index < drawn.count, drawn[index].before == at else { return 0 }
+            let first = drawn[index].words.trimmingCharacters(in: .whitespaces)
+            if first == "\(number)." { return 1 }
+            guard first == "\(number)", index + 1 < drawn.count, drawn[index + 1].before == at,
+                  drawn[index + 1].words.trimmingCharacters(in: .whitespaces) == "." else { return 0 }
+            return 2
+        }
+        var placed: Placed?
+        var otherwise = 0
+        /// Whether a button is a choice of some question: it holds the button that is its letter, or the field
+        /// of the one that is typed. A file's name in a question's words holds neither.
+        func choice(_ node: CursorAXNode) -> Bool { typed(node) || node.children.contains { $0.role == "AXButton" } }
+        starts: for start in drawn.indices where numbered(1, from: start, before: drawn[start].before) > 0 {
+            var text = start
+            var at = drawn[start].before
+            // The first question's number follows the card's header, with nothing a press could land on between:
+            // a "1." in what the chat said above a card, or in a later question's own words, begins no card.
+            guard drawn[..<start].reversed().prefix(while: { $0.before == at }).contains(where: {
+                $0.words.trimmingCharacters(in: .whitespaces).lowercased() == questionHeader
+            }) else { continue }
+            var asks = true
+            var lists: [[Placed.Choice]] = []
+            for (number, question) in card.questions.enumerated() {
+                // The question's number, drawn directly after the typed choice of the question before.
+                while text < drawn.count, drawn[text].before < at { text += 1 }
+                let runs = numbered(number + 1, from: text, before: at)
+                guard runs > 0 else { continue starts }
+                text += runs
+                // Its words: what is drawn from there to its first choice, a button among them where it stands.
+                let labels = question.choices.filter { !$0.typed }.map { drawnLabel($0.label) }
+                var words: [String] = []
+                var buttons = 0
+                gather: while true {
+                    while text < drawn.count, drawn[text].before <= at {
+                        words.append(drawn[text].words)
+                        text += 1
+                    }
+                    guard at < found.count, buttons < questionReach else { continue starts }
+                    switch found[at] {
+                    case .end(let word, _):
+                        // A word that reads as Skip or Continue here is a word of the question, a link or the
+                        // question itself ("Continue"); the card's own two come after its last choice.
+                        words.append(word)
+                    case .button(let label, let node, _):
+                        if let first = labels.first {
+                            if label == first, !typed(node) { break gather }
+                        } else if typed(node) {
+                            break gather
+                        }
+                        // Another choice here is one the notch's card does not have, and the card is not this one.
+                        guard !choice(node) else { continue starts }
+                        words.append(label)
+                    }
+                    buttons += 1
+                    at += 1
+                }
+                if let asked = question.text, share(of: asked, in: words.joined(separator: " "), fromTheStart: true) < questionShare { asks = false }
+                var list: [Placed.Choice] = []
+                for label in labels {
+                    guard at < found.count, case .button(label, let node, let path) = found[at], !typed(node) else { continue starts }
+                    let letter = node.children.first { $0.role == "AXButton" }
+                    let says = letter?.classes.contains { $0.hasSuffix(letterClassSuffix) } ?? false
+                    list.append(.init(path: path, picked: says ? letter?.classes.contains { $0.hasSuffix(pickedClassSuffix) } : nil))
+                    at += 1
+                }
+                // The choice that is typed ends the question: a choice more than the card's is another question's.
+                guard at < found.count, case .button(_, let node, _) = found[at], typed(node) else { continue starts }
+                at += 1
+                lists.append(list)
+            }
+            // Skip and then Continue, directly: a card above the one that is waiting, drawn without its own two,
+            // is not given the pair of the card below it.
+            guard at + 1 < found.count, case .end("skip", let skip) = found[at], case .end(questionSend, let send) = found[at + 1] else { continue }
+            guard asks else {
+                otherwise += 1
+                continue
+            }
+            placed = Placed(choices: lists, skip: skip, send: send)
+        }
+        return (placed, otherwise)
+    }
+
+    /// What is pressed next on Cursor's card to make it show what the notch's card does.
+    enum Step: Equatable, Sendable {
+        /// A choice to press, by its place on the card (question, then choice among those not typed).
+        case press(question: Int, choice: Int)
+        /// Cursor's card does not say what is picked on it, so no press can be told from its opposite.
+        case unread
+        /// Cursor's card shows what the notch's does.
+        case same
+    }
+
+    /// The next press that brings Cursor's card to the notch's. A press turns a choice over, in Cursor as on the
+    /// notch, and on a question with one answer picking a choice drops the one that was picked: so a choice the
+    /// notch has picked and Cursor has not is pressed first, and one Cursor still has picked that the notch has
+    /// not is pressed after, each press read back before the next is decided.
+    static func step(toward card: CursorCard, from placed: Placed) -> Step {
+        let wanted = card.questions.map { question in question.choices.filter { !$0.typed }.map(\.picked) }
+        guard wanted.count == placed.choices.count, zip(wanted, placed.choices).allSatisfy({ $0.count == $1.count }) else { return .unread }
+        guard placed.choices.allSatisfy({ $0.allSatisfy { $0.picked != nil } }) else { return .unread }
+        for picking in [true, false] {
+            for (question, picks) in wanted.enumerated() {
+                for (choice, pick) in picks.enumerated() where pick == picking && placed.choices[question][choice].picked != pick {
+                    return .press(question: question, choice: choice)
+                }
+            }
+        }
+        return .same
+    }
+}
+
+/// What answering a question needs of Cursor's windows: reading them, pressing in them, and asking them to come up
+/// to date. The live one is Cursor's own windows through the Accessibility API (LiveCursorUI.Windows). The tests'
+/// is a card that takes presses as Cursor's own does, so the pressing in `CursorAnswering` is run, press by
+/// press, without a Cursor to press.
+protocol CursorWindowDriving {
+    associatedtype Window
+    associatedtype Elements
+    /// Every window of Cursor's, with its title.
+    func windows() -> [(window: Window, title: String)]
+    /// One read of a window: its tree, what in it a press can land on, and whether Cursor answered for all of it.
+    func snapshot(_ window: Window) -> (tree: CursorAXNode, elements: Elements, whole: Bool)
+    /// Presses what a read met at `path`, if it still reads as it should. Nil when the press was made; `gone`
+    /// when what is there is no longer that; `refused` when it would not take a press.
+    func press(_ path: [Int], in elements: Elements, reading: CursorAnswering.Reading) -> CursorPressResult?
+    /// Asks Cursor to bring the window's tree up to date (LiveCursorUI.refresh), with what the last read met.
+    func refresh(_ window: Window, elements: Elements?)
+    /// Waits for Cursor to act on what it was asked.
+    func pause()
+    /// Whether a read met the window's page at all, for the log.
+    func hasPage(_ elements: Elements) -> Bool
+}
+
+/// Answering a question the notch holds from Cursor's database, on Cursor's own card: find the card, bring it to
+/// what the notch's shows, send it, and see it gone (CursorUIControlling.answer says what each outcome means).
+enum CursorAnswering {
+    /// What is about to be pressed has to read as: a choice of these words, or the card's Skip or Continue.
+    enum Reading: Equatable, Sendable {
+        case choice(words: String)
+        case end(word: String)
+    }
+
+    /// How many times Cursor's windows are read for the card before it is given up as out of reach, Cursor
+    /// asked to bring them up to date between the reads.
+    static let reads = 6
+    /// How many times the card is read again for a press on a choice to show, and for the card to have gone.
+    static let readBacks = 6
+    static let goneReads = 10
+    /// How many times a card that does not say what is picked is read again before that is believed: a read
+    /// Cursor fell behind on comes back short of the classes that say it.
+    static let unreadReads = 2
+
+    /// Which of the windows that hold a question's card is the one to press. Among several, the only one whose
+    /// title names the card's workspace (" — " separates Cursor's title parts); with `named`, a window so titled
+    /// and no other. A window that is the only one holding the card is the one, whatever it is called (a
+    /// worktree's is titled by its folder, the chat by its repository), unless its title names a workspace of
+    /// another chat the app is showing (`elsewhere`) and not this chat's own: that card is the other workspace's.
+    /// Nil where that leaves none or more than one, and nothing is pressed.
+    static func chosen(among titles: [String], workspace: String, named: Bool, elsewhere: Set<String> = []) -> Int? {
+        func parts(_ title: String) -> Set<String> { Set(title.components(separatedBy: " — ").map { $0.trimmingCharacters(in: .whitespaces) }) }
+        let titled = titles.indices.filter { !workspace.isEmpty && parts(titles[$0]).contains(workspace) }
+        if named || titles.count > 1 { return titled.count == 1 ? titled[0] : nil }
+        guard let only = titles.first else { return nil }
+        return titled.isEmpty && !parts(only).isDisjoint(with: elsewhere) ? nil : 0
+    }
+
+    static func answer<Cursor: CursorWindowDriving>(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String> = [],
+                                                    in cursor: Cursor) -> (result: CursorPressResult, found: String) {
+        typealias Held = (window: Cursor.Window, placed: CursorCards.Placed, elements: Cursor.Elements)
+        func read(_ window: Cursor.Window) -> (held: Held?, elements: Cursor.Elements, whole: Bool, otherwise: Int) {
+            let snapshot = cursor.snapshot(window)
+            let placing = CursorCards.placing(of: card, in: snapshot.tree)
+            return (placing.placed.map { (window, $0, snapshot.elements) }, snapshot.elements, snapshot.whole, placing.otherwise)
+        }
+
+        // The card may be in any window, and in one that is put away: every one is read, and asked to bring its
+        // tree up to date, until one holds it. Every one each time, so that the same choices in two windows are
+        // seen for what they are and not answered in whichever was read first.
+        var found = "read"
+        var held: Held?
+        var seen = (windows: 0, pages: 0, holding: 0, otherwise: 0, whole: true)
+        for attempt in 0..<reads {
+            let windows = cursor.windows()
+            var met: [(window: Cursor.Window, elements: Cursor.Elements)] = []
+            var holding: [(held: Held, title: String)] = []
+            var otherwise = 0
+            var whole = true
+            for (window, title) in windows {
+                let one = read(window)
+                if let held = one.held { holding.append((held, title)) }
+                met.append((window, one.elements))
+                otherwise += one.otherwise
+                whole = whole && one.whole
+            }
+            seen = (windows.count, met.filter { cursor.hasPage($0.elements) }.count, holding.count, otherwise, whole)
+            // Only on whole reads of every window: one Cursor fell behind on may be short of this chat's own
+            // card, and the only window left holding one like it would be another chat's.
+            if whole, let index = chosen(among: holding.map(\.title), workspace: card.window, named: named, elsewhere: elsewhere) {
+                held = holding[index].held
+                break
+            }
+            // Several windows hold it and their titles do not say which is this chat's: asking again changes nothing.
+            guard holding.count < 2 || !whole, attempt + 1 < reads else { break }
+            for (window, elements) in met { cursor.refresh(window, elements: elements) }
+            found = "refreshed"
+            cursor.pause()
+        }
+        // How many windows were read, how many of them had a page to ask, how many held the card, how many
+        // cards had its choices under another question, and whether Cursor fell behind on the last read: what
+        // tells a Cursor with no window to read from one whose window would not say, from two that both did,
+        // and from a question not taken for itself.
+        guard var at = held else {
+            return (.gone, "none of \(seen.windows) windows, \(seen.pages) pages, \(seen.holding) holding it, \(seen.otherwise) under other words"
+                + (seen.whole ? "" : ", read short"))
+        }
+
+        /// The card's window read once more, Cursor first asked to bring it up to date.
+        func again() -> (held: Held?, whole: Bool) {
+            cursor.refresh(at.window, elements: at.elements)
+            cursor.pause()
+            let one = read(at.window)
+            return (one.held, one.whole)
+        }
+        func picks(_ placed: CursorCards.Placed) -> [[Bool?]] { placed.choices.map { $0.map(\.picked) } }
+
+        // From here the card has been reached, and what goes wrong is a press that was not taken or did not
+        // show: `refused`, and never `gone`, which says the card was not found.
+        if !skip {
+            // Cursor's card is brought to what the notch's shows one press at a time, each read back before the
+            // next is decided: a press turns a choice over, so one made against a card that was not read is a guess.
+            var presses = 0, unread = 0
+            let limit = card.questions.reduce(2) { $0 + $1.choices.count }
+            loop: while true {
+                switch CursorCards.step(toward: card, from: at.placed) {
+                case .same:
+                    break loop
+                case .unread:
+                    unread += 1
+                    guard unread <= unreadReads, let now = again().held else { return (.refused, found) }
+                    at = now
+                case .press(let question, let choice):
+                    let wanted = card.questions[question].choices.filter { !$0.typed }[choice]
+                    guard presses < limit,
+                          cursor.press(at.placed.choices[question][choice].path, in: at.elements, reading: .choice(words: CursorCards.words(ofChoice: wanted.label))) == nil
+                    else { return (.refused, found) }
+                    presses += 1
+                    var shown: Held?
+                    for _ in 0..<readBacks {
+                        // A read Cursor fell behind on, short of what says a choice is picked, is no sign of the press.
+                        let now = again()
+                        guard now.whole, let next = now.held, !picks(next.placed).joined().contains(nil) else { continue }
+                        if picks(next.placed) != picks(at.placed) {
+                            shown = next
+                            break
+                        }
+                    }
+                    // A press that shows nothing is the last: the next would be made without knowing what it did.
+                    guard let shown else { return (.refused, found) }
+                    at = shown
+                }
+            }
+        }
+
+        guard cursor.press(skip ? at.placed.skip : at.placed.send, in: at.elements, reading: .end(word: skip ? "skip" : CursorCards.questionSend)) == nil
+        else { return (.refused, found) }
+        // Gone on the second whole read running that does not find it: Cursor's chat drops out of its tree for
+        // a moment as it redraws, and a card that is back on the next read was not answered.
+        var missing = 0
+        for _ in 0..<goneReads {
+            let now = again()
+            guard now.whole else { continue }
+            missing = now.held == nil ? missing + 1 : 0
+            if missing == 2 { return (.pressed, found) }
+        }
+        return (.stillShown, found)
+    }
+}
+
 enum CursorPressResult: String, Sendable {
     /// Pressed, and the card went.
     case pressed
@@ -574,6 +1002,25 @@ protocol CursorUIControlling: Sendable {
     /// choice the other way (picked, or no longer picked) or the card has gone, with the card as it now reads (nil
     /// once it has gone); `stillShown` when the press changed nothing that can be read.
     func pick(_ card: CursorCard, question: Int, choice: Int) -> (result: CursorPressResult, card: CursorCard?)
+    /// The same read, with Cursor asked to bring its windows' trees up to date (LiveCursorUI.refresh): for a
+    /// window that is put away, minimised or with Cursor hidden, whose tree may be the one it had when it was
+    /// last on screen.
+    func read(refresh: Bool) -> (cards: [CursorCard], whole: Bool)
+    /// Answers a question the notch holds from Cursor's database, on Cursor's own card and where its window is:
+    /// the card is found by the question's choices (CursorCards.place), its choices are pressed until it shows
+    /// what `card` has picked, and Continue is pressed, or Skip alone. Cursor is never brought forward for it.
+    /// `pressed` once the card has gone; `stillShown` when Continue or Skip went in and the card is still there;
+    /// `gone` when the card could not be found in any window, and nothing was pressed; `refused` when it was
+    /// found and does not say what is picked, or a press on it was not taken or did not show, which may leave
+    /// some of the picks on Cursor's card for whoever answers it there. `found` says how the card was come by, for
+    /// the oracle and the log, and holds none of its words: "read" as the window stood, "refreshed" after
+    /// Cursor was asked to bring its trees up to date, and "none" with how many windows were read. With `named`
+    /// the card is taken only from a window whose title names the card's workspace (`card.window`): for a
+    /// question another chat is asking too, where a card found in any other window may be the other chat's.
+    /// Without it a title decides between several windows that hold the card, and rules out the only one that
+    /// does when it names one of `elsewhere`, the workspaces of the other chats the app is showing, and not
+    /// this chat's own.
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String)
     /// Tells Cursor the app no longer reads its windows (Mirror Cursor's cards turned off, or the app quitting).
     func release()
 }
@@ -581,7 +1028,9 @@ protocol CursorUIControlling: Sendable {
 extension CursorUIControlling {
     func scanForPlan() -> [CursorCard] { scan() }
     func read() -> (cards: [CursorCard], whole: Bool) { (scan(), true) }
+    func read(refresh: Bool) -> (cards: [CursorCard], whole: Bool) { read() }
     func pick(_ card: CursorCard, question: Int, choice: Int) -> (result: CursorPressResult, card: CursorCard?) { (.unavailable, nil) }
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) { (.unavailable, "none") }
     func release() {}
 }
 
@@ -625,13 +1074,15 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         AXUIElementSetAttributeValue(element, Self.treeAttribute as CFString, kCFBooleanFalse)
     }
 
+    /// Each read asks Cursor to bring its windows up to date (`refresh`), so that a plan card in a window that is
+    /// put away may be there by the next.
     func scanForPlan() -> [CursorCard] {
         for _ in 0..<3 {
-            let cards = scan()
+            let cards = read(refresh: true).cards
             if cards.contains(where: { $0.kind == .plan }) { return cards }
             Thread.sleep(forTimeInterval: 0.5)
         }
-        return scan()
+        return read(refresh: true).cards
     }
 
     private func windows(of app: AXUIElement) -> [AXUIElement] {
@@ -640,7 +1091,9 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
 
     func scan() -> [CursorCard] { read().cards }
 
-    func read() -> (cards: [CursorCard], whole: Bool) {
+    func read() -> (cards: [CursorCard], whole: Bool) { read(refresh: false) }
+
+    func read(refresh: Bool) -> (cards: [CursorCard], whole: Bool) {
         guard trusted, let app = application() else { return ([], true) }
         var listed: CFTypeRef?
         let health = Health()
@@ -649,8 +1102,11 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         for window in (listed as? [AXUIElement]) ?? [] {
             var budget = Self.nodeBudget
             let title = attribute(window, kAXTitleAttribute) as? String ?? ""
-            let tree = snapshot(window, depth: 0, budget: &budget, health: health)
+            let met = Pressable()
+            let tree = snapshot(window, depth: 0, budget: &budget, pressable: met, health: health)
             cards += CursorCards.detect(in: tree, title: title)
+            // Cursor answers the asking after this read has been taken, so it is the next read that is the fresher.
+            if refresh { self.refresh(window, in: app, area: met.area) }
         }
         return (cards, !health.timedOut)
     }
@@ -686,6 +1142,41 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         return (cards, !health.timedOut)
     }
 
+    /// The action a window's page is asked to take to bring its tree up to date (`refresh`): scrolling the page
+    /// into view, which moves nothing, since the page is the whole of its window. Every element of Cursor's page
+    /// takes it (the recording of 2026-10-05 lists it on each).
+    static let refreshAction = "AXScrollToVisible"
+
+    /// Asks Cursor to bring a window's tree up to date, for a window that is put away. What is known of when a
+    /// tree is kept up to date, on Cursor 3.23.23 (2026-10-06): an editor window wholly covered by another app's
+    /// keeps its tree up to date by itself and takes a press where it is, a line printed in its terminal and the
+    /// effect of a press both showing in the very next read, so a window behind another needs nothing of this.
+    /// A minimised window, or a hidden Cursor's, is the other case: nothing reached the notch from one until it
+    /// came back (reported 2026-10-05), and a minimised window that Cursor is first asked about while it is
+    /// minimised has no page in its tree at all, however often it is asked. Chromium works a page's tree out as it
+    /// draws the page, and also when it is asked something of the page that needs it: what is at a point, and
+    /// before any action on an element. So Cursor is asked what is at the middle of the window (of the
+    /// application, so that a window of its own answers whatever lies over it), and the window's page (`area`,
+    /// where a read has met it) is asked to scroll into view, which reaches that window's page whatever is in
+    /// front of it. Both were taken by a covered window with no change to it; whether either brings a minimised
+    /// window's tree up to date has not been seen. Neither brings Cursor forward, moves its pointer or its
+    /// keyboard focus, or changes what its page shows. Cursor answers after this returns, so it is a later read
+    /// that sees the difference.
+    private func refresh(_ window: AXUIElement, in app: AXUIElement, area: AXUIElement? = nil) {
+        var position: CFTypeRef?, size: CFTypeRef?
+        if AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &position) == .success,
+           AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &size) == .success,
+           let position, let size, CFGetTypeID(position) == AXValueGetTypeID(), CFGetTypeID(size) == AXValueGetTypeID() {
+            var origin = CGPoint.zero, extent = CGSize.zero
+            if AXValueGetValue(position as! AXValue, .cgPoint, &origin), AXValueGetValue(size as! AXValue, .cgSize, &extent),
+               extent.width > 0, extent.height > 0 {
+                var hit: AXUIElement?
+                _ = AXUIElementCopyElementAtPosition(app, Float(origin.x + extent.width / 2), Float(origin.y + extent.height / 2), &hit)
+            }
+        }
+        if let area { _ = AXUIElementPerformAction(area, Self.refreshAction as CFString) }
+    }
+
     /// Presses `element`, and says what kept it from being pressed: an element that has gone since it was read is
     /// the card having changed, and one that is there and takes no press is a refusal.
     private func perform(_ element: AXUIElement) -> CursorPressResult? {
@@ -703,6 +1194,8 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
               CursorCards.normalized(label(of: element)) == option else { return .gone }
         if let failed = perform(element) { return failed }
         for _ in 0..<10 {
+            // A window that is put away may not show the card gone until it is asked to.
+            refresh(window, in: app, area: pressable.area)
             Thread.sleep(forTimeInterval: 0.25)
             let read = cards(in: window, title: card.window)
             if read.whole, !read.cards.contains(where: { $0.id == card.id }) { return .pressed }
@@ -729,6 +1222,7 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         var last = same
         var missing = 0
         for _ in 0..<Self.pickReads {
+            refresh(window, in: app, area: pressable.area)
             Thread.sleep(forTimeInterval: 0.25)
             let read = cards(in: window, title: card.window)
             guard read.whole else { continue }
@@ -746,17 +1240,66 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         return (.stillShown, last)
     }
 
+    /// Cursor's own windows, as answering a question needs them (CursorAnswering).
+    private struct Windows: CursorWindowDriving {
+        let ui: LiveCursorUI
+        let app: AXUIElement
+
+        func windows() -> [(window: AXUIElement, title: String)] {
+            ui.windows(of: app).map { ($0, ui.attribute($0, kAXTitleAttribute) as? String ?? "") }
+        }
+
+        func snapshot(_ window: AXUIElement) -> (tree: CursorAXNode, elements: Pressable, whole: Bool) {
+            var budget = LiveCursorUI.nodeBudget
+            let pressable = Pressable()
+            let health = Health()
+            let tree = ui.snapshot(window, depth: 0, budget: &budget, path: [], pressable: pressable, health: health)
+            return (tree, pressable, !health.timedOut)
+        }
+
+        /// The element this very read met there, checked once more for what it reads before it is pressed.
+        func press(_ path: [Int], in elements: Pressable, reading: CursorAnswering.Reading) -> CursorPressResult? {
+            guard let element = elements.byPath[path] else { return .gone }
+            let label = ui.label(of: element)
+            switch reading {
+            case .choice(let words): guard label.map(CursorCards.words(ofChoice:)) == words else { return .gone }
+            case .end(let word): guard label?.lowercased() == word else { return .gone }
+            }
+            return ui.perform(element)
+        }
+
+        func refresh(_ window: AXUIElement, elements: Pressable?) {
+            ui.refresh(window, in: app, area: elements?.area)
+        }
+
+        func pause() {
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+
+        func hasPage(_ elements: Pressable) -> Bool {
+            elements.area != nil
+        }
+    }
+
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) {
+        guard trusted, let app = application() else { return (.unavailable, "none") }
+        return CursorAnswering.answer(card, skip: skip, named: named, elsewhere: elsewhere, in: Windows(ui: self, app: app))
+    }
+
     /// What is read of each element, in one message to Cursor: every separate attribute is a round trip to
     /// Cursor's main thread, and a window is thousands of elements.
     private static let nodeAttributes = [kAXRoleAttribute, kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute,
                                          kAXEnabledAttribute, kAXChildrenAttribute, kAXSubroleAttribute] as CFArray
     /// The same with the element's classes on Cursor's page, asked only of what sits directly inside a button: a
-    /// question's choice is a button whose letter, a button inside it, is where a pick shows (CursorCards.asked).
+    /// question's choice is a button whose letter, a button inside it, is where a pick shows (CursorCards.place).
     /// Buttons hold a handful of elements between them, so it is no more messages and little more to carry.
+    /// Asked for among the others it arrives as it does asked for alone (checked on Cursor 3.23.23, 2026-10-06:
+    /// of a window's 1,160 elements, 640 carried classes either way).
     static let classesAttribute = "AXDOMClassList"
     private static let nestedAttributes = [kAXRoleAttribute, kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute,
                                            kAXEnabledAttribute, kAXChildrenAttribute, kAXSubroleAttribute, classesAttribute] as CFArray
     static let codeSubrole = "AXCodeStyleGroup"
+    static let pageRole = "AXWebArea"
 
     private struct Read {
         var role = ""
@@ -792,6 +1335,8 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
     /// `pick`): the buttons, and the groups, since a question card's Skip and Continue are groups that take one.
     private final class Pressable {
         var byPath: [[Int]: AXUIElement] = [:]
+        /// The window's page, the first met, which is the one the chat is drawn in (`refresh`).
+        var area: AXUIElement?
     }
     private static let pressableRoles: Set<String> = ["AXButton", "AXGroup"]
 
@@ -801,6 +1346,7 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         let read = read(element, nested: nested, health: health)
         var node = CursorAXNode(role: read.role, label: nil, enabled: read.enabled, code: read.code, classes: read.classes)
         if let path, Self.pressableRoles.contains(read.role) { pressable?.byPath[path] = element }
+        if read.role == Self.pageRole, let pressable, pressable.area == nil { pressable.area = element }
         guard depth < Self.depthLimit, budget > 0, !Self.skippedRoles.contains(read.role) else { return node }
         for (index, child) in read.children.enumerated() {
             guard budget > 0 else { break }
@@ -926,6 +1472,19 @@ final class FileCursorUI: CursorUIControlling, @unchecked Sendable {
             all[index].questions = questions
             guard let data = try? JSONEncoder().encode(all), (try? data.write(to: url, options: .atomic)) != nil else { return (.unavailable, nil) }
             return (.pressed, Self.card(all[index]))
+        }
+    }
+
+    /// An answer sent from the notch's own card takes the file's card for the same question out of it, as
+    /// Cursor's goes with Continue or Skip.
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) {
+        lock.withLock {
+            var all = entries()
+            guard let index = all.firstIndex(where: { entry in Self.card(entry).map { CursorQuestions.same(window: $0, database: card) } ?? false })
+            else { return (.gone, "none") }
+            all.remove(at: index)
+            guard let data = try? JSONEncoder().encode(all), (try? data.write(to: url, options: .atomic)) != nil else { return (.unavailable, "none") }
+            return (.pressed, "read")
         }
     }
 }

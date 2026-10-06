@@ -181,7 +181,8 @@ final class UsageStore {
     /// The questions Cursor's database says are waiting, as the cards their rows show, by session
     /// (CursorQuestions, readCursorQuestions); when the read they came from began; and when a question on each
     /// session was last sent from the notch. A question the database still held a moment before it was sent is
-    /// not put back by that older read.
+    /// not put back by that older read. A card here carries what has been picked on it in the notch
+    /// (pickCursorChoice): Cursor's own card is not touched until the answers are sent (answerCursorQuestion).
     @ObservationIgnored private var cursorAsked: [String: CursorCard] = [:]
     @ObservationIgnored private var cursorAskedAt = Date.distantPast
     /// When the database was last read for them, whatever it found (CursorQuestions.reads), and whether the
@@ -189,11 +190,26 @@ final class UsageStore {
     @ObservationIgnored private var cursorAskedRead = Date.distantPast
     @ObservationIgnored private var cursorAskedCatchUp = true
     @ObservationIgnored private var cursorQuestionSent: [String: Date] = [:]
+    /// The database's card each of them was, for the chats whose question was last sent from the notch: the wait
+    /// in `cursorSentGrace` is for that question, and another the chat asks straight after is not held up by it.
+    @ObservationIgnored private var cursorQuestionSentCards: [String: String] = [:]
+    /// The questions whose answers are on their way to Cursor's card (answerCursorQuestion), by chat, and the
+    /// ones answered from the notch, as the cards they were, each with when a window last drew it. A read of
+    /// Cursor's window must not put either back on a row as the window's own card: the first is being answered,
+    /// and a window that is put away can go on showing the second long after Cursor has taken its answer. An
+    /// answered one is forgotten `cursorAnsweredLife` after a window last drew it.
+    @ObservationIgnored private var cursorAnswering: [String: CursorCard] = [:]
+    @ObservationIgnored private var cursorAnswered: [(card: CursorCard, drawn: Date)] = []
+    @ObservationIgnored var cursorAnsweredLife: TimeInterval = 30
+    /// How long after a question was sent from the notch a read of the database has to have begun to be believed
+    /// when it still says the question is waiting: Cursor writes the answer as it takes it, a moment after the press.
+    static let cursorSentGrace: TimeInterval = 3
     /// Stands in for the read of Cursor's database, so no test opens a real one. Nil from it is a read that failed.
     @ObservationIgnored var cursorQuestionReader: (@Sendable (Set<String>) -> [String: CursorAsked]?)?
-    /// Question cards the notch has stopped answering, by id: a pick on one could not be read back, or Cursor would
-    /// not take a press on it. Such a card is shown from then on with its choices as words and Answer in Cursor
-    /// (cursorCardsSeen), since a second press would be a guess. Forgotten when the card has gone.
+    /// Question cards the notch has stopped answering, by id: a pick on one could not be read back, Cursor would
+    /// not take a press on it, or its answers could not be put on Cursor's own card. Such a card is shown from
+    /// then on with its choices as words and Answer in Cursor (cursorCardsSeen), since a second press would be a
+    /// guess. Forgotten when the card has gone.
     @ObservationIgnored private var cursorCardsShownOnly: Set<String> = []
     /// The cards one of whose buttons is being pressed (pressCursorCard). Observed: the row holds the card's buttons
     /// until the press has come back.
@@ -404,6 +420,9 @@ final class UsageStore {
     /// window that never reads whole must not freeze the rows either.
     @ObservationIgnored private var cursorShortReads = 0
     static let cursorShortReadLimit = 3
+    /// How long a Cursor chat in a turn has said nothing before a read of Cursor's windows first asks Cursor to
+    /// bring their trees up to date (cursorRefreshWanted).
+    static let cursorRefreshQuiet: TimeInterval = 2
     /// The socket replies parked on a decision, by request id. Only `decide` writes to one, which is what makes
     /// the request id a nonce: a line on the socket can start a request but never settle one (HookSocket.swift).
     @ObservationIgnored private var pendingReplies: [String: HookSocket.Reply] = [:]
@@ -2826,7 +2845,8 @@ extension UsageStore {
         let count = cursorPressCount
         let ui = cursorUI
         cursorTreeAsked = true
-        let read = await Task.detached(priority: .utility) { ui.read() }.value
+        let refresh = cursorRefreshWanted()
+        let read = await Task.detached(priority: .utility) { ui.read(refresh: refresh) }.value
         guard count == cursorPressCount else { return }
         if read.whole {
             cursorShortReads = 0
@@ -2835,6 +2855,18 @@ extension UsageStore {
             guard cursorShortReads >= Self.cursorShortReadLimit else { return }
         }
         cursorCardsSeen(read.cards)
+    }
+
+    /// Whether a read of Cursor's windows asks Cursor to bring their trees up to date (LiveCursorUI.refresh says
+    /// what is known of when that is needed: not for a window behind another, perhaps for one that is minimised
+    /// or a hidden Cursor's). A chat in a turn that is hearing from Cursor is working, and its card is not what is
+    /// wanted; one that has gone quiet, or is already waiting on a card, may be held by a card its window has not
+    /// said, and then Cursor is asked, once a read, for as long as it stays quiet.
+    func cursorRefreshWanted(now: Date = Date()) -> Bool {
+        sessions.all.contains { session in
+            session.tool == .cursor && session.host == nil && (session.isWorking || session.isWaiting)
+                && now.timeIntervalSince(session.lastEvent) >= Self.cursorRefreshQuiet
+        }
     }
 
     /// Tells Cursor the app has stopped reading its windows, once per spell of reading; also on quit.
@@ -2857,18 +2889,26 @@ extension UsageStore {
         // answer in time is empty too, and the card it missed must not be looked up again.
         if !cards.isEmpty {
             cursorCardNamesTried.formIntersection(cards.map(\.id))
-            cursorCardsShownOnly.formIntersection(cards.map(\.id))
+            cursorCardsShownOnly.formIntersection(cards.map(\.id) + cursorAsked.values.map(\.id))
         }
+        // By the clock, as the answers were: a read's own time is a test's to choose. An answered question stays
+        // remembered for as long as a window goes on drawing it, and a while after.
+        for index in cursorAnswered.indices where cards.contains(where: { CursorQuestions.same(window: $0, database: cursorAnswered[index].card) }) {
+            cursorAnswered[index].drawn = Date()
+        }
+        cursorAnswered.removeAll { Date().timeIntervalSince($0.drawn) > cursorAnsweredLife }
         for card in cards where card.blocksTurn {
-            let card = cursorCardsShownOnly.contains(card.id) ? card.shownOnly : card
-            // A question the database also holds is on the chat the database names, which is certain where the
-            // window's title and the chats' last events are a guess (two chats in a turn in one workspace).
-            let asking = cursorAsked.filter { sessions.sessions[$0.key] != nil && CursorQuestions.same(window: card, database: $0.value) }
-            if asking.count == 1, let id = asking.first?.key {
-                owners[card.id] = id
-                bySession[id, default: []].append(card)
+            // A question the database also holds is shown as the database has it, on the chat the database names:
+            // that is certain where the window's title and the chats' last events are a guess (two chats in a
+            // turn in one workspace), and it is the card that can be answered wherever the window is. One that
+            // is being answered from the notch, or was, is not shown again from a window that still draws it.
+            if card.kind == .question,
+               cursorAsked.contains(where: { sessions.sessions[$0.key] != nil && CursorQuestions.same(window: card, database: $0.value) })
+                || cursorAnswering.values.contains(where: { CursorQuestions.same(window: card, database: $0) })
+                || cursorAnswered.contains(where: { CursorQuestions.same(window: card, database: $0.card) }) {
                 continue
             }
+            let card = cursorCardsShownOnly.contains(card.id) ? card.shownOnly : card
             let kept = cursorCardOwners[card.id].flatMap { sessions.sessions[$0] == nil ? nil : $0 }
             // A card whose window names its chat waits a moment for Cursor's own chat names when several chats
             // could own it: a card stays on the row it is first put on, so the first row has to be the right one.
@@ -2879,20 +2919,23 @@ extension UsageStore {
         }
         cursorCardOwners = owners
         let before = cursorCards
-        // A question read from Cursor's database goes on its chat's row where the window has none to show for
-        // it: a window that is minimised, or a Cursor that is hidden, is not drawn, and its card is not there to
-        // read. The card read from the window comes first, since its choices can be pressed. When that card
-        // leaves the window, the database's takes its place in the same change, so the wait is one wait whether
-        // the question was answered or its window put away, and the database is read again at once to learn
-        // which. One sent from the notch is known to be answered: a database read begun before it was sent,
-        // which may still say it is waiting, does not put it back.
+        // A question read from Cursor's database goes on its chat's row, wherever the window is: a card in one
+        // that is minimised, or in a hidden Cursor, is not there to read.
+        // It is the chat's question, so a question card the window's title put on the same row is not shown
+        // beside it (the same one read less surely, or another chat's). Until the database has a question, the
+        // window's card is what there is; when that card leaves the window, the database is read again at once
+        // to learn whether the question was answered or its window put away, and the wait is one wait either
+        // way. One sent from the notch is known to be answered: a database read begun before it was sent, which
+        // may still say it is waiting, does not put it back.
         for (id, list) in before where list.contains(where: { $0.kind == .question && !$0.fromDatabase }) {
             if !(bySession[id]?.contains { $0.kind == .question } ?? false) { cursorAskedRead = .distantPast }
         }
         for (id, card) in cursorAsked where sessions.sessions[id] != nil {
-            guard !(bySession[id]?.contains { $0.kind == .question } ?? false),
-                  cursorAskedAt > cursorQuestionSent[id] ?? .distantPast else { continue }
-            bySession[id, default: []].append(card)
+            // The question that was sent waits out the grace; another the chat has asked since does not.
+            if let sent = cursorQuestionSent[id], cursorQuestionSentCards[id] ?? card.id == card.id,
+               cursorAskedAt <= sent.addingTimeInterval(Self.cursorSentGrace) { continue }
+            bySession[id]?.removeAll { $0.kind == .question }
+            bySession[id, default: []].append(cursorCardsShownOnly.contains(card.id) ? card.shownOnly : card)
         }
         guard bySession != before else { return }
         cursorCards = bySession
@@ -2925,6 +2968,7 @@ extension UsageStore {
             cursorCardsLeaving = [:]
         }
         for (session, card) in started {
+            log.notice("cursor card \(card.kind.rawValue, privacy: .public) from Cursor's \(card.fromDatabase ? "database" : "window", privacy: .public)")
             Oracle.shared.emit("session", ["action": "cursorCard", "session": session.id, "kind": card.kind.rawValue, "options": card.options.count,
                                            "read": card.fromDatabase ? "database" : "window"])
             if prefs.notifyWaiting, prefs.notifiesSessions(of: .cursor) {
@@ -2945,15 +2989,16 @@ extension UsageStore {
     /// read while the screen is locked or another user is at the Mac, as nothing of Cursor's windows is; what
     /// was on the rows stays, since a question asked before the lock is still asked after it, and the first read
     /// afterwards is for every Cursor chat, so one asked meanwhile is found.
-    func readCursorQuestions(now: Date = Date()) async {
+    @discardableResult
+    func readCursorQuestions(now: Date = Date()) async -> Bool {
         guard cursorQuestionsWanted else {
             cursorAskedCatchUp = true
             cursorQuestionsSeen([:], readAt: now)
-            return
+            return false
         }
         guard !sessionInactive, !screenLocked else {
             cursorAskedCatchUp = true
-            return
+            return false
         }
         // A chat that has left the panel takes its question with it.
         if cursorAsked.keys.contains(where: { sessions.sessions[$0] == nil }) {
@@ -2965,32 +3010,44 @@ extension UsageStore {
         } else if let database = (providers[.cursor] as? CursorProvider)?.stateDatabase {
             read = { CursorQuestions.read(ids: $0, database: database) }
         } else {
-            return
+            return false
         }
         let ids = CursorQuestions.reads(sessions.all, shown: Set(cursorAsked.keys), catchUp: cursorAskedCatchUp, last: cursorAskedRead, now: now)
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else { return false }
         cursorAskedRead = now
         let wanted = Set(ids.values)
         // A read that failed says nothing of any chat: what is on the rows stays until one succeeds.
-        guard let found = await Task.detached(priority: .utility, operation: { read(wanted) }).value else { return }
+        guard let found = await Task.detached(priority: .utility, operation: { read(wanted) }).value else { return false }
         cursorAskedCatchUp = false
         var asked: [String: CursorAsked] = [:]
         for (key, id) in ids {
             if let question = found[id] { asked[key] = question }
         }
         cursorQuestionsSeen(asked, readAt: now)
+        return true
     }
 
     /// The questions a read of Cursor's database found, by session, put beside what its windows last showed.
     /// `readAt` is when the read began: what it found is no newer than that.
     func cursorQuestionsSeen(_ asked: [String: CursorAsked], readAt: Date) {
         var cards: [String: CursorCard] = [:]
+        // Answered from the notch where there is the permission to press Cursor's card with, and shown otherwise.
+        let answerable = cursorUI.trusted
         for (key, question) in asked {
             guard let session = sessions.sessions[key] else { continue }
-            cards[key] = CursorQuestions.card(question, window: session.project ?? "")
+            let card = CursorQuestions.card(question, window: session.project ?? "", session: key, answerable: answerable)
+            // The same question read again keeps what has been picked on it here.
+            if let held = cursorAsked[key], held.id == card.id, held.answerable == card.answerable {
+                cards[key] = held
+            } else {
+                cards[key] = card
+            }
         }
         cursorQuestionSent = cursorQuestionSent.filter { sessions.sessions[$0.key] != nil }
+        cursorQuestionSentCards = cursorQuestionSentCards.filter { sessions.sessions[$0.key] != nil }
         guard cards != cursorAsked || !cards.isEmpty else { return }
+        // A question that has left the database is no longer one the notch has stopped answering.
+        cursorCardsShownOnly.subtract(Set(cursorAsked.values.map(\.id)).subtracting(cards.values.map(\.id)))
         cursorAsked = cards
         cursorAskedAt = readAt
         cursorCardsSeen(cursorWindowCards, now: readAt)
@@ -3035,8 +3092,12 @@ extension UsageStore {
 
     /// Presses one of a card's buttons in Cursor, after re-reading the same card; the row says what came of it.
     func pressCursorCard(_ card: CursorCard, option: String, sessionID: String) {
-        // A question read from the database has nothing of Cursor's window in it to press.
-        guard prefs.cursorControl, !card.fromDatabase, !cursorPressing.contains(card.id), !cursorCardsShownOnly.contains(card.id) else { return }
+        // A question read from the database has nothing of Cursor's window in it: its card is found when it is sent.
+        if card.fromDatabase {
+            answerCursorQuestion(card, option: option, sessionID: sessionID)
+            return
+        }
+        guard prefs.cursorControl, !cursorPressing.contains(card.id), !cursorCardsShownOnly.contains(card.id) else { return }
         cursorPressing.insert(card.id)
         cursorPressCount += 1
         let ui = cursorUI
@@ -3046,7 +3107,10 @@ extension UsageStore {
             self.cursorPressing.remove(card.id)
             self.cursorPressCount += 1
             // A question sent from the notch is answered, whatever the database said a moment before.
-            if result == .pressed, card.kind == .question { self.cursorQuestionSent[sessionID] = Date() }
+            if result == .pressed, card.kind == .question {
+                self.cursorQuestionSent[sessionID] = Date()
+                self.cursorQuestionSentCards[sessionID] = nil
+            }
             // The press saw the card go, so it leaves the row now, with the note that says what was pressed: one
             // change. Left to the next read of the window, the row carried the card and the note together for up to
             // a second, a line taller, and then dropped the card (0.9.16: it blinked).
@@ -3062,12 +3126,121 @@ extension UsageStore {
         }
     }
 
-    /// Picks one choice of a question on Cursor's card, after re-reading the same card. The card stays, as
-    /// Cursor's does until Continue, and shows what Cursor now shows: the press's own read of the window comes
-    /// back with it, so the row does not wait for the next one. A pick that took needs no note, the card says it.
+    /// Sends what has been picked on a question read from Cursor's database, with Continue, or skips it. Cursor's
+    /// own card for the question is found in its windows by the choices' words and pressed where it is, off the
+    /// main actor (CursorUIControlling.answer); Cursor is not brought forward, whatever comes of it. The card
+    /// leaves the row when Cursor's has gone. A window that is put away may not show that, so a card that still
+    /// shows after Continue went in is looked up in the database, where the answer lands either way. An answer
+    /// that could not be put on Cursor's card says so on the row, and the question is from then on shown with
+    /// Answer in Cursor.
+    ///
+    /// An answer must not reach another chat's card. So the database is read first for every Cursor chat there
+    /// is, since a question asked a moment ago is not yet known here, and then: where another chat is asking a
+    /// question that could be taken for this one (CursorQuestions.alike), the card is taken only from a window
+    /// titled for this chat's workspace when the two are in workspaces of different names, and where they are
+    /// not, nothing tells the two cards apart, nothing is pressed, and the row says so. That one can be sent
+    /// again once the other chat's question has been answered. A read that could not be made is no word that
+    /// there is no such chat, and the card is then taken only from a window so titled too.
+    private func answerCursorQuestion(_ card: CursorCard, option: String, sessionID: String) {
+        let word = option.lowercased()
+        let skip = word == "skip"
+        guard prefs.cursorControl, card.answerable, let held = cursorAsked[sessionID], held.id == card.id,
+              skip || (word == CursorCards.questionSend && held.complete),
+              !cursorPressing.contains(card.id), !cursorCardsShownOnly.contains(card.id) else { return }
+        cursorPressing.insert(card.id)
+        cursorPressCount += 1
+        cursorAnswering[sessionID] = held
+        let ui = cursorUI
+        Task { [weak self] in
+            guard let self else { return }
+            self.cursorAskedCatchUp = true
+            self.cursorAskedRead = .distantPast
+            let known = await self.readCursorQuestions()
+            // Answered in Cursor while this was on its way: there is nothing left to send.
+            guard self.cursorAsked[sessionID]?.id == card.id else {
+                self.cursorPressing.remove(card.id)
+                self.cursorPressCount += 1
+                self.cursorAnswering[sessionID] = nil
+                self.cursorCardsSeen(self.cursorWindowCards)
+                return
+            }
+            let twins = self.cursorAsked.filter { $0.key != sessionID && self.sessions.sessions[$0.key] != nil && CursorQuestions.alike($0.value, held) }
+            guard !twins.values.contains(where: { $0.window == held.window }) else {
+                self.cursorAnswerEnded(held, skip: skip, sessionID: sessionID, result: .gone, found: Self.cursorTwin,
+                                       note: L("Another chat is asking the same question; answer it in Cursor"))
+                return
+            }
+            // Where that read could not be made, a chat that has just asked a question like this one is not
+            // known of, and the card is taken only from a window titled for this chat's workspace, as it is
+            // when one is.
+            let named = !twins.isEmpty || !known
+            // The workspaces of the other Cursor chats on this Mac: the only window that holds the card is not
+            // this chat's when it is titled for one of them and not for this chat's own.
+            let elsewhere = Set(self.sessions.all.filter { $0.tool == .cursor && $0.host == nil && $0.id != sessionID }.compactMap(\.project))
+                .subtracting([held.window])
+            let answered = await Task.detached(priority: .userInitiated) { ui.answer(held, skip: skip, named: named, elsewhere: elsewhere) }.value
+            var result = answered.result
+            if result == .stillShown, await self.cursorQuestionSettled(held, sessionID: sessionID) { result = .pressed }
+            self.cursorAnswerEnded(held, skip: skip, sessionID: sessionID, result: result, found: answered.found,
+                                   note: Self.note(forAnswer: result, option: option))
+        }
+    }
+
+    /// What every way out of sending a question's answers does: its buttons are let go, the row says what came
+    /// of it, and the card leaves, stays, or is from then on shown with Answer in Cursor.
+    private func cursorAnswerEnded(_ card: CursorCard, skip: Bool, sessionID: String, result: CursorPressResult, found: String, note: String) {
+        cursorPressing.remove(card.id)
+        cursorPressCount += 1
+        cursorAnswering[sessionID] = nil
+        switch result {
+        case .pressed:
+            cursorQuestionSent[sessionID] = Date()
+            cursorQuestionSentCards[sessionID] = card.id
+            cursorAnswered.append((card, Date()))
+            if cursorAsked[sessionID]?.id == card.id { cursorAsked[sessionID] = nil }
+        case .gone, .refused, .unavailable:
+            // A question held back for another chat's can be sent once that one has been answered.
+            if found != Self.cursorTwin { cursorCardsShownOnly.insert(card.id) }
+        case .stillShown:
+            break
+        }
+        cursorCardsSeen(cursorWindowCards)
+        noteCursorAction(note, for: sessionID)
+        // What came of it and how Cursor's card was come by, and nothing of the question: whether a card in a
+        // window that is put away can be reached is the thing a report of this has to say.
+        log.notice("cursor question \(skip ? "skipped" : "answered", privacy: .public): \(result.rawValue, privacy: .public), card \(found, privacy: .public)")
+        Oracle.shared.emit("decision", ["source": "cursorAnswer", "kind": card.kind.rawValue, "behavior": result.rawValue, "session": sessionID, "found": found])
+    }
+
+    /// What the log and the oracle say of a question that was not sent because another chat was asking one like it.
+    nonisolated static let cursorTwin = "twin"
+
+    /// Whether Cursor's database no longer holds a question as waiting, read now: after a moment, since Cursor
+    /// writes an answer as it takes it and not before.
+    private func cursorQuestionSettled(_ card: CursorCard, sessionID: String) async -> Bool {
+        try? await Task.sleep(for: .milliseconds(400))
+        cursorAskedRead = .distantPast
+        await readCursorQuestions()
+        return cursorAsked[sessionID]?.id != card.id
+    }
+
+    /// Picks one choice of a question card. On a card read from Cursor's database the pick is made on the notch's
+    /// own card, as Cursor's takes a press, and nothing of Cursor is touched until the answers are sent
+    /// (answerCursorQuestion). On one read from Cursor's window it is a press on Cursor's card, after re-reading
+    /// the same card: the card stays, as Cursor's does until Continue, and shows what Cursor now shows, the
+    /// press's own read of the window coming back with it, so the row does not wait for the next one. A pick that
+    /// took needs no note, the card says it.
     func pickCursorChoice(_ card: CursorCard, question: Int, choice: Int, sessionID: String) {
         guard prefs.cursorControl, card.answerable, !cursorPressing.contains(card.id), !cursorCardsShownOnly.contains(card.id),
               card.questions.indices.contains(question), card.questions[question].choices.indices.contains(choice) else { return }
+        if card.fromDatabase {
+            guard let held = cursorAsked[sessionID], held.id == card.id else { return }
+            cursorAsked[sessionID] = CursorQuestions.picking(held, question: question, choice: choice)
+            // What an earlier press on this row came to is no longer the news.
+            clearCursorNote(for: sessionID)
+            cursorCardsSeen(cursorWindowCards)
+            return
+        }
         let wanted = card.questions[question].choices[choice]
         cursorPressing.insert(card.id)
         cursorPressCount += 1
@@ -3084,6 +3257,7 @@ extension UsageStore {
             if picked.result == .pressed, picked.card == nil {
                 // The card went with the pick: Cursor took it as the answer.
                 self.cursorQuestionSent[sessionID] = Date()
+                self.cursorQuestionSentCards[sessionID] = nil
                 self.cursorCardsSeen(shown.filter { $0.id != card.id })
             } else {
                 self.cursorCardsSeen(shown.map { $0.id == picked.card?.id ? picked.card ?? $0 : $0 })
@@ -3226,6 +3400,13 @@ extension UsageStore {
         case .refused: L("Cursor would not take the press; answer it in Cursor")
         case .unavailable: L("Cursor or the Accessibility permission is unavailable; nothing was pressed")
         }
+    }
+
+    /// What the row says of answers sent from a question read from Cursor's database. A card that could not be
+    /// found in Cursor's windows has not changed, as the press of a button says of one that has gone: it is out
+    /// of reach, and the row says where it is answered.
+    nonisolated static func note(forAnswer result: CursorPressResult, option: String) -> String {
+        result == .gone ? L("Could not reach this question in Cursor's window; answer it in Cursor") : note(for: result, option: option)
     }
 
     /// What the row says of a pick. Nothing when it took, and nothing when a choice that was already picked stays

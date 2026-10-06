@@ -42,48 +42,146 @@ import Testing
         #expect(cut.questions.count == CursorQuestions.questionLimit && cut.questions[0].options.count == CursorQuestions.optionLimit)
     }
 
-    @Test func theCardItMakesIsShownAndNotPressed() throws {
+    @Test func theCardItMakesIsAnsweredOnTheNotch() throws {
         let asked = CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "A new kind of banana"]),
                                             .init(prompt: "Which colours?", allowsSeveral: true, options: ["red"])])
         let card = CursorQuestions.card(asked, window: "proj")
         #expect(card.kind == .question && card.fromDatabase && card.blocksTurn)
         #expect(card.heading == "Which fruit?")
         #expect(card.questions.map(\.text) == ["Which fruit?", "Which colours?"])
-        #expect(card.questions.map { $0.choices.map(\.label) } == [["A apple", "B A new kind of banana"], ["A red"]], "lettered as Cursor's own card letters them")
-        #expect(card.choices == ["A apple", "B A new kind of banana", "A red"])
-        #expect(card.options.isEmpty && !card.answerable, "there is nothing of Cursor's window in it to press")
-        #expect(card.shownOnly.fromDatabase && card.shownOnly.id == card.id)
+        #expect(card.questions.map { $0.choices.map(\.label) } == [["A apple", "B A new kind of banana", "C Other..."], ["A red", "B Other..."]],
+                "lettered as Cursor's own card letters them, each question ended by the choice that is typed, as Cursor's is")
+        #expect(card.questions.map { $0.choices.map(\.typed) } == [[false, false, true], [false, true]])
+        #expect(card.questions.map(\.several) == [false, true], "the database says which question takes several answers")
+        #expect(card.choices == ["A apple", "B A new kind of banana", "C Other...", "A red", "B Other..."])
+        #expect(card.options.map(\.label) == ["Skip", "Continue"] && card.answerable, "Cursor's own two ways to end the card")
+        #expect(card.questions.flatMap(\.choices).allSatisfy { !$0.picked && $0.path.isEmpty }, "nothing of it has a place in a window")
+        #expect(card.shownOnly.fromDatabase && card.shownOnly.id == card.id && !card.shownOnly.answerable)
+        // Without the permission to press Cursor's card with, it is the same card, shown.
+        let shown = CursorQuestions.card(asked, window: "proj", answerable: false)
+        #expect(shown.options.isEmpty && !shown.answerable && shown.id == card.id && shown.questions == card.questions)
         // The same question is the same card, and another is another.
         #expect(CursorQuestions.card(asked, window: "proj").id == card.id)
         var other = asked
         other.questions[0].options[0] = "pear"
         #expect(CursorQuestions.card(other, window: "proj").id != card.id)
+        // Asked of two chats word for word, it is two cards that ask the same: what is picked on one, or given up
+        // on, is not the other's.
+        let one = CursorQuestions.card(asked, window: "proj", session: "cursor:c1"), two = CursorQuestions.card(asked, window: "proj", session: "cursor:c2")
+        #expect(one.id != two.id && one.questions == two.questions)
+        #expect(CursorQuestions.card(asked, window: "proj", session: "cursor:c1").id == one.id)
+    }
+
+    @Test func twoChatsQuestionsThatAWindowWouldNotTellApartAreAlike() {
+        func card(_ prompt: String, _ options: [String] = ["Yes", "No"], session: String = "cursor:c2") -> CursorCard {
+            CursorQuestions.card(CursorAsked(questions: [.init(prompt: prompt, allowsSeveral: false, options: options)]), window: "proj", session: session)
+        }
+        let mine = card("Proceed with step 1?", session: "cursor:c1")
+        #expect(CursorQuestions.alike(mine, card("Proceed with step 1?")), "word for word, as the same prompt run twice asks")
+        #expect(CursorQuestions.alike(mine, card("Proceed with step 2?")), "a step apart: the words drawn in a window would pass for either")
+        #expect(CursorQuestions.alike(mine, card("**Proceed** with `step 1`?")), "Markdown's marks are not a difference")
+        #expect(!CursorQuestions.alike(mine, card("Sort the list by name as well?")), "another question over the same choices is told apart in the window")
+        #expect(!CursorQuestions.alike(mine, card("Proceed with step 1?", ["Yes", "No", "Later"])), "other choices are another card, which is not found by these")
+        #expect(!CursorQuestions.alike(mine, card("Proceed with step 1?", ["No", "Yes"])))
+        // A window's card is no twin, and neither are two cards of different lengths.
+        var window = CursorCard(kind: .question, window: "proj", heading: "Proceed with step 1?", options: [])
+        window.choices = mine.choices
+        #expect(!CursorQuestions.alike(mine, window))
+        let longer = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Proceed with step 1?", allowsSeveral: false, options: ["Yes", "No"]),
+                                                                  .init(prompt: "And then?", allowsSeveral: false, options: ["Stop", "Go on"])]), window: "proj")
+        #expect(!CursorQuestions.alike(mine, longer))
         // A question that runs long is cut with a mark, as one read from the window is.
         let long = CursorQuestions.card(CursorAsked(questions: [.init(prompt: String(repeating: "word ", count: 80), allowsSeveral: false, options: ["a"])]), window: "p")
         #expect(long.heading?.hasSuffix("…") == true && (long.heading?.count ?? 0) <= CursorCards.headingLimit + 1)
+        // Twenty-six choices leave no letter for the typed one.
+        let full = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which?", allowsSeveral: false, options: (0..<26).map { "o\($0)" })]), window: "p")
+        #expect(full.questions[0].choices.count == 26 && full.questions[0].choices.allSatisfy { !$0.typed })
     }
 
-    @Test @MainActor func itIsDrawnAsWordsWithAnswerInCursorAndNothingElse() {
-        let card = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "banana"])]), window: "proj")
-        #expect(!CursorCardView.answersHere(card, hideDetails: false) && CursorCardView.offered(card, hideDetails: false).isEmpty)
-        #expect(!CursorCardView.canSend(card))
-        #expect(CursorCardView.listed(card.choices[1]) == "B. banana")
+    @Test func aChoiceCursorsCardLeavesOutIsLeftOutHere() throws {
+        // The agent's own "Other" is dropped by Cursor's card for the typed choice it always adds, so the choices
+        // after it are lettered one earlier there; lettered as the database lists them, they would not be Cursor's.
+        let params = #"{"questions":[{"prompt":"Which typeface?","options":[{"label":"Menlo"},{"label":"Other (say which)"},{"label":"Monaco"},{"label":"other"},{"label":"Other: a serif"},{"label":"Other - none"},{"label":"Otherwise the system's"},{"label":"A wide\n  one"}]}]}"#
+        let asked = try #require(CursorQuestions.asked(name: "ask_question", status: "pending", params: params))
+        #expect(asked.questions[0].options == ["Menlo", "Monaco", "Otherwise the system's", "A wide one"],
+                "and a choice's white space is one space, as Cursor draws running text")
+        #expect(CursorQuestions.card(asked, window: "proj").questions[0].choices.map(\.label)
+                == ["A Menlo", "B Monaco", "C Otherwise the system's", "D A wide one", "E Other..."])
+        #expect(CursorQuestions.leftOut(" OTHER ") && !CursorQuestions.leftOut("Another") && !CursorQuestions.leftOut("Others"))
     }
 
-    @Test func aWindowsCardAndTheDatabasesAreOneQuestionWhenTheyAskTheSame() {
-        let database = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "banana"])]), window: "proj")
-        var window = CursorCard(kind: .question, window: "proj — plan.md", heading: "Which fruit?",
+    @Test func aPickIsMadeOnTheNotchsOwnCardAsCursorsTakesAPress() {
+        let card = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "banana"]),
+                                                                .init(prompt: "Which colours?", allowsSeveral: true, options: ["red", "green"])]), window: "proj")
+        func picks(_ card: CursorCard) -> [[Bool]] { card.questions.map { $0.choices.map(\.picked) } }
+        // One answer: the choice becomes the pick, another takes its place, and pressed again it is no pick.
+        var one = CursorQuestions.picking(card, question: 0, choice: 0)
+        #expect(picks(one) == [[true, false, false], [false, false, false]])
+        one = CursorQuestions.picking(one, question: 0, choice: 1)
+        #expect(picks(one)[0] == [false, true, false])
+        #expect(picks(CursorQuestions.picking(one, question: 0, choice: 1))[0] == [false, false, false])
+        // Several: each is turned over by itself.
+        var several = CursorQuestions.picking(one, question: 1, choice: 0)
+        several = CursorQuestions.picking(several, question: 1, choice: 1)
+        #expect(picks(several) == [[false, true, false], [true, true, false]])
+        #expect(picks(CursorQuestions.picking(several, question: 1, choice: 0))[1] == [false, true, false])
+        // It is the same card whatever is picked on it, and it can be sent once every question has a pick.
+        #expect(several.id == card.id)
+        #expect(!card.complete && !one.complete && several.complete)
+        // The typed choice is answered in Cursor, and a place the card has not got picks nothing.
+        #expect(CursorQuestions.picking(card, question: 0, choice: 2) == card)
+        #expect(CursorQuestions.picking(card, question: 2, choice: 0) == card && CursorQuestions.picking(card, question: 0, choice: 9) == card)
+    }
+
+    @Test @MainActor func itIsDrawnWithItsChoicesToPickAndCursorsOwnTwoButtons() {
+        let asked = CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "banana"])])
+        var card = CursorQuestions.card(asked, window: "proj")
+        #expect(CursorCardView.answersHere(card, hideDetails: false))
+        #expect(CursorCardView.offered(card, hideDetails: false).map(\.label) == ["Skip", "Continue"])
+        // Continue is held until the question has a pick, as Cursor's own does nothing before then; Skip is not.
+        #expect(!CursorCardView.canSend(card) && CursorCardView.held(card.options[1], on: card) && !CursorCardView.held(card.options[0], on: card))
+        card = CursorQuestions.picking(card, question: 0, choice: 1)
+        #expect(CursorCardView.canSend(card) && !CursorCardView.held(card.options[1], on: card))
+        // With its words hidden, or with nothing to press Cursor's card with, it is shown with Answer in Cursor alone.
+        #expect(!CursorCardView.answersHere(card, hideDetails: true) && CursorCardView.offered(card, hideDetails: true).isEmpty)
+        let shown = CursorQuestions.card(asked, window: "proj", answerable: false)
+        #expect(!CursorCardView.answersHere(shown, hideDetails: false) && CursorCardView.offered(shown, hideDetails: false).isEmpty)
+        #expect(!CursorCardView.canSend(shown))
+        #expect(CursorCardView.listed(card.choices[1]) == "B. banana" && CursorCardView.listed(card.choices[2]) == "C. Other...")
+    }
+
+    @Test func aWindowsCardAndTheDatabasesAreOneQuestionWhenTheyOfferTheSame() {
+        let database = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which `fruit` should **it** be?", allowsSeveral: false, options: ["apple", "banana"])]), window: "proj")
+        // Cursor draws the question from Markdown, so the window's words for it are not the database's.
+        var window = CursorCard(kind: .question, window: "proj — plan.md", heading: "Which fruit should it be?",
                                 options: [.init(label: "Skip", path: [1]), .init(label: "Continue", path: [2])])
-        // The window's card has the choice that is typed as well, which the database does not list.
         window.choices = ["A apple", "B banana", "C Other..."]
         #expect(CursorQuestions.same(window: window, database: database))
         #expect(CursorQuestions.same(window: window.shownOnly, database: database), "with nothing to press it is the same question still")
+        // Lettered one on, as when Cursor's card leaves a choice out, it is the same by what the choices say.
+        var shifted = window
+        shifted.choices = ["A apple", "C banana", "D Other..."]
+        #expect(CursorQuestions.same(window: shifted, database: database))
         var another = window
         another.choices = ["A apple", "B pear", "C Other..."]
         #expect(!CursorQuestions.same(window: another, database: database))
-        let asksElse = CursorCard(kind: .question, window: "proj", heading: "Which colour?", options: [])
-        #expect(!CursorQuestions.same(window: asksElse, database: database))
-        let run = CursorCard(kind: .run, window: "proj", heading: "Which fruit?", options: [])
+        let asksElse = CursorCard(kind: .question, window: "proj", heading: "Which fruit should it be?", options: [])
+        #expect(!CursorQuestions.same(window: asksElse, database: database), "the same words over no choices are not the same question")
+        // Another chat's question over the same choices is another question, and is not dropped for this one.
+        var otherwise = CursorCard(kind: .question, window: "proj", heading: "Which one goes in the lunch box?", options: [])
+        otherwise.choices = window.choices
+        #expect(!CursorQuestions.same(window: otherwise, database: database))
+        // A card that does not say what it asks is known by its choices alone.
+        var silent = CursorCard(kind: .question, window: "proj", heading: nil, options: [])
+        silent.choices = window.choices
+        #expect(CursorQuestions.same(window: silent, database: database))
+        // The typed choice is on every question card and is evidence of nothing: a question that offers no other
+        // is not matched to any window's, which it would otherwise be to every one, in every chat.
+        let typedOnly = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Name the branch", allowsSeveral: false, options: [])]), window: "proj")
+        #expect(typedOnly.choices == ["A Other..."])
+        #expect(!CursorQuestions.same(window: window, database: typedOnly) && !CursorQuestions.same(window: silent, database: typedOnly))
+        var run = CursorCard(kind: .run, window: "proj", heading: "Which fruit?", options: [])
+        run.choices = window.choices
         #expect(!CursorQuestions.same(window: run, database: database))
         #expect(!CursorQuestions.same(window: database, database: database), "two cards from the database are not a window's and a database's")
     }
@@ -289,15 +387,13 @@ import Testing
         #expect(database.asked.count == 1 && store.cursorCards.isEmpty, "not read again within a moment of the last read")
         await store.readCursorQuestions(now: t0.addingTimeInterval(8))
         let shown = try #require(store.cursorCards[cards.key("c1")]?.first)
-        #expect(shown.fromDatabase && shown.heading == "Which fruit?" && shown.choices == ["A apple", "B banana"])
+        #expect(shown.fromDatabase && shown.heading == "Which fruit?" && shown.choices == ["A apple", "B banana", "C Other..."])
+        #expect(shown.answerable, "with its choices to pick, wherever the window is")
         #expect(store.cursorCards[cards.key("c2")] == nil)
         #expect(store.sessions.sessions[cards.key("c1")]?.isWaiting == true, "the chat is waiting, and its row says so")
         #expect(opened == [cards.key("c1")], "and the notch is opened on it")
-        // There is nothing of it to press from here, whatever a button drawn for another card asks.
-        store.pickCursorChoice(shown, question: 0, choice: 0, sessionID: cards.key("c1"))
-        store.pressCursorCard(shown, option: "Continue", sessionID: cards.key("c1"))
-        try? await Task.sleep(for: .milliseconds(40))
-        #expect(ui.picks.isEmpty && ui.pressed.isEmpty && store.cursorPressing.isEmpty)
+        // Showing it touched nothing of Cursor's window.
+        #expect(ui.picks.isEmpty && ui.pressed.isEmpty && ui.answers.isEmpty && store.cursorPressing.isEmpty)
 
         // Read again and still waiting, nothing changes. A read that fails says nothing, and changes nothing.
         await store.readCursorQuestions(now: t0.addingTimeInterval(11))
@@ -312,14 +408,14 @@ import Testing
         #expect(store.sessions.sessions[cards.key("c1")]?.isWorking == true)
     }
 
-    @Test @MainActor func theWindowsCardAndTheDatabasesAreOneWaitWhicheverIsOnTheRow() async throws {
+    @Test @MainActor func theWindowsCardAndTheDatabasesAreOneWaitAndTheDatabasesIsTheOneShown() async throws {
         let suite = "NotchmeterTests.CursorQuestionRows.window"
         let (store, ui, defaults) = cards.store(suite)
         defer { defaults.removePersistentDomain(forName: suite) }
         let database = Database()
         store.cursorQuestionReader = { database.read($0) }
-        // A press is timed by the clock, so everything here is: the chat's prompt two minutes ago, and each look
-        // in the database told when it began.
+        // A read of the window is timed by the clock, so everything here is: the chat's prompt two minutes ago,
+        // and each look in the database told when it began.
         store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor),
                            now: Date().addingTimeInterval(-120))
         var opened = 0, closed = 0
@@ -327,47 +423,51 @@ import Testing
             opened += started.count
             closed += ended.count
         }
-        database.waiting = ["c1": fruit]
-        await store.readCursorQuestions(now: Date().addingTimeInterval(-60))
-        #expect(store.cursorCards[cards.key("c1")]?.first?.fromDatabase == true)
-
-        // The window comes back: its own card has the choices to press, and is the one on the row.
+        // The window is read first, a moment before the database has the question: its card is what there is.
         let card = window()
         ui.cards = [card]
         await store.readCursorCards()
         #expect(store.cursorCards[cards.key("c1")] == [card])
+        // The database has it: its card takes the window's place, as the same wait.
+        database.waiting = ["c1": fruit]
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-60))
+        let held = try #require(store.cursorCards[cards.key("c1")]?.first)
+        #expect(held.fromDatabase && store.cursorCards[cards.key("c1")]?.count == 1, "one card for the one question")
         #expect(opened == 1 && closed == 0, "the same wait, not a second one")
-        await store.readCursorQuestions(now: Date().addingTimeInterval(-50))
-        #expect(store.cursorCards[cards.key("c1")] == [card], "the database's copy is not put beside it")
-
-        // The window is minimised again: its card is gone from the window, and the database's takes its place in
-        // the same change. The chat never stopped waiting, so the notch is neither closed nor opened again.
+        // Whatever the window does from here, the row does not change: read again, minimised, back.
+        await store.readCursorCards()
         ui.cards = []
         await store.readCursorCards()
-        #expect(store.cursorCards[cards.key("c1")]?.first?.fromDatabase == true)
-        #expect(store.sessions.sessions[cards.key("c1")]?.isWaiting == true)
-        #expect(opened == 1 && closed == 0)
-        // And the database is asked again at once, to learn whether the question was answered or only put away.
-        let reads = database.asked.count
-        await store.readCursorQuestions(now: Date().addingTimeInterval(-49.5))
-        #expect(database.asked.count == reads + 1)
-
-        // Back once more, and answered from the notch. A look in the database that began before that still says
-        // it is waiting, and does not put it back.
         ui.cards = [card]
         await store.readCursorCards()
-        store.pressCursorCard(card, option: "Continue", sessionID: cards.key("c1"))
-        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
-        #expect(ui.pressed == ["question:Continue"])
-        #expect(store.cursorCards[cards.key("c1")] == nil, "the card leaves with its note")
-        #expect(closed == 1)
-        store.cursorQuestionsSeen([cards.key("c1"): fruit], readAt: Date().addingTimeInterval(-5))
-        #expect(store.cursorCards[cards.key("c1")] == nil)
-        // A look begun after it, with the question still there (Continue did not send it), is the truth.
+        #expect(store.cursorCards[cards.key("c1")] == [held] && opened == 1 && closed == 0)
+        #expect(store.sessions.sessions[cards.key("c1")]?.isWaiting == true)
+        // A Run card in the same window is still the window's, beside it.
+        ui.cards = [card, cards.run("proj")]
+        await store.readCursorCards()
+        #expect(store.cursorCards[cards.key("c1")]?.map(\.kind) == [.run, .question])
+        #expect(store.cursorCards[cards.key("c1")]?.last?.fromDatabase == true)
+    }
+
+    @Test @MainActor func aWindowsQuestionThatLeavesIsLookedUpInTheDatabaseAtOnce() async {
+        let suite = "NotchmeterTests.CursorQuestionRows.left"
+        let (store, ui, defaults) = cards.store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let database = Database()
+        store.cursorQuestionReader = { database.read($0) }
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor),
+                           now: Date().addingTimeInterval(-120))
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-60))
+        ui.cards = [window()]
+        await store.readCursorCards()
+        #expect(store.cursorCards[cards.key("c1")]?.first?.fromDatabase == false)
+        // Its card goes from the window: answered there, or the window put away. The database is asked which at
+        // once, not when its next read would have come round.
         ui.cards = []
         await store.readCursorCards()
-        store.cursorQuestionsSeen([cards.key("c1"): fruit], readAt: Date().addingTimeInterval(5))
-        #expect(store.cursorCards[cards.key("c1")]?.first?.fromDatabase == true)
+        let reads = database.asked.count
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-59.5))
+        #expect(database.asked.count == reads + 1)
     }
 
     @Test @MainActor func theDatabaseSaysWhichOfTwoChatsInOneWorkspaceIsAsking() async {
@@ -386,10 +486,374 @@ import Testing
 
         database.waiting = ["c1": fruit]
         await store.readCursorQuestions(now: t0.addingTimeInterval(10))
-        #expect(store.cursorCards[cards.key("c1")] == [card], "the database names the chat, and the window's card is on its row")
-        #expect(store.cursorCards[cards.key("c2")] == nil, "and on no other")
+        #expect(store.cursorCards[cards.key("c1")]?.map(\.fromDatabase) == [true], "the database names the chat, and the question is on its row")
+        #expect(store.cursorCards[cards.key("c2")] == nil, "and on no other: the window's card for it is the same question")
         #expect(store.sessions.sessions[cards.key("c1")]?.isWaiting == true)
         #expect(store.sessions.sessions[cards.key("c2")]?.isWorking == true)
+    }
+
+    /// A store with one Cursor chat whose question the database holds, on its row.
+    @MainActor
+    func asking(_ suite: String, _ question: CursorAsked? = nil) async throws -> (UsageStore, CursorCardStore.FakeCursorUI, UserDefaults, Database, CursorCard) {
+        let (store, ui, defaults) = cards.store(suite)
+        let database = Database()
+        store.cursorQuestionReader = { database.read($0) }
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor),
+                           now: Date().addingTimeInterval(-120))
+        database.waiting = ["c1": question ?? fruit]
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-60))
+        return (store, ui, defaults, database, try #require(store.cursorCards[cards.key("c1")]?.first))
+    }
+
+    @Test @MainActor func aChoiceIsPickedOnTheNotchAndNothingOfCursorIsTouchedUntilItIsSent() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.pick"
+        let (store, ui, defaults, _, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var opened = 0
+        store.cursorCardsChanged = { started, _ in opened += started.count }
+        // Continue before anything is picked sends nothing: Cursor's own does nothing then.
+        store.pressCursorCard(shown, option: "Continue", sessionID: cards.key("c1"))
+        #expect(store.cursorPressing.isEmpty)
+        store.pickCursorChoice(shown, question: 0, choice: 0, sessionID: cards.key("c1"))
+        var card = try #require(store.cursorCards[cards.key("c1")]?.first)
+        #expect(card.questions[0].choices.map(\.picked) == [true, false, false] && card.id == shown.id)
+        // A question with one answer moves its pick, drawn from the card as it was or as it is.
+        store.pickCursorChoice(shown, question: 0, choice: 1, sessionID: cards.key("c1"))
+        card = try #require(store.cursorCards[cards.key("c1")]?.first)
+        #expect(card.questions[0].choices.map(\.picked) == [false, true, false])
+        // The typed choice is answered in Cursor, and is not a pick here.
+        store.pickCursorChoice(card, question: 0, choice: 2, sessionID: cards.key("c1"))
+        #expect(store.cursorCards[cards.key("c1")]?.first == card)
+        // The database read again, the question still waiting: what was picked is kept.
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-50))
+        #expect(store.cursorCards[cards.key("c1")]?.first == card)
+        #expect(opened == 0, "the same card all along, and the notch is not opened on it again")
+        try? await Task.sleep(for: .milliseconds(40))
+        #expect(ui.picks.isEmpty && ui.pressed.isEmpty && ui.answers.isEmpty, "none of it was a press on Cursor")
+        // A pick on another chat's row, or with the mirror off, is nothing.
+        store.pickCursorChoice(card, question: 0, choice: 0, sessionID: cards.key("c9"))
+        store.prefs.cursorControl = false
+        store.pickCursorChoice(card, question: 0, choice: 0, sessionID: cards.key("c1"))
+        #expect(store.cursorCards[cards.key("c1")]?.first == card)
+    }
+
+    @Test @MainActor func continueSendsWhatWasPickedToCursorsOwnCardAndTheCardLeaves() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.send"
+        let (store, ui, defaults, database, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var closed = 0
+        store.cursorCardsChanged = { _, ended in closed += ended.count }
+        // Cursor's window shows the same question, as it does when it is in view.
+        ui.cards = [window()]
+        await store.readCursorCards()
+        store.pickCursorChoice(shown, question: 0, choice: 1, sessionID: cards.key("c1"))
+        let picked = try #require(store.cursorCards[cards.key("c1")]?.first)
+        store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+        #expect(store.cursorPressing == [picked.id], "its buttons are held while Cursor's card is found and pressed")
+        store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(ui.answers.count == 1 && ui.answers.first?.skip == false, "sent once")
+        #expect(ui.answers.first?.card.questions[0].choices.map(\.picked) == [false, true, false], "with what the notch's card had picked")
+        #expect(ui.pressed.isEmpty && ui.picks.isEmpty, "by its words, and not as a button of a card read from the window")
+        #expect(store.cursorCards[cards.key("c1")] == nil && closed == 1, "the card leaves with its note")
+        #expect(store.cursorActionNotes[cards.key("c1")] == L("Pressed %@ in Cursor", "Continue"))
+        #expect(store.cursorPressing.isEmpty)
+        #expect(store.sessions.sessions[cards.key("c1")]?.isWorking == true)
+        // The window's own card for it does not come back on the row either: not the one read a moment before
+        // the answer went, and not one a window that is put away goes on showing after it.
+        #expect(store.cursorCards.isEmpty)
+        await store.readCursorCards()
+        #expect(ui.cards.count == 1 && store.cursorCards.isEmpty)
+        #expect(store.sessions.sessions[cards.key("c1")]?.isWorking == true)
+        // A look in the database that began before the answer went, or in the moment after it, still says it is
+        // waiting, and does not put it back: Cursor writes an answer as it takes it. One begun later, with the
+        // question still there, is the truth.
+        store.cursorQuestionsSeen([cards.key("c1"): fruit], readAt: Date().addingTimeInterval(-5))
+        #expect(store.cursorCards[cards.key("c1")] == nil)
+        store.cursorQuestionsSeen([cards.key("c1"): fruit], readAt: Date().addingTimeInterval(1))
+        #expect(store.cursorCards[cards.key("c1")] == nil)
+        ui.cards = []
+        await store.readCursorCards()
+        store.cursorQuestionsSeen([cards.key("c1"): fruit], readAt: Date().addingTimeInterval(UsageStore.cursorSentGrace + 2))
+        let back = try #require(store.cursorCards[cards.key("c1")]?.first)
+        #expect(back.fromDatabase && back.questions[0].choices.allSatisfy { !$0.picked }, "asked again, with nothing picked on it")
+        _ = database
+    }
+
+    @Test @MainActor func twoChatsAskingTheSameQuestionAreNotAnsweredOnAGuess() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.twins"
+        let (store, ui, defaults) = cards.store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let database = Database()
+        store.cursorQuestionReader = { database.read($0) }
+        // The same prompt run in three chats: two in one workspace (two worktrees of a repository are), one in another.
+        for (id, project) in [("c1", "atlas"), ("c2", "atlas"), ("c3", "birch")] {
+            store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: id, project: project, tool: .cursor),
+                               now: Date().addingTimeInterval(-120))
+        }
+        database.waiting = ["c1": fruit, "c2": fruit, "c3": fruit]
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-60))
+        #expect(store.cursorCards.count == 3)
+
+        // c3 has a twin in another workspace: its card is taken only from a window titled for its own.
+        let third = try #require(store.cursorCards[cards.key("c3")]?.first)
+        store.pressCursorCard(third, option: "Skip", sessionID: cards.key("c3"))
+        await cards.until { store.cursorActionNotes[cards.key("c3")] != nil }
+        #expect(ui.answers.count == 1 && ui.answers.first?.named == true && ui.answers.first?.card.window == "birch")
+        #expect(ui.answers.first?.elsewhere == ["atlas"], "the other chats' workspaces go with it, and not its own")
+        #expect(store.cursorCards[cards.key("c3")] == nil)
+        database.waiting = ["c1": fruit, "c2": fruit]
+
+        // c1's twin is in the same workspace: nothing in Cursor's windows tells the two cards apart, so nothing
+        // is pressed and the row says why.
+        let first = try #require(store.cursorCards[cards.key("c1")]?.first)
+        store.pickCursorChoice(first, question: 0, choice: 0, sessionID: cards.key("c1"))
+        let picked = try #require(store.cursorCards[cards.key("c1")]?.first)
+        store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(store.cursorActionNotes[cards.key("c1")] == L("Another chat is asking the same question; answer it in Cursor"))
+        #expect(store.cursorPressing.isEmpty && ui.answers.count == 1, "nothing was sent for it")
+        #expect(store.cursorCards[cards.key("c1")]?.first == picked, "and it keeps its picks, to be sent when it can be")
+        #expect(store.cursorCards[cards.key("c2")]?.first?.answerable == true, "the other chat's is untouched")
+
+        // The other chat's question is answered in Cursor: this one can now be sent.
+        database.waiting = ["c1": fruit]
+        store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+        await cards.until { store.cursorCards[cards.key("c1")] == nil }
+        #expect(ui.answers.count == 2 && ui.answers.last?.named == false)
+        #expect(ui.answers.last?.card.questions[0].choices.map(\.picked) == [true, false, false])
+    }
+
+    @Test @MainActor func aQuestionAStepFromAnotherChatsIsItsTwinAndOneAskedAMomentAgoIsFound() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.near"
+        let (store, ui, defaults) = cards.store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let database = Database()
+        store.cursorQuestionReader = { database.read($0) }
+        func step(_ number: Int) -> CursorAsked { CursorAsked(questions: [.init(prompt: "Proceed with step \(number)?", allowsSeveral: false, options: ["Yes", "No"])]) }
+        for id in ["c1", "c2"] {
+            store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: id, project: "atlas", tool: .cursor),
+                               now: Date().addingTimeInterval(-120))
+        }
+        // Only c1's question is known when its Skip is pressed; c2 asked its own a moment ago, and the database
+        // has it. It is read before anything is pressed, and a window drawing c2's card is not given c1's answer.
+        database.waiting = ["c1": step(1)]
+        await store.readCursorQuestions(now: Date().addingTimeInterval(-60))
+        let first = try #require(store.cursorCards[cards.key("c1")]?.first)
+        database.waiting = ["c1": step(1), "c2": step(2)]
+        store.pressCursorCard(first, option: "Skip", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(ui.answers.isEmpty)
+        #expect(store.cursorActionNotes[cards.key("c1")] == L("Another chat is asking the same question; answer it in Cursor"))
+        #expect(store.cursorCards[cards.key("c2")]?.first?.fromDatabase == true, "and the other chat's question is on its row")
+
+        // Another question over the same choices is no twin: the words drawn in the window tell the two apart.
+        database.waiting = ["c1": step(1), "c2": CursorAsked(questions: [.init(prompt: "Sort the list by name as well?", allowsSeveral: false, options: ["Yes", "No"])])]
+        store.pressCursorCard(first, option: "Skip", sessionID: cards.key("c1"))
+        await cards.until { store.cursorCards[cards.key("c1")] == nil }
+        #expect(ui.answers.count == 1 && ui.answers.first?.named == false)
+
+        // The database cannot be read just then: that is no word that no other chat has asked the like, and the
+        // card is taken only from a window titled for this chat's workspace.
+        let second = try #require(store.cursorCards[cards.key("c2")]?.first)
+        database.failing = true
+        ui.answerResult = .stillShown
+        store.pressCursorCard(second, option: "Skip", sessionID: cards.key("c2"))
+        await cards.until { store.cursorActionNotes[cards.key("c2")] != nil && store.cursorPressing.isEmpty }
+        #expect(ui.answers.count == 2 && ui.answers.last?.named == true)
+        #expect(store.cursorCards[cards.key("c2")]?.first?.answerable == true, "still asked, and still to be answered here")
+
+        // Answered in Cursor while the press was on its way: nothing is sent for a question that is no longer asked.
+        database.failing = false
+        database.waiting = [:]
+        store.pressCursorCard(second, option: "Skip", sessionID: cards.key("c2"))
+        await cards.until { store.cursorCards[cards.key("c2")] == nil && store.cursorPressing.isEmpty }
+        #expect(ui.answers.count == 2)
+    }
+
+    @Test @MainActor func skipNeedsNoPick() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.skip"
+        let (store, ui, defaults, _, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.pressCursorCard(shown, option: "Skip", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(ui.answers.count == 1 && ui.answers.first?.skip == true)
+        #expect(store.cursorCards[cards.key("c1")] == nil)
+        #expect(store.cursorActionNotes[cards.key("c1")] == L("Pressed %@ in Cursor", "Skip"))
+    }
+
+    @Test @MainActor func anAnswerThatCouldNotBePutOnCursorsCardSaysSoAndTheQuestionIsThenAnsweredInCursor() async throws {
+        for (result, note) in [(CursorPressResult.gone, L("Could not reach this question in Cursor's window; answer it in Cursor")),
+                               (.refused, L("Cursor would not take the press; answer it in Cursor")),
+                               (.unavailable, L("Cursor or the Accessibility permission is unavailable; nothing was pressed"))] {
+            let suite = "NotchmeterTests.CursorQuestionRows.unreached.\(result.rawValue)"
+            let (store, ui, defaults, database, shown) = try await asking(suite)
+            defer { defaults.removePersistentDomain(forName: suite) }
+            var closed = 0
+            store.cursorCardsChanged = { _, ended in closed += ended.count }
+            ui.answerResult = result
+            store.pickCursorChoice(shown, question: 0, choice: 0, sessionID: cards.key("c1"))
+            let picked = try #require(store.cursorCards[cards.key("c1")]?.first)
+            store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+            await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+            #expect(store.cursorActionNotes[cards.key("c1")] == note)
+            // The question is still asked, and is from then on shown with Answer in Cursor: a second try would
+            // be made knowing no more than the first.
+            let left = try #require(store.cursorCards[cards.key("c1")]?.first)
+            #expect(left.id == shown.id && !left.answerable && left.options.isEmpty && closed == 0)
+            #expect(!CursorCardView.answersHere(left, hideDetails: false))
+            #expect(store.sessions.sessions[cards.key("c1")]?.isWaiting == true)
+            store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+            store.pickCursorChoice(picked, question: 0, choice: 1, sessionID: cards.key("c1"))
+            try? await Task.sleep(for: .milliseconds(40))
+            #expect(ui.answers.count == 1 && store.cursorPressing.isEmpty)
+            // It stays so while the question does, through reads of the database and of a window with other cards.
+            let reads = database.asked.count
+            await store.readCursorQuestions(now: Date().addingTimeInterval(10))
+            #expect(database.asked.count == reads + 1)
+            ui.cards = [cards.run("proj")]
+            await store.readCursorCards()
+            #expect(store.cursorCards[cards.key("c1")]?.last?.answerable == false)
+        }
+    }
+
+    @Test @MainActor func aQuestionThatLeftAndIsAskedAgainIsAnsweredFromTheNotchAgain() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.again"
+        let (store, ui, defaults, database, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        ui.answerResult = .gone
+        store.pressCursorCard(shown, option: "Skip", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(store.cursorCards[cards.key("c1")]?.first?.answerable == false)
+        // Answered in Cursor, and later the same question is asked once more: it is a new wait, to be answered here.
+        // (Sending reads the database by the clock, so the reads after it are told by the clock too.)
+        database.waiting = [:]
+        let reads = database.asked.count
+        await store.readCursorQuestions(now: Date().addingTimeInterval(10))
+        #expect(database.asked.count == reads + 1 && store.cursorCards.isEmpty)
+        database.waiting = ["c1": fruit]
+        await store.readCursorQuestions(now: Date().addingTimeInterval(20))
+        #expect(store.cursorCards[cards.key("c1")]?.first?.answerable == true)
+    }
+
+    @Test @MainActor func aCardStillShowingAfterContinueIsLookedUpInTheDatabase() async throws {
+        // A window that is put away may not show its card gone. The database is where the answer lands.
+        let suite = "NotchmeterTests.CursorQuestionRows.settled"
+        let (store, ui, defaults, database, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        ui.answerResult = .stillShown
+        store.pickCursorChoice(shown, question: 0, choice: 0, sessionID: cards.key("c1"))
+        let picked = try #require(store.cursorCards[cards.key("c1")]?.first)
+        // Still waiting in the database too: the row says so, and the card stays to be sent again.
+        store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(store.cursorActionNotes[cards.key("c1")] == L("Pressed %@, but Cursor's card is still showing", "Continue"))
+        #expect(store.cursorCards[cards.key("c1")]?.first == picked && store.cursorPressing.isEmpty)
+        // Taken, by the database, which has the answer as it goes in: the card leaves as one that was seen to go.
+        ui.onAnswer = { database.waiting = [:] }
+        store.pressCursorCard(picked, option: "Continue", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] == L("Pressed %@ in Cursor", "Continue") }
+        #expect(store.cursorCards[cards.key("c1")] == nil && ui.answers.count == 2)
+    }
+
+    @Test @MainActor func anAnsweredQuestionIsNotPutBackByAWindowThatGoesOnDrawingIt() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.stale"
+        let (store, ui, defaults, database, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var opened = 0
+        store.cursorCardsChanged = { started, _ in opened += started.count }
+        // The window shows the same question, and the answers are on their way when the database is read and
+        // says the question is settled: the window's card is not put on the row in the database card's place,
+        // its buttons live, while the answer finishes.
+        ui.cards = [window()]
+        await store.readCursorCards()
+        let gate = DispatchSemaphore(value: 0)
+        ui.answerGate = gate
+        ui.onAnswer = { database.waiting = [:] }
+        store.pressCursorCard(shown, option: "Skip", sessionID: cards.key("c1"))
+        await cards.until { ui.answers.count == 1 }
+        store.cursorQuestionsSeen([:], readAt: Date())
+        #expect(store.cursorCards[cards.key("c1")] == nil, "the window's card for the question being answered is not shown as a new one")
+        gate.signal()
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(store.cursorCards.isEmpty && store.cursorPressing.isEmpty)
+
+        // Cursor is hidden, and its window goes on drawing the card it had. However long that lasts, the card
+        // does not come back; when the window has stopped drawing it for a while, the memory of it is let go,
+        // and the same choices under that question in the window are a question again.
+        store.cursorAnsweredLife = 0.15
+        for _ in 0..<6 {
+            try? await Task.sleep(for: .milliseconds(60))
+            await store.readCursorCards()
+            #expect(store.cursorCards.isEmpty)
+        }
+        #expect(opened == 0)
+        ui.cards = []
+        await store.readCursorCards()
+        try? await Task.sleep(for: .milliseconds(250))
+        await store.readCursorCards()
+        ui.cards = [window()]
+        await store.readCursorCards()
+        #expect(store.cursorCards[cards.key("c1")]?.first?.fromDatabase == false)
+    }
+
+    @Test @MainActor func anotherChatsQuestionOverTheSameChoicesKeepsItsOwnRow() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.otherwise"
+        let (store, ui, defaults) = cards.store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let database = Database()
+        store.cursorQuestionReader = { database.read($0) }
+        cards.prompt(store, "c1", project: "proj")
+        cards.prompt(store, "c2", project: "other", at: 1)
+        database.waiting = ["c1": fruit]
+        await store.readCursorQuestions(now: t0.addingTimeInterval(8))
+        // c2's window asks something else over the same two choices, and the database has not got it: it is
+        // c2's question, on c2's row, and is not dropped for being like c1's.
+        var other = CursorCard(kind: .question, window: "notes.md — other", heading: "Which one goes in the lunch box?",
+                               options: [.init(label: "Skip", path: [8]), .init(label: "Continue", path: [9])])
+        other.choices = ["A apple", "B banana", "C Other..."]
+        ui.cards = [other]
+        store.cursorCardsSeen(ui.cards, now: t0.addingTimeInterval(9))
+        #expect(store.cursorCards[cards.key("c2")] == [other])
+        #expect(store.cursorCards[cards.key("c1")]?.map(\.fromDatabase) == [true])
+    }
+
+    @Test @MainActor func aNewQuestionStraightAfterAnAnswerIsNotHeldUpByIt() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.next"
+        let (store, _, defaults, _, shown) = try await asking(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.pressCursorCard(shown, option: "Skip", sessionID: cards.key("c1"))
+        await cards.until { store.cursorActionNotes[cards.key("c1")] != nil }
+        #expect(store.cursorCards.isEmpty)
+        // A second later the chat asks something else: it is another question, and it is shown at once. The one
+        // that was just sent, still waiting in a read from the same moment, is not.
+        let next = CursorAsked(questions: [.init(prompt: "Which colour?", allowsSeveral: false, options: ["red", "green"])])
+        store.cursorQuestionsSeen([cards.key("c1"): fruit], readAt: Date().addingTimeInterval(1))
+        #expect(store.cursorCards[cards.key("c1")] == nil)
+        store.cursorQuestionsSeen([cards.key("c1"): next], readAt: Date().addingTimeInterval(1))
+        #expect(store.cursorCards[cards.key("c1")]?.first?.heading == "Which colour?")
+    }
+
+    @Test @MainActor func withoutThePermissionAQuestionIsShownAndNotAnswered() async throws {
+        let suite = "NotchmeterTests.CursorQuestionRows.untrusted"
+        let (store, ui, defaults) = cards.store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        ui.trusted = false
+        let database = Database()
+        store.cursorQuestionReader = { database.read($0) }
+        cards.prompt(store, "c1", project: "proj")
+        database.waiting = ["c1": fruit]
+        await store.readCursorQuestions(now: t0.addingTimeInterval(8))
+        let shown = try #require(store.cursorCards[cards.key("c1")]?.first)
+        #expect(shown.fromDatabase && !shown.answerable && shown.choices == ["A apple", "B banana", "C Other..."])
+        store.pickCursorChoice(shown, question: 0, choice: 0, sessionID: cards.key("c1"))
+        store.pressCursorCard(shown, option: "Skip", sessionID: cards.key("c1"))
+        try? await Task.sleep(for: .milliseconds(40))
+        #expect(ui.answers.isEmpty && store.cursorCards[cards.key("c1")]?.first == shown)
+        // Granted, the next read of the database makes it one to answer here.
+        ui.trusted = true
+        await store.readCursorQuestions(now: t0.addingTimeInterval(11))
+        #expect(store.cursorCards[cards.key("c1")]?.first?.answerable == true)
     }
 
     @Test @MainActor func aQuestionThatOutlivesItsTurnLeavesTheChatAsItWasWhenItIsAnswered() async {

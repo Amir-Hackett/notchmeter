@@ -2,10 +2,11 @@ import SwiftUI
 
 /// One of Cursor's own cards on its session's row (CursorAccessibility): what Cursor is asking, and the buttons it
 /// shows, in its words and order. The primary button (Run, Switch, Build) is filled, as Cursor fills it. A question
-/// is answered as it is in Cursor: each choice is a button that picks it there and shows what Cursor shows picked,
-/// and Continue sends the answers (CursorCard.questions). One that cannot be answered from here, because its words
-/// are hidden or Cursor's window does not say what is picked, shows its choices and one button that brings Cursor
-/// forward.
+/// is answered as it is in Cursor: each choice is a button that picks it, and Continue sends the answers
+/// (CursorCard.questions). A question read from Cursor's database is picked on this card and put on Cursor's own
+/// when it is sent; one read from Cursor's window is picked there, and shows what Cursor shows picked. One that
+/// cannot be answered from here, because its words are hidden, there is no permission to press Cursor's card
+/// with, or an answer could not be put on it, shows its choices and one button that brings Cursor forward.
 struct CursorCardView: View {
     let card: CursorCard
     let hideDetails: Bool
@@ -25,7 +26,9 @@ struct CursorCardView: View {
     /// The lines a question or one of its choices runs to where it is answered; Cursor has the rest.
     static let answerLines = 4
 
-    /// Whether a question is answered here: its words may be shown, and Cursor's window says what is picked.
+    /// Whether a question is answered here: its words may be shown, and it has its choices and Cursor's Continue
+    /// to answer with (`CursorCard.answerable`: a question read from Cursor's database where there is the
+    /// permission to press Cursor's card, or one read from a window that says what is picked).
     static func answersHere(_ card: CursorCard, hideDetails: Bool) -> Bool {
         card.answerable && !hideDetails
     }
@@ -48,7 +51,7 @@ struct CursorCardView: View {
     /// Continue does nothing until then (its handler asks that of every question, Cursor 3.23.12), so the notch's
     /// is held too, and is not pressed to no effect.
     static func canSend(_ card: CursorCard) -> Bool {
-        card.answerable && card.questions.allSatisfy { $0.choices.contains(where: \.picked) }
+        card.answerable && card.complete
     }
 
     /// Whether one of the card's buttons is held: Continue on a question that still has a question unanswered.
@@ -133,9 +136,10 @@ struct CursorCardView: View {
         return Self.primary.contains(label)
     }
 
-    /// Each question with its choices under it, in Cursor's order and words. A press on a choice presses it in
-    /// Cursor; the mark beside it is what Cursor's own card then shows, so a question with one answer moves its
-    /// mark and one with several keeps them. The choice that is typed is answered in Cursor.
+    /// Each question with its choices under it, in Cursor's order and words. A press on a choice picks it: on the
+    /// notch's own card for a question read from Cursor's database, on Cursor's card for one read from its
+    /// window, where the mark beside it is what Cursor then shows. Either way a question with one answer moves
+    /// its mark and one with several keeps them. The choice that is typed is answered in Cursor.
     @ViewBuilder
     private var questions: some View {
         ForEach(Array(card.questions.enumerated()), id: \.offset) { number, question in
@@ -175,7 +179,7 @@ struct CursorCardView: View {
                     .accessibilityLabel(Self.listed(choice.label))
                     .accessibilityValue(choice.typed ? "" : choice.picked ? L("Selected") : L("Not selected"))
                     .accessibilityHint(choice.typed ? L("Brings Cursor forward, where the question is answered")
-                                                    : L("Picks this choice on Cursor's card"))
+                                       : card.fromDatabase ? L("Picks this choice; Continue sends it") : L("Picks this choice on Cursor's card"))
                     .disabled(pressing)
                 }
             }
