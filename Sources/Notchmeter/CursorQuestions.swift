@@ -167,20 +167,35 @@ enum CursorQuestions {
         return card
     }
 
-    /// Whether two cards read from the database ask the same thing of two chats, word for word as far as a card
-    /// shows: the same questions over the same choices.
-    static func asksTheSame(_ one: CursorCard, _ other: CursorCard) -> Bool {
-        one.fromDatabase && other.fromDatabase && one.choices == other.choices && one.questions.map(\.text) == other.questions.map(\.text)
+    /// Whether two questions read from the database could be taken for one another in Cursor's window: the same
+    /// choices, under questions whose words mostly agree, either way round (CursorCards.share, the measure a
+    /// window's card is held to). That is the same thing asked word for word, as the same prompt run in two
+    /// worktrees asks it; and it is two questions a step apart ("Proceed with step 1?", "Proceed with step 2?"),
+    /// which the words drawn in a window would not tell apart either.
+    static func alike(_ one: CursorCard, _ other: CursorCard) -> Bool {
+        guard one.fromDatabase, other.fromDatabase, one.questions.count == other.questions.count,
+              one.choices.map(CursorCards.words(ofChoice:)) == other.choices.map(CursorCards.words(ofChoice:)) else { return false }
+        return zip(one.questions, other.questions).allSatisfy { mine, theirs in
+            guard let mine = mine.text, let theirs = theirs.text else { return true }
+            return max(CursorCards.share(of: mine, in: theirs), CursorCards.share(of: theirs, in: mine)) >= CursorCards.questionShare
+        }
     }
 
     /// Whether a card read from Cursor's window and one read from its database are the same question: every
-    /// choice the database has is among the window's, by its words (CursorCards.words). Not by the question's
-    /// words: Cursor draws those from Markdown, so what the window reads is not what the database holds, and
-    /// 0.9.19, which asked that they be equal, took the two for different questions. Where they are the same
-    /// the database's card is the one a row shows, on the chat the database names.
+    /// choice the database's question offers is among the window's, by its words (CursorCards.words), and where
+    /// the window's card says what it asks, its words hold the database's question (CursorCards.share), so
+    /// another chat's question over the same choices is another question. The choice that is typed is on every
+    /// question card there is and is evidence of nothing, so it is not counted, and a question that offers no
+    /// other is not matched to any window's. Not that the question reads the same: Cursor draws it from
+    /// Markdown, so what the window reads is not what the database holds, and 0.9.19, which asked that they be
+    /// equal, took the two for different questions. Where they are the same the database's card is the one a
+    /// row shows, on the chat the database names.
     static func same(window: CursorCard, database: CursorCard) -> Bool {
-        guard window.kind == .question, !window.fromDatabase, database.fromDatabase, !database.choices.isEmpty else { return false }
-        return Set(database.choices.map(CursorCards.words(ofChoice:))).isSubset(of: Set(window.choices.map(CursorCards.words(ofChoice:))))
+        let offered = database.questions.flatMap { $0.choices.filter { !$0.typed }.map { CursorCards.words(ofChoice: $0.label) } }
+        guard window.kind == .question, !window.fromDatabase, database.fromDatabase, !offered.isEmpty,
+              Set(offered).isSubset(of: Set(window.choices.map(CursorCards.words(ofChoice:)))) else { return false }
+        guard let drawn = window.heading, let asked = database.heading else { return true }
+        return CursorCards.share(of: asked, in: drawn) >= CursorCards.questionShare
     }
 
     /// The kind of step that is a message from the user (`fullConversationHeadersOnly[].type`).

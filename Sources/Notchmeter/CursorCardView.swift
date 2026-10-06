@@ -26,7 +26,9 @@ struct CursorCardView: View {
     /// The lines a question or one of its choices runs to where it is answered; Cursor has the rest.
     static let answerLines = 4
 
-    /// Whether a question is answered here: its words may be shown, and Cursor's window says what is picked.
+    /// Whether a question is answered here: its words may be shown, and it has its choices and Cursor's Continue
+    /// to answer with (`CursorCard.answerable`: a question read from Cursor's database where there is the
+    /// permission to press Cursor's card, or one read from a window that says what is picked).
     static func answersHere(_ card: CursorCard, hideDetails: Bool) -> Bool {
         card.answerable && !hideDetails
     }
@@ -134,9 +136,10 @@ struct CursorCardView: View {
         return Self.primary.contains(label)
     }
 
-    /// Each question with its choices under it, in Cursor's order and words. A press on a choice presses it in
-    /// Cursor; the mark beside it is what Cursor's own card then shows, so a question with one answer moves its
-    /// mark and one with several keeps them. The choice that is typed is answered in Cursor.
+    /// Each question with its choices under it, in Cursor's order and words. A press on a choice picks it: on the
+    /// notch's own card for a question read from Cursor's database, on Cursor's card for one read from its
+    /// window, where the mark beside it is what Cursor then shows. Either way a question with one answer moves
+    /// its mark and one with several keeps them. The choice that is typed is answered in Cursor.
     @ViewBuilder
     private var questions: some View {
         ForEach(Array(card.questions.enumerated()), id: \.offset) { number, question in
