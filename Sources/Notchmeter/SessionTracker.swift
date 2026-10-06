@@ -337,6 +337,24 @@ enum SessionSource: String, Equatable, Sendable {
     case coworkLog
 }
 
+/// What is known of one running subagent beyond its id and when it started (AgentSession.agentDetails). Cursor's
+/// alone so far: its hook names the tool call that started the subagent and sometimes its model, and its own
+/// record of the chat the subagent runs as gives that chat's name (CursorSubagents).
+struct AgentDetail: Equatable, Sendable {
+    /// The tool call that started it, which the chat it runs as is recorded under.
+    var call: String?
+    /// The conversation it runs as, once Cursor's database has said.
+    var chat: String?
+    /// Cursor's own name for that conversation: the few words the subagent was started with. Held only while
+    /// titles are (Preferences.sessionTitles), and dropped with them (AgentSession.withoutTitles).
+    var name: String?
+    /// The model it runs on, as its own chat's events name it, tidied for the row as a session's is.
+    var model: String?
+    /// When its own chat was last heard from: a subagent at work is not one whose stop never came
+    /// (SessionTracker.agentTimeout).
+    var heard: Date?
+}
+
 /// One assistant session a hook has reported, or one found running without it (SessionDetection, OpenCodeSessions):
 /// which project it runs in and whether it is mid-turn, idle between turns, or waiting for the user; plus what the
 /// hook, the status line or the scan know about where it runs.
@@ -385,6 +403,8 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var host: String?
     /// Subagents running under this session, by agent id, with when each started.
     var agents: [String: Date] = [:]
+    /// What more is known of each of them, by the same id (AgentDetail); an entry goes with its subagent.
+    var agentDetails: [String: AgentDetail] = [:]
     /// Claude Code is holding the session for a quota reset it will not resume from on its own.
     var quotaWait = false
     /// The session last stopped because the limit was hit.
@@ -566,6 +586,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         session.idleTeammates = session.idleTeammates.map { entry in
             guard let name = entry.value.name else { return entry }
             return Stamped(value: Teammate(key: Teammate.opaqueKey(for: name), name: nil), at: entry.at)
+        }
+        // What a subagent was asked to do is the session's work in other words.
+        session.agentDetails = session.agentDetails.mapValues { detail in
+            var detail = detail
+            detail.name = nil
+            return detail
         }
         return session
     }
@@ -1071,7 +1097,10 @@ struct SessionTracker: Equatable, Sendable {
                 outcome.limitHit = session
             }
         case "SubagentStart":
-            session.agents[message.agentID ?? "agent-\(session.agents.count + 1)"] = now
+            let agent = message.agentID ?? "agent-\(session.agents.count + 1)"
+            session.agents[agent] = now
+            // Whatever was known of an earlier subagent under this id is not this one's.
+            session.agentDetails[agent] = message.agentCall.map { AgentDetail(call: $0) }
             // A session that has just started an agent is running its own loop, so it is not waiting on the user.
             // This is the only proof of an answered permission prompt the hook ever sends: Claude Code reports
             // the prompt and never the answer, so without it an approved prompt — or one auto mode settled by
@@ -1086,7 +1115,10 @@ struct SessionTracker: Equatable, Sendable {
             if session.isWaiting, !session.waitsOnAgent { session.state = .working(since: now) }
             session.pending = nil
         case "SubagentStop":
-            if let agentID = message.agentID, session.agents[agentID] != nil {
+            if let agentID = message.agentID {
+                // A stop that names its subagent ends that one or none. Until 0.9.22 one no longer listed (timed
+                // out, or started before the app was listening) took the oldest of the others with it, which was
+                // still running.
                 session.agents[agentID] = nil
             } else if let oldest = session.agents.min(by: { $0.value < $1.value }) {
                 session.agents[oldest.key] = nil
@@ -1299,6 +1331,18 @@ struct SessionTracker: Equatable, Sendable {
             session.stuckSaid = true
             outcome.trouble = (session, .stuck(failures: session.failureStreak))
         }
+        if !session.agentDetails.isEmpty {
+            // An event of a subagent's own chat: the subagent is at work, and the model the chat names is its own.
+            if message.event != "SubagentStart", let chat = message.agentID,
+               let agent = session.agentDetails.first(where: { $0.value.chat == chat })?.key {
+                session.agentDetails[agent]?.heard = now
+                if let model = message.agentModel { session.agentDetails[agent]?.model = Hook.tidyModelName(model) }
+            }
+            // A subagent that has gone (stopped, timed out, or its turn ended) takes what was known of it.
+            if session.agentDetails.keys.contains(where: { session.agents[$0] == nil }) {
+                session.agentDetails = session.agentDetails.filter { session.agents[$0.key] != nil }
+            }
+        }
         sessions[id] = session
         return outcome
     }
@@ -1374,6 +1418,25 @@ struct SessionTracker: Equatable, Sendable {
         session.lastEvent = now
         sessions[entry.key] = session
         return session
+    }
+
+    /// Cursor's own word about a subagent `id` is running (CursorSubagents): the chat it runs as, found by the
+    /// tool call that started it, and Cursor's name for that chat, which is the few words the subagent was
+    /// started with. Nothing happens for a session that is not on the list or a call no running subagent was
+    /// started by; a name already held stays when none is given.
+    mutating func describeAgent(on id: String, call: String, chat: String, name: String?) {
+        guard var session = sessions[id],
+              let agent = session.agents.keys.first(where: { session.agentDetails[$0]?.call == call }) ?? (session.agents[call] != nil ? call : nil)
+        else { return }
+        var detail = session.agentDetails[agent] ?? AgentDetail()
+        detail.chat = chat
+        if let name { detail.name = name }
+        guard detail != session.agentDetails[agent] else { return }
+        // A chat is one subagent's at a time: one started again runs as the chat it had, under a new call, and a
+        // line still standing for its earlier run is that chat's no longer.
+        for (other, earlier) in session.agentDetails where other != agent && earlier.chat == chat { session.agentDetails[other]?.chat = nil }
+        session.agentDetails[agent] = detail
+        sessions[id] = session
     }
 
     /// Cursor's own name for a chat (CursorChatNames), held as the session's name so a prompt title still comes
@@ -1730,7 +1793,12 @@ struct SessionTracker: Equatable, Sendable {
             if let finished = session.finished, now.timeIntervalSince(finished.at) >= Self.finishedHold {
                 session.finished = nil
             }
-            session.agents = session.agents.filter { now.timeIntervalSince($0.value) < Self.agentTimeout }
+            // An agent nothing has been heard from since it started; one whose own chat still speaks (a Cursor
+            // subagent's, AgentDetail.heard) is at work however long it has been.
+            session.agents = session.agents.filter { agent in
+                now.timeIntervalSince(Swift.max(agent.value, session.agentDetails[agent.key]?.heard ?? agent.value)) < Self.agentTimeout
+            }
+            if !session.agentDetails.isEmpty { session.agentDetails = session.agentDetails.filter { session.agents[$0.key] != nil } }
             // A compaction that never reported its end, and idle teammates nothing has been heard of for as long as
             // an idle session is kept, are retired the same way.
             if let compacting = session.compacting, now.timeIntervalSince(compacting.at) >= Self.waitingTimeout { session.compacting = nil }

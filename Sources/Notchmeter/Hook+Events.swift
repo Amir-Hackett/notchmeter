@@ -184,6 +184,16 @@ extension Hook {
         return id
     }
 
+    /// A tool call's id, trimmed as Cursor trims one before it compares it. The id is only ever compared with
+    /// another, so nothing is asked of its shape (vendors write `toolu_…`, `call_…`, a UUID, two ids joined by a
+    /// bar) beyond what keeps a line on the socket small and whole: 256 characters at most and none of them a
+    /// control character. Nil for anything else.
+    static func callID(_ value: Any?) -> String? {
+        guard let id = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty, id.count <= 256,
+              !id.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
+        return id
+    }
+
     /// `PostModelSwitch`'s `to_model`, `from_model` and `source`; nil without a `to_model` shaped like an id. The
     /// cost fields beside them (`context_tokens`, `estimated_cache_write_usd`, `pricing`, `prompt_cache_warm`,
     /// `cache_ttl`) and `requested_model` are left in the payload: the notch shows the model a session runs on and

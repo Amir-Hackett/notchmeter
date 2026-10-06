@@ -60,10 +60,14 @@ struct SessionsCard: View {
         enum Status: Equatable, Sendable { case working, waiting, idle, finished }
 
         /// A subagent running under the session, numbered oldest first: the hook reports an opaque id and nothing
-        /// a reader would recognise, so the list says how many and for how long, not which.
+        /// a reader would recognise, so the list says how many and for how long. A Cursor subagent's line also
+        /// says which, where Cursor has (0.9.22, AgentDetail): its own name for the subagent's chat, hidden as a
+        /// title is, and the model the subagent runs on.
         struct Agent: Equatable, Sendable {
             let id: String
             let since: Date
+            var name: String? = nil
+            var model: String? = nil
         }
 
         let id: String
@@ -189,8 +193,10 @@ struct SessionsCard: View {
                 : session.mayBeStuck(now: now) ? .mayBeStuck(failures: session.failureStreak)
                 : finished ? (canJump ? .doneJump : .justFinished) : nil
             let place = Self.place(of: session)
-            let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
-                .map { Row.Agent(id: $0.key, since: $0.value) }
+            let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }.map { agent in
+                let detail = session.agentDetails[agent.key]
+                return Row.Agent(id: agent.key, since: agent.value, name: hideTitles ? nil : detail?.name, model: detail?.model)
+            }
             let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id), lead: lead)
             var row = Row(id: session.id, tool: session.tool, title: lines.title, detail: lines.detail, chips: [session.assistantName],
                           branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
@@ -888,19 +894,33 @@ private struct SessionRow: View {
         .accessibilityValue(Spoken.line(value, isOpen ? L("Expanded") : L("Collapsed")))
     }
 
+    /// The most of a subagent's line its model takes: room for "Composer 2.5 Fast" and its like at caption size.
+    /// And the least, beside a name that would fill the line: a word of it and the mark that it goes on.
+    static let agentModelWidth: CGFloat = 130
+    static let agentModelLeast: CGFloat = 72
+
     private var agentList: some View {
         VStack(alignment: .leading, spacing: 3) {
             ForEach(Array(row.agents.enumerated()), id: \.element.id) { index, agent in
                 let elapsed = ResetText.duration(max(0, now.timeIntervalSince(agent.since)))
+                // What Cursor calls the subagent's chat where it is known and may be shown, else its number.
+                let name = agent.name ?? L("Subagent %ld", index + 1)
                 HStack(spacing: 5) {
                     Image(systemName: "person.fill").font(.caption2).foregroundStyle(Caption.style)
-                    Text(L("Subagent %ld", index + 1)).font(.caption)
+                    // The name keeps its width before the model does, and neither is ever wider than the line: a
+                    // model's name can be eighty characters, and held at its full width it pushed the card out.
+                    // The model keeps enough of the line to be read beside the longest name.
+                    Text(verbatim: name).font(.caption).lineLimit(1).truncationMode(.tail).layoutPriority(1)
+                    if let model = agent.model {
+                        Text(verbatim: model).font(.caption).foregroundStyle(Caption.style).lineLimit(1).truncationMode(.tail)
+                            .frame(minWidth: Self.agentModelLeast, maxWidth: Self.agentModelWidth, alignment: .leading)
+                    }
                     Spacer(minLength: 8)
-                    Text(verbatim: elapsed).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                    Text(verbatim: elapsed).font(.caption).foregroundStyle(Caption.style).monospacedDigit().fixedSize()
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(L("Subagent %ld", index + 1))
-                .accessibilityValue(Spoken.line(elapsed))
+                .accessibilityLabel(name)
+                .accessibilityValue(Spoken.line(agent.model, elapsed))
             }
         }
     }

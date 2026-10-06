@@ -72,6 +72,9 @@ enum Hook {
     static let contextKey = "context"
     /// The chat a Cursor subagent ran as, on the `SubagentStop` that reports its end (0.9.21, CursorSubagents).
     static let childSessionKey = "childSession"
+    /// The tool call that started a Cursor subagent, on its `SubagentStart` (0.9.22): what the chat the subagent
+    /// runs as is matched to its line on the row by.
+    static let agentCallKey = "agentCall"
     static let modelKey = "model"
     static let fromModelKey = "from_model"
     static let modelSourceKey = "model_source"
@@ -187,6 +190,13 @@ enum Hook {
         /// The conversation a Cursor subagent ran as, which its `SubagentStop` names (`Hook.childSessionKey`): one
         /// of Cursor's own ids, or nil.
         var childSessionID: String?
+        /// The tool call that started a subagent, on a Cursor `SubagentStart` (`Hook.agentCallKey`): Cursor records
+        /// the chat the subagent runs as under the same id, which is how that chat is matched to its line.
+        var agentCall: String?
+        /// The model a subagent runs on, on an event of the subagent's own chat once the app has put it on its
+        /// conversation's row (CursorSubagents.folded): that chat's own word for its model, kept apart from the
+        /// conversation's. Set by the app alone, like `source`, and never written to or read from a socket line.
+        var agentModel: String?
         /// The models and the source of a `PostModelSwitch`.
         var modelSwitch: ModelSwitch?
         /// The MCP server an `Elicitation` or `ElicitationResult` names.
@@ -256,6 +266,7 @@ enum Hook {
             background = userInfo?[Hook.backgroundKey] as? Bool == true
             context = Hook.contextFraction(userInfo?[Hook.contextKey])
             childSessionID = (userInfo?[Hook.childSessionKey] as? String).flatMap { CursorChatNames.isConversationID($0) ? $0 : nil }
+            agentCall = Hook.callID(userInfo?[Hook.agentCallKey])
             if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
                 modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
                                           source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
@@ -302,6 +313,7 @@ enum Hook {
             if background { info[Hook.backgroundKey] = true }
             if let context { info[Hook.contextKey] = context }
             if let childSessionID { info[Hook.childSessionKey] = childSessionID }
+            if let agentCall { info[Hook.agentCallKey] = agentCall }
             if let modelSwitch {
                 info[Hook.modelKey] = modelSwitch.to
                 if let from = modelSwitch.from { info[Hook.fromModelKey] = from }

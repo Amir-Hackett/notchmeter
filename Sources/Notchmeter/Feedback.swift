@@ -470,8 +470,8 @@ enum Feedback {
 /// say who you are or what you work on, each with a numbered placeholder so a reader can still tell two apart.
 ///
 /// The names come from the app's own memory (`gather`), never from a file read for the purpose: each session's
-/// project, branch, title, the name Claude Code or Cursor gives it, its task list, the machine a remote hook
-/// posted from, its pull request link and the folder its editor has open; the status line's project, branch,
+/// project, branch, title, the name Claude Code or Cursor gives it, its task list, the name Cursor gives each of
+/// its subagents' tasks, the machine a remote hook posted from, its pull request link and the folder its editor has open; the status line's project, branch,
 /// repository owner and name, pull request link, session and agent names; every project the cost figures have
 /// split spend by in the last 90 days; the folders added under *Also read transcripts from*; and your account's
 /// short and full names.
@@ -716,6 +716,8 @@ extension FeedbackRedaction {
             add(.title, session.title)
             add(.title, session.sessionName)
             for item in session.todos?.items ?? [] { add(.title, item.content) }
+            // What Cursor calls a subagent's task is the session's work in other words (AgentDetail.name).
+            for detail in session.agentDetails.values { add(.title, detail.name) }
             add(.host, session.host)
             add(.link, session.prURL)
             if let workspace = session.terminal?.workspace {
