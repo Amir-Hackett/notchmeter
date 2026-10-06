@@ -847,18 +847,22 @@ enum CursorAnswering {
     /// Cursor fell behind on comes back short of the classes that say it.
     static let unreadReads = 2
 
-    /// Which of the windows that hold a question's card is the one to press: the only one, or among several the
-    /// only one whose title names the card's workspace (" — " separates Cursor's title parts); with `named`, a
-    /// window so titled and no other. Nil where that leaves none or more than one, and nothing is pressed.
-    static func chosen(among titles: [String], workspace: String, named: Bool) -> Int? {
-        let titled = titles.indices.filter { index in
-            !workspace.isEmpty && titles[index].components(separatedBy: " — ").contains { $0.trimmingCharacters(in: .whitespaces) == workspace }
-        }
+    /// Which of the windows that hold a question's card is the one to press. Among several, the only one whose
+    /// title names the card's workspace (" — " separates Cursor's title parts); with `named`, a window so titled
+    /// and no other. A window that is the only one holding the card is the one, whatever it is called (a
+    /// worktree's is titled by its folder, the chat by its repository), unless its title names a workspace of
+    /// another chat the app is showing (`elsewhere`) and not this chat's own: that card is the other workspace's.
+    /// Nil where that leaves none or more than one, and nothing is pressed.
+    static func chosen(among titles: [String], workspace: String, named: Bool, elsewhere: Set<String> = []) -> Int? {
+        func parts(_ title: String) -> Set<String> { Set(title.components(separatedBy: " — ").map { $0.trimmingCharacters(in: .whitespaces) }) }
+        let titled = titles.indices.filter { !workspace.isEmpty && parts(titles[$0]).contains(workspace) }
         if named || titles.count > 1 { return titled.count == 1 ? titled[0] : nil }
-        return titles.isEmpty ? nil : 0
+        guard let only = titles.first else { return nil }
+        return titled.isEmpty && !parts(only).isDisjoint(with: elsewhere) ? nil : 0
     }
 
-    static func answer<Cursor: CursorWindowDriving>(_ card: CursorCard, skip: Bool, named: Bool, in cursor: Cursor) -> (result: CursorPressResult, found: String) {
+    static func answer<Cursor: CursorWindowDriving>(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String> = [],
+                                                    in cursor: Cursor) -> (result: CursorPressResult, found: String) {
         typealias Held = (window: Cursor.Window, placed: CursorCards.Placed, elements: Cursor.Elements)
         func read(_ window: Cursor.Window) -> (held: Held?, elements: Cursor.Elements, whole: Bool, otherwise: Int) {
             let snapshot = cursor.snapshot(window)
@@ -888,7 +892,7 @@ enum CursorAnswering {
             seen = (windows.count, met.filter { cursor.hasPage($0.elements) }.count, holding.count, otherwise, whole)
             // Only on whole reads of every window: one Cursor fell behind on may be short of this chat's own
             // card, and the only window left holding one like it would be another chat's.
-            if whole, let index = chosen(among: holding.map(\.title), workspace: card.window, named: named) {
+            if whole, let index = chosen(among: holding.map(\.title), workspace: card.window, named: named, elsewhere: elsewhere) {
                 held = holding[index].held
                 break
             }
@@ -956,9 +960,14 @@ enum CursorAnswering {
 
         guard cursor.press(skip ? at.placed.skip : at.placed.send, in: at.elements, reading: .end(word: skip ? "skip" : CursorCards.questionSend)) == nil
         else { return (.refused, found) }
+        // Gone on the second whole read running that does not find it: Cursor's chat drops out of its tree for
+        // a moment as it redraws, and a card that is back on the next read was not answered.
+        var missing = 0
         for _ in 0..<goneReads {
             let now = again()
-            if now.whole, now.held == nil { return (.pressed, found) }
+            guard now.whole else { continue }
+            missing = now.held == nil ? missing + 1 : 0
+            if missing == 2 { return (.pressed, found) }
         }
         return (.stillShown, found)
     }
@@ -1007,9 +1016,11 @@ protocol CursorUIControlling: Sendable {
     /// the oracle and the log, and holds none of its words: "read" as the window stood, "refreshed" after
     /// Cursor was asked to bring its trees up to date, and "none" with how many windows were read. With `named`
     /// the card is taken only from a window whose title names the card's workspace (`card.window`): for a
-    /// question another chat is asking too, word for word, where a card found in any other window may be the
-    /// other chat's. Without it a title decides only between several windows that hold the card.
-    func answer(_ card: CursorCard, skip: Bool, named: Bool) -> (result: CursorPressResult, found: String)
+    /// question another chat is asking too, where a card found in any other window may be the other chat's.
+    /// Without it a title decides between several windows that hold the card, and rules out the only one that
+    /// does when it names one of `elsewhere`, the workspaces of the other chats the app is showing, and not
+    /// this chat's own.
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String)
     /// Tells Cursor the app no longer reads its windows (Mirror Cursor's cards turned off, or the app quitting).
     func release()
 }
@@ -1019,7 +1030,7 @@ extension CursorUIControlling {
     func read() -> (cards: [CursorCard], whole: Bool) { (scan(), true) }
     func read(refresh: Bool) -> (cards: [CursorCard], whole: Bool) { read() }
     func pick(_ card: CursorCard, question: Int, choice: Int) -> (result: CursorPressResult, card: CursorCard?) { (.unavailable, nil) }
-    func answer(_ card: CursorCard, skip: Bool, named: Bool) -> (result: CursorPressResult, found: String) { (.unavailable, "none") }
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) { (.unavailable, "none") }
     func release() {}
 }
 
@@ -1270,9 +1281,9 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
         }
     }
 
-    func answer(_ card: CursorCard, skip: Bool, named: Bool) -> (result: CursorPressResult, found: String) {
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) {
         guard trusted, let app = application() else { return (.unavailable, "none") }
-        return CursorAnswering.answer(card, skip: skip, named: named, in: Windows(ui: self, app: app))
+        return CursorAnswering.answer(card, skip: skip, named: named, elsewhere: elsewhere, in: Windows(ui: self, app: app))
     }
 
     /// What is read of each element, in one message to Cursor: every separate attribute is a round trip to
@@ -1466,7 +1477,7 @@ final class FileCursorUI: CursorUIControlling, @unchecked Sendable {
 
     /// An answer sent from the notch's own card takes the file's card for the same question out of it, as
     /// Cursor's goes with Continue or Skip.
-    func answer(_ card: CursorCard, skip: Bool, named: Bool) -> (result: CursorPressResult, found: String) {
+    func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) {
         lock.withLock {
             var all = entries()
             guard let index = all.firstIndex(where: { entry in Self.card(entry).map { CursorQuestions.same(window: $0, database: card) } ?? false })

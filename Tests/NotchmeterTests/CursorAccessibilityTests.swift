@@ -520,6 +520,12 @@ import Testing
         #expect(CursorAnswering.chosen(among: ["a.md — atlas", "b.md — atlas"], workspace: "atlas", named: false) == nil, "two windows on one workspace")
         #expect(CursorAnswering.chosen(among: ["Cursor Agents", "Cursor Agents"], workspace: "atlas", named: false) == nil)
         #expect(CursorAnswering.chosen(among: ["a.md — birch", "b.md — atlas"], workspace: "", named: false) == nil, "a chat with no workspace known")
+        // The only window that holds it, titled for another chat's workspace and not for this chat's: that card
+        // is the other workspace's. A title that names neither, as a worktree's does, says nothing against it.
+        #expect(CursorAnswering.chosen(among: ["todo.md — birch"], workspace: "atlas", named: false, elsewhere: ["birch", "cedar"]) == nil)
+        #expect(CursorAnswering.chosen(among: ["todo.md — atlas-worktree-2"], workspace: "atlas", named: false, elsewhere: ["birch"]) == 0)
+        #expect(CursorAnswering.chosen(among: ["birch — atlas"], workspace: "atlas", named: false, elsewhere: ["birch"]) == 0, "it names this chat's own")
+        #expect(CursorAnswering.chosen(among: ["Cursor Agents"], workspace: "atlas", named: false, elsewhere: ["birch"]) == 0)
         // Another chat is asking the same thing: only a window titled for this chat's workspace will do, even alone.
         #expect(CursorAnswering.chosen(among: ["plan.md — birch"], workspace: "atlas", named: true) == nil)
         #expect(CursorAnswering.chosen(among: ["plan.md — atlas"], workspace: "atlas", named: true) == 0)
@@ -906,6 +912,10 @@ final class SimulatedCursor: CursorWindowDriving {
     var shortAfterPress = 0
     /// Windows, by title, whose every read comes back short of their cards altogether.
     var shortWindows: Set<String> = []
+    /// How many whole reads after a press on Skip or Continue come back without the card although it is still
+    /// there: Cursor's chat dropping out of its tree as it redraws.
+    var blinksAfterEnd = 0
+    private var blinks = 0
 
     init(_ windows: [Window]) {
         all = windows
@@ -951,6 +961,10 @@ final class SimulatedCursor: CursorWindowDriving {
         if !window.putAway || window.drawn == nil { window.drawn = draw(window) }
         let drawn = window.drawn ?? draw(window)
         if shortWindows.contains(window.title) { return (build.group([build.group([build.text("the chat so far")])]), drawn, false) }
+        if blinks > 0 {
+            blinks -= 1
+            return (build.group([build.group([build.text("the chat so far")])]), drawn, true)
+        }
         guard shortReads > 0 else { return (drawn.tree, drawn, true) }
         shortReads -= 1
         func bare(_ node: CursorAXNode) -> CursorAXNode {
@@ -989,6 +1003,7 @@ final class SimulatedCursor: CursorWindowDriving {
             return .gone
         }
         shortReads += shortAfterPress
+        if case .end = reading { blinks = blinksAfterEnd }
         return nil
     }
 
@@ -1144,6 +1159,24 @@ final class SimulatedCursor: CursorWindowDriving {
         #expect(two.pressed.isEmpty && mine.open && theirs.open)
     }
 
+    @Test func aCardIsGoneWhenTwoReadsRunningDoNotFindIt() {
+        // Continue is taken and does nothing, and Cursor's chat drops out of its tree for one read as it redraws:
+        // the card is back on the next, and was not answered.
+        let stuck = Card([fruit()])
+        let cursor = SimulatedCursor([Window("atlas", [stuck])])
+        cursor.sendSticks = true
+        cursor.blinksAfterEnd = 1
+        #expect(CursorAnswering.answer(held([fruit()], picks: [(0, 1)]), skip: false, named: false, in: cursor).result == .stillShown)
+        #expect(stuck.open)
+        // Taken: it is gone on every read, and believed on the second.
+        let sent = Card([fruit()])
+        let second = SimulatedCursor([Window("atlas", [sent])])
+        second.blinksAfterEnd = 1
+        let before = second.refreshes
+        #expect(CursorAnswering.answer(held([fruit()], picks: [(0, 1)]), skip: false, named: false, in: second).result == .pressed)
+        #expect(sent.sent == [[1]] && second.refreshes - before >= 3)
+    }
+
     @Test func anAnswerGoesToTheChatsOwnCardOrToNone() {
         // The same question waiting in two windows: the one titled for the chat's workspace is the one pressed.
         let mine = Card([fruit()]), theirs = Card([fruit()])
@@ -1163,6 +1196,14 @@ final class SimulatedCursor: CursorWindowDriving {
         #expect(CursorAnswering.answer(held([fruit()], picks: [(0, 1)]), skip: false, named: true, in: single).result == .gone)
         #expect(single.pressed.isEmpty && alone.open)
         #expect(CursorAnswering.answer(held([fruit()], picks: [(0, 1)], workspace: "birch"), skip: false, named: true, in: single).result == .pressed)
+
+        // The only window that holds the card is titled for another chat's workspace, and this chat's own card
+        // is not drawn anywhere: it is the other workspace's, and is left alone.
+        let foreign = Card([fruit()])
+        let away = SimulatedCursor([Window("todo.md — birch", [foreign])])
+        #expect(CursorAnswering.answer(held([fruit()], picks: [(0, 1)]), skip: false, named: false, elsewhere: ["birch"], in: away).result == .gone)
+        #expect(away.pressed.isEmpty && foreign.open)
+        #expect(CursorAnswering.answer(held([fruit()], picks: [(0, 1)]), skip: false, named: false, elsewhere: ["cedar"], in: away).result == .pressed)
 
         // Another chat's card over the same choices, asking something else, is not this question's.
         let elsewhere = Card([.init(prompt: "Which one goes in the lunch box?", options: ["apple", "banana", "cherry"])])
@@ -1547,18 +1588,18 @@ final class SimulatedCursor: CursorWindowDriving {
             lock.withLock { _refreshes.append(refresh) }
             return read()
         }
-        private var _answers: [(card: CursorCard, skip: Bool, named: Bool)] = []
+        private var _answers: [(card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>)] = []
         /// The questions whose answers were sent to Cursor's own card, each as the notch's card stood, whether it
-        /// was skipped, and whether only a window titled for its workspace would do.
-        var answers: [(card: CursorCard, skip: Bool, named: Bool)] { lock.withLock { _answers } }
+        /// was skipped, whether only a window titled for its workspace would do, and the other chats' workspaces.
+        var answers: [(card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>)] { lock.withLock { _answers } }
         /// What sending a question's answers comes to.
         var answerResult: CursorPressResult = .pressed
         /// Run as the answers go in, to stand for what Cursor does with them (its database settling the question).
         var onAnswer: (@Sendable () -> Void)?
         /// Holds the answer on its way until signalled, to stand for one that is out while something else happens.
         var answerGate: DispatchSemaphore?
-        func answer(_ card: CursorCard, skip: Bool, named: Bool) -> (result: CursorPressResult, found: String) {
-            lock.withLock { _answers.append((card, skip, named)) }
+        func answer(_ card: CursorCard, skip: Bool, named: Bool, elsewhere: Set<String>) -> (result: CursorPressResult, found: String) {
+            lock.withLock { _answers.append((card, skip, named, elsewhere)) }
             answerGate?.wait()
             onAnswer?()
             return (answerResult, answerResult == .gone ? "none" : "read")
@@ -1824,12 +1865,12 @@ final class SimulatedCursor: CursorWindowDriving {
         try Data(#"[{"kind":"run","window":"proj","heading":"ls","options":["Skip","Run"]},{"kind":"question","window":"proj","heading":"Which fruit?","options":["Skip","Continue"],"questions":[{"text":"Which fruit?","choices":[{"label":"A apple"},{"label":"B banana"},{"label":"C Other...","typed":true}]}]}]"#.utf8).write(to: file)
         let ui = FileCursorUI(path: file.path)
         let other = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "pear"])]), window: "proj")
-        #expect(ui.answer(other, skip: false, named: false).result == .gone, "another question's card is not in the file")
+        #expect(ui.answer(other, skip: false, named: false, elsewhere: []).result == .gone, "another question's card is not in the file")
         let held = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "banana"])]), window: "proj")
-        let sent = ui.answer(held, skip: false, named: false)
+        let sent = ui.answer(held, skip: false, named: false, elsewhere: [])
         #expect(sent.result == .pressed && sent.found == "read")
         #expect(ui.scan().map(\.kind) == [.run], "the question's card is gone, and the other card is not")
-        #expect(ui.answer(held, skip: true, named: false).result == .gone)
+        #expect(ui.answer(held, skip: true, named: false, elsewhere: []).result == .gone)
     }
 
     @Test @MainActor func cursorIsAskedToBringItsWindowsUpToDateOnlyForAChatThatHasGoneQuiet() async {

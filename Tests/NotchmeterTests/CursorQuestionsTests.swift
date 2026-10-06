@@ -600,6 +600,7 @@ import Testing
         store.pressCursorCard(third, option: "Skip", sessionID: cards.key("c3"))
         await cards.until { store.cursorActionNotes[cards.key("c3")] != nil }
         #expect(ui.answers.count == 1 && ui.answers.first?.named == true && ui.answers.first?.card.window == "birch")
+        #expect(ui.answers.first?.elsewhere == ["atlas"], "the other chats' workspaces go with it, and not its own")
         #expect(store.cursorCards[cards.key("c3")] == nil)
         database.waiting = ["c1": fruit, "c2": fruit]
 

@@ -3174,7 +3174,11 @@ extension UsageStore {
             // known of, and the card is taken only from a window titled for this chat's workspace, as it is
             // when one is.
             let named = !twins.isEmpty || !known
-            let answered = await Task.detached(priority: .userInitiated) { ui.answer(held, skip: skip, named: named) }.value
+            // The workspaces of the other Cursor chats on this Mac: the only window that holds the card is not
+            // this chat's when it is titled for one of them and not for this chat's own.
+            let elsewhere = Set(self.sessions.all.filter { $0.tool == .cursor && $0.host == nil && $0.id != sessionID }.compactMap(\.project))
+                .subtracting([held.window])
+            let answered = await Task.detached(priority: .userInitiated) { ui.answer(held, skip: skip, named: named, elsewhere: elsewhere) }.value
             var result = answered.result
             if result == .stillShown, await self.cursorQuestionSettled(held, sessionID: sessionID) { result = .pressed }
             self.cursorAnswerEnded(held, skip: skip, sessionID: sessionID, result: result, found: answered.found,
