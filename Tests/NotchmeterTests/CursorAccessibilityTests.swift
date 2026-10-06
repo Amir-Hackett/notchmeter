@@ -467,7 +467,11 @@ import Testing
         #expect(CursorCards.share(of: "Pick a **fruit**", in: "Questions 1 of 2 1 . Pick a fruit") == 1)
         #expect(CursorCards.share(of: migrate, in: "Questions 1 . " + delete) < 0.2)
         #expect(CursorCards.share(of: migrate + " It takes twice the paper…", in: "1 . " + migrate) >= CursorCards.questionShare, "a question cut short is still most of itself")
-        #expect(CursorCards.share(of: "OK?", in: "anything at all") == 1, "too short to tell from another, and not held against the card")
+        // A question shorter than one run is held to all of itself, and one with no letters to nothing.
+        #expect(CursorCards.share(of: "OK?", in: "anything at all") == 0 && CursorCards.share(of: "OK?", in: "is it ok then") == 1)
+        #expect(CursorCards.share(of: "OK?", in: "OK, go", fromTheStart: true) == 1 && CursorCards.share(of: "OK?", in: "Not OK", fromTheStart: true) == 0)
+        #expect(CursorCards.share(of: "继续吗?", in: "删除所有数据吗?", fromTheStart: true) == 0 && CursorCards.share(of: "继续吗?", in: "继续吗?", fromTheStart: true) == 1)
+        #expect(CursorCards.share(of: "?", in: "anything at all") == 1)
         // Two questions a step apart are not told apart by this, which is why they are never left to it alone
         // (CursorQuestions.alike): the chats asking them are answered in Cursor.
         #expect(CursorCards.share(of: "Proceed with step 1?", in: "1 . Proceed with step 2?") >= CursorCards.questionShare)
@@ -564,11 +568,51 @@ import Testing
         let named = held([("Which fruit?", ["apple", "banana"]), ("Name the branch", [])])
         let placed = try #require(CursorCards.place(of: named, in: group([card([question(1, "Which fruit?", ["apple", "banana"]), question(2, "Name the branch", [])])])))
         #expect(placed.choices.map(\.count) == [2, 0])
-        // A question's own words are held to from their start: a link the card's cut fell in the middle of is
-        // not held against them.
+        // A question's own words are held to from their start: a link the card's cut fell in the middle of, or
+        // one with a title, is not held against them.
         #expect(CursorCards.essence("See [the notes](https://example.com/a/very/long/pa…") == Array("seethenotes"))
+        #expect(CursorCards.essence("See [the notes](https://example.com/a \"Field notes\") first") == Array("seethenotesfirst"))
         #expect(CursorCards.share(of: "Proceed?", in: "Before I proceed? Tell me which", fromTheStart: true) < CursorCards.questionShare)
         #expect(CursorCards.share(of: "Proceed?", in: "Proceed? Tell me which", fromTheStart: true) == 1)
+        // A longer question that leads up to the same words is another question, however short its lead.
+        #expect(CursorCards.place(of: mine, in: group([card([question(1, "Only if the tests pass, proceed with the first step?", ["Yes", "No"])])])) == nil)
+
+        // What the chat said above a card is no part of the card, even when it numbers this very question: a
+        // card begins at the number under its own header.
+        let listed = [group([text("1."), text(proceed)])]
+        #expect(CursorCards.place(of: mine, in: group([card([question(1, "Do it now?", ["Yes", "No"])], above: listed)])) == nil)
+        let spelled = [group([text("1"), text("."), text(proceed)])]
+        #expect(CursorCards.place(of: mine, in: group([card([question(1, "Do it now?", ["Yes", "No"])], above: spelled)])) == nil)
+        // Nor does a later question whose own words number it begin one.
+        var second = question(2, "placeholder", ["Yes", "No"])
+        second[1] = group([group([text("1."), text(proceed)])])
+        #expect(CursorCards.place(of: mine, in: group([card([question(1, "Which fruit?", ["apple", "banana"]), second])])) == nil)
+        // A question the notch holds with no choices but the typed one is not a card that offers some.
+        let typedOnly = held([("Name the branch", [])])
+        #expect(CursorCards.place(of: typedOnly, in: group([card([question(1, "Name the branch", ["main", "develop"])])])) == nil)
+        #expect(CursorCards.place(of: typedOnly, in: group([card([question(1, "Name the branch", [])])])) != nil)
+        // A card with no Skip and Continue of its own is not ended by two words of code in the chat below it.
+        var endless = card([question(1, proceed, ["Yes", "No"])])
+        endless.children.removeLast(2)
+        #expect(CursorCards.place(of: mine, in: group([endless, group([code(["skip"])]), group([code(["continue"])])])) == nil)
+
+        // And the card that is this one is found however its question is drawn. A word of code that reads
+        // "skip" is a word of the question; so is a question that is the one word.
+        let importer = "Should the importer `skip` the row or overwrite it?"
+        var coded = question(1, "placeholder", ["Yes", "No"])
+        coded[1] = group([group([text("Should the importer "), code(["skip"]), text(" the row or overwrite it?")])])
+        #expect(CursorCards.place(of: held([(importer, ["Yes", "No"])]), in: group([card([coded])])) != nil)
+        var linked = question(1, "placeholder", ["Yes", "No"])
+        linked[1] = group([group([text("Should the importer "), CursorAXNode(role: "AXLink", label: nil, children: [text("skip")]), text(" the row or overwrite it?")])])
+        #expect(CursorCards.place(of: held([("Should the importer [skip](docs/skip.md) the row or overwrite it?", ["Yes", "No"])]), in: group([card([linked])])) != nil)
+        #expect(CursorCards.place(of: held([("Continue", ["Yes", "No"])]), in: group([card([question(1, "Continue", ["Yes", "No"])])])) != nil)
+        // A file's path drawn as the file's name alone is still most of the question.
+        var chip = question(1, "placeholder", ["Yes", "No"])
+        chip[1] = group([group([text("Should "), button("theme.css"), text(" keep its palette?")])])
+        #expect(CursorCards.place(of: held([("Should `styles/shared/theme.css` keep its palette?", ["Yes", "No"])]), in: group([card([chip])])) != nil)
+        // A short question in another script is its own, and not any other short one.
+        #expect(CursorCards.place(of: held([("继续吗?", ["是", "否"])]), in: group([card([question(1, "继续吗?", ["是", "否"])])])) != nil)
+        #expect(CursorCards.place(of: held([("继续吗?", ["是", "否"])]), in: group([card([question(1, "删除所有数据吗?", ["是", "否"])])])) == nil)
     }
 
     @Test func theCardThatIsWaitingIsTheLastOfItsWordsInTheWindow() throws {

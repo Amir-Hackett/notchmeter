@@ -600,7 +600,8 @@ extension CursorCards {
         }
         if node.role == "AXStaticText" || node.role == "AXHeading", let label = node.label, !label.isEmpty { drawn.append((found.count, label)) }
         // A group of a word and its key and nothing more is looked at closely; a window is thousands of groups.
-        if node.role != "AXStaticText", (1...3).contains(node.children.count), node.children.allSatisfy({ $0.children.count <= 2 }),
+        // A word of code that reads "skip" is a word of the question it is in, and is not drawn to take a press.
+        if node.role != "AXStaticText", !node.code, (1...3).contains(node.children.count), node.children.allSatisfy({ $0.children.count <= 2 }),
            let word = questionEnd(of: node) {
             // The innermost group that reads so is the one Cursor drew to take the press.
             if let inner = node.children.firstIndex(where: { questionEnd(of: $0) != nil }) {
@@ -618,31 +619,39 @@ extension CursorCards {
     /// gone, and a link shows its words and not where it goes. So a link's target is dropped, and what is left
     /// is its letters and digits alone, lowercased.
     static func essence(_ text: String) -> [Character] {
-        // A link whole, and one a card's cut fell in the middle of, which never closes.
-        let bare = text.replacingOccurrences(of: #"\]\([^)\s]*(\)|…?$)"#, with: "]", options: .regularExpression)
+        // A link whole, its title with it, and one a card's cut fell in the middle of, which never closes.
+        let bare = text.replacingOccurrences(of: #"\]\([^)]*(\)|$)"#, with: "]", options: .regularExpression)
         return Array(bare.lowercased().filter { $0.isLetter || $0.isNumber })
     }
 
     /// How much of a question, as the notch's card has it, is in a stretch of what a window draws: the share of
     /// the question's runs of `questionRun` letters that the stretch holds. A run that long is the question's
     /// own, where a pair of letters is anybody's; the question whole and in order is too much to ask of
-    /// Markdown drawn. A question too short for one run is not told from another this way.
+    /// Markdown drawn. A question shorter than one run is held to all of itself.
     static let questionRun = 4
-    /// `fromTheStart` holds the stretch to where the question would end if it began the stretch, and half as
-    /// much again: the words a card draws for a question begin with that question, so one whose words only turn
-    /// up further on, in a longer question, is another.
+    /// `fromTheStart` holds the stretch to where the question would end if it began the stretch, and one run
+    /// more: the words a card draws for a question begin with that question, so one whose words only turn up
+    /// further on, in a longer question, is another.
     static func share(of question: String, in stretch: String, fromTheStart: Bool = false) -> Double {
         let wanted = essence(question)
         var there = essence(stretch)
-        if fromTheStart { there = Array(there.prefix(wanted.count + wanted.count / 2)) }
-        guard wanted.count >= questionRun else { return 1 }
+        if fromTheStart { there = Array(there.prefix(wanted.count + questionRun)) }
+        guard !wanted.isEmpty else { return 1 }
+        guard wanted.count >= questionRun else {
+            if fromTheStart { return there.starts(with: wanted) ? 1 : 0 }
+            return there.count >= wanted.count && (0...(there.count - wanted.count)).contains { Array(there[$0..<($0 + wanted.count)]) == wanted } ? 1 : 0
+        }
         guard there.count >= questionRun else { return 0 }
         let runs = Set((0...(there.count - questionRun)).map { String(there[$0..<($0 + questionRun)]) })
         let found = (0...(wanted.count - questionRun)).filter { runs.contains(String(wanted[$0..<($0 + questionRun)])) }.count
         return Double(found) / Double(wanted.count - questionRun + 1)
     }
-    /// The share of a question's words that the words before its choices must hold for the card to be its.
-    static let questionShare = 0.6
+    /// The share of a question's words that the words under its number must hold for the card to be its. Half:
+    /// a file's path in the question may be drawn as the file's name alone, and what tells one question from
+    /// another over the same choices is whole sentences, which share next to nothing.
+    static let questionShare = 0.5
+    /// The word that heads Cursor's question card, in its header before the first question's number.
+    static let questionHeader = "questions"
     /// How many buttons a question's own words may hold before its first choice, a file's name each.
     static let questionReach = 24
 
@@ -695,9 +704,17 @@ extension CursorCards {
         }
         var placed: Placed?
         var otherwise = 0
+        /// Whether a button is a choice of some question: it holds the button that is its letter, or the field
+        /// of the one that is typed. A file's name in a question's words holds neither.
+        func choice(_ node: CursorAXNode) -> Bool { typed(node) || node.children.contains { $0.role == "AXButton" } }
         starts: for start in drawn.indices where numbered(1, from: start, before: drawn[start].before) > 0 {
             var text = start
             var at = drawn[start].before
+            // The first question's number follows the card's header, with nothing a press could land on between:
+            // a "1." in what the chat said above a card, or in a later question's own words, begins no card.
+            guard drawn[..<start].reversed().prefix(while: { $0.before == at }).contains(where: {
+                $0.words.trimmingCharacters(in: .whitespaces).lowercased() == questionHeader
+            }) else { continue }
             var asks = true
             var lists: [[Placed.Choice]] = []
             for (number, question) in card.questions.enumerated() {
@@ -710,20 +727,27 @@ extension CursorCards {
                 let labels = question.choices.filter { !$0.typed }.map { drawnLabel($0.label) }
                 var words: [String] = []
                 var buttons = 0
-                while true {
+                gather: while true {
                     while text < drawn.count, drawn[text].before <= at {
                         words.append(drawn[text].words)
                         text += 1
                     }
-                    guard at < found.count, case .button(let label, let node, _) = found[at] else { continue starts }
-                    if let first = labels.first {
-                        if label == first { break }
-                    } else if typed(node) {
-                        break
+                    guard at < found.count, buttons < questionReach else { continue starts }
+                    switch found[at] {
+                    case .end(let word, _):
+                        // A word that reads as Skip or Continue here is a word of the question, a link or the
+                        // question itself ("Continue"); the card's own two come after its last choice.
+                        words.append(word)
+                    case .button(let label, let node, _):
+                        if let first = labels.first {
+                            if label == first, !typed(node) { break gather }
+                        } else if typed(node) {
+                            break gather
+                        }
+                        // Another choice here is one the notch's card does not have, and the card is not this one.
+                        guard !choice(node) else { continue starts }
+                        words.append(label)
                     }
-                    // A typed choice here ends another question, and these words are not this one's.
-                    guard !typed(node), buttons < questionReach else { continue starts }
-                    words.append(label)
                     buttons += 1
                     at += 1
                 }
