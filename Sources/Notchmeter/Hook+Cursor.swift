@@ -72,13 +72,17 @@ extension Hook {
         /// Only the event name, `status`, `parent_conversation_id` (or `conversation_id`, or `session_id`), the
         /// workspace root's project name (ProjectName) and `subagent_id` are read, with the prompt's first line, the
         /// model, the transcript path, `composer_mode`, `is_background_agent`, a compaction's trigger and fill, a
-        /// failed tool's name, `is_interrupt` and whether its `failure_type` is a denial, and the plan file a Build
-        /// attaches. Email, timings, a failure's error text and every tool's input and output are not.
+        /// failed tool's name, `is_interrupt` and whether its `failure_type` is a denial, the plan file a Build
+        /// attaches, and `child_conversation_id` on `subagentStop`. Email, timings, a failure's error text and
+        /// every tool's input and output are not.
         ///
         /// The session is the conversation the user is in, so `subagentStart`'s `parent_conversation_id` outranks
         /// the common `conversation_id`: the reference sends both on that event without saying whether the common
         /// one is the parent's or the subagent's own, and keying on the parent is right either way, while keying on
         /// a subagent's own id would open a phantom session per subagent that the card counts and nothing ends.
+        /// The subagent's own events are another matter. Cursor runs a subagent as a chat of its own (3.23.23),
+        /// and what that chat sends carries its own id and nothing of the chat it works for, so nothing here can
+        /// tell it from a chat the user opened: the app does, from Cursor's own record of the chat (CursorSubagents).
         static func message(event: String, object: [String: Any], environment: [String: String], branch: (String) -> String?,
                             requestID: String? = nil, approval: Bool = false) -> Message {
             let status = object["status"] as? String
@@ -128,8 +132,15 @@ extension Hook {
                 }
             }
             // Since 0.9.13: the model, on whichever event names one (cursor.com/docs/agent/hooks shows `model` on the
-            // tool events), and a compaction's trigger, its start alone (ToolID.reportsCompactionEnd).
-            message.reportedModel = Hook.reportedModel(object["model"])
+            // tool events), and a compaction's trigger, its start alone (ToolID.reportsCompactionEnd). Not on the
+            // two subagent events: their `model` is the subagent's own where it has one (Cursor 3.23.23), and the
+            // chat's row would wear it until the chat's next event said otherwise.
+            let ofSubagent = canonical == "SubagentStart" || canonical == "SubagentStop"
+            message.reportedModel = ofSubagent ? nil : Hook.reportedModel(object["model"])
+            // The chat the subagent ran as, which only the event that ends it names.
+            if canonical == "SubagentStop" {
+                message.childSessionID = nonEmpty(object["child_conversation_id"]).flatMap { CursorChatNames.isConversationID($0) ? $0 : nil }
+            }
             // The task list's source: Cursor's hooks never fire for its to-do tool, but its transcript records it.
             message.transcriptPath = CursorPlans.transcript(object["transcript_path"] as? String)?.path
             message.request = held

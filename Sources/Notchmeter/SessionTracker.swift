@@ -922,6 +922,20 @@ struct SessionTracker: Equatable, Sendable {
         return forgotten
     }
 
+    /// One session gone for good, on the list or set aside, with nothing kept to come back: a row that turned
+    /// out to be a Cursor subagent's own chat (CursorSubagents), whose events are its parent's from then on. What
+    /// it took with it is returned as `forget` returns it; nothing for a session the tracker does not hold.
+    @discardableResult
+    mutating func drop(_ id: String) -> Forgotten {
+        var forgotten = Forgotten()
+        dismissed[id] = nil
+        guard let session = sessions.removeValue(forKey: id) else { return forgotten }
+        forgotten.sessions = [id]
+        if session.isWaiting { forgotten.waiting = [id] }
+        if let pending = session.pending { forgotten.requests = [EndedRequest(sessionID: id, requestID: pending.id)] }
+        return forgotten
+    }
+
     /// Every idle session off the list at once: the ones not working, not waiting and not holding a request.
     @discardableResult
     mutating func dismissIdle() -> [String] {
@@ -1182,8 +1196,11 @@ struct SessionTracker: Equatable, Sendable {
                 // A request the notch still holds is answered by its own answer, not by another sign of life (a
                 // thought, or a second call running beside the held one).
             } else if session.quietNudge, session.isWaiting, session.cardWait {
-                // A wait Cursor's own card proved (CursorAccessibility) was no false alarm, whatever ended it.
-                session.state = .working(since: now)
+                // A wait Cursor's own card proved (CursorAccessibility) was no false alarm, whatever ended it. A
+                // subagent's sign of life ends nothing here (CursorSubagents): the card may be the chat's own, a
+                // question asked while a subagent works on behind it, and a card that has been answered ends the
+                // wait by going (cursorCardGone).
+                if message.agentID == nil { session.state = .working(since: now) }
             } else if !session.quietNudge, session.isWaiting, message.tool == .cursor {
                 // A call handed back to Cursor's own prompt left the chat waiting with nothing held; Cursor going
                 // on is the answer having been given there.
