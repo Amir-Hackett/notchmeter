@@ -583,7 +583,7 @@ extension CursorCards {
     /// What a window holds that a question's card is found by, in the order Cursor lays it out: its buttons, each
     /// by its words, and the groups drawn as Skip or Continue.
     private enum Mark {
-        case button(words: String, node: CursorAXNode, path: [Int])
+        case button(label: String, node: CursorAXNode, path: [Int])
         case end(word: String, path: [Int])
     }
 
@@ -591,8 +591,11 @@ extension CursorCards {
     /// words between two marks can be put together again (`place` checks a question's words against them).
     private static func marks(_ node: CursorAXNode, path: [Int], into found: inout [Mark], drawn: inout [(before: Int, words: String)]) {
         if node.role == "AXButton" {
-            // A choice's letter is a button inside the choice's own, and is not a choice.
-            if let label = node.label { found.append(.button(words: words(ofChoice: label), node: node, path: path)) }
+            // A choice's letter is a button inside the choice's own, and is not a choice. The choice that is typed
+            // is known by the field in it, whether or not Cursor gives it words.
+            if node.label != nil || node.children.contains(where: { $0.role == "AXTextArea" }) {
+                found.append(.button(label: drawnLabel(node.label ?? ""), node: node, path: path))
+            }
             return
         }
         if node.role == "AXStaticText" || node.role == "AXHeading", let label = node.label, !label.isEmpty { drawn.append((found.count, label)) }
@@ -615,7 +618,9 @@ extension CursorCards {
     /// gone, and a link shows its words and not where it goes. So a link's target is dropped, and what is left
     /// is its letters and digits alone, lowercased.
     static func essence(_ text: String) -> [Character] {
-        Array(text.replacingOccurrences(of: #"\]\([^)\s]*\)"#, with: "]", options: .regularExpression).lowercased().filter { $0.isLetter || $0.isNumber })
+        // A link whole, and one a card's cut fell in the middle of, which never closes.
+        let bare = text.replacingOccurrences(of: #"\]\([^)\s]*(\)|…?$)"#, with: "]", options: .regularExpression)
+        return Array(bare.lowercased().filter { $0.isLetter || $0.isNumber })
     }
 
     /// How much of a question, as the notch's card has it, is in a stretch of what a window draws: the share of
@@ -623,8 +628,13 @@ extension CursorCards {
     /// own, where a pair of letters is anybody's; the question whole and in order is too much to ask of
     /// Markdown drawn. A question too short for one run is not told from another this way.
     static let questionRun = 4
-    static func share(of question: String, in stretch: String) -> Double {
-        let wanted = essence(question), there = essence(stretch)
+    /// `fromTheStart` holds the stretch to where the question would end if it began the stretch, and half as
+    /// much again: the words a card draws for a question begin with that question, so one whose words only turn
+    /// up further on, in a longer question, is another.
+    static func share(of question: String, in stretch: String, fromTheStart: Bool = false) -> Double {
+        let wanted = essence(question)
+        var there = essence(stretch)
+        if fromTheStart { there = Array(there.prefix(wanted.count + wanted.count / 2)) }
         guard wanted.count >= questionRun else { return 1 }
         guard there.count >= questionRun else { return 0 }
         let runs = Set((0...(there.count - questionRun)).map { String(there[$0..<($0 + questionRun)]) })
@@ -633,101 +643,112 @@ extension CursorCards {
     }
     /// The share of a question's words that the words before its choices must hold for the card to be its.
     static let questionShare = 0.6
-    /// How many marks back the words before a card's first choice are gathered from, at most: its header, and
-    /// a question that holds buttons of its own, a file's name each. Never past the end of a card above it.
+    /// How many buttons a question's own words may hold before its first choice, a file's name each.
     static let questionReach = 24
 
-    /// A choice's words as the notch's card and Cursor's are compared: runs of white space as one space, since
-    /// Cursor draws a choice as running text, cut as a card cuts a choice, and without the letter Cursor puts
-    /// before them ("A apple"), so a choice is known by what it says.
+    /// A button's words as the notch's card and Cursor's are compared: runs of white space as one space, since
+    /// Cursor draws a choice as running text, and cut as a card cuts a choice.
+    static func drawnLabel(_ label: String) -> String {
+        choiceLabel(label.split(whereSeparator: \.isWhitespace).joined(separator: " "))
+    }
+
+    /// A choice's words without the letter Cursor puts before them ("A apple"): what the choice says, by which a
+    /// window's card and the database's are told for the same question (CursorQuestions.same).
     static func words(ofChoice label: String) -> String {
-        let line = choiceLabel(label.split(whereSeparator: \.isWhitespace).joined(separator: " "))
+        let line = drawnLabel(label)
         guard line.count > 2, let first = line.first, first.isLetter, first.isUppercase, line.dropFirst().first == " " else { return line }
         return String(line.dropFirst(2))
     }
 
-    /// Where `card`, a question read from Cursor's database, is drawn in a window: every choice of it that is not
-    /// typed, as a button of the same words, a question's choices one directly after another and each question's
-    /// after the one before; then Skip and Continue, the first two such groups after the last choice. The words
-    /// drawn before each question's choices have to hold the question as the card has it (`share`), so another
-    /// chat's card that offers the same choices (Yes and No) for another question is not this one. Nil when the
-    /// window does not hold all of that, so nothing is pressed on part of a card or on another's. A chat keeps
-    /// the questions it has asked above the one it is asking, so the last place the card is found is the one
-    /// that is waiting.
+    /// Where `card`, a question read from Cursor's database, is drawn in a window. The card found has to be that
+    /// card whole and no other, since what is pressed on it is an answer: each of its questions in order, as
+    /// Cursor numbers them ("1" and "." before the first, as its own two runs of text, then "2"); under each
+    /// number the question's words, which have to begin with the question as the card has it (`share`), a button
+    /// among them where the words name a file; then its choices and no others, each a button of the same letter
+    /// and words, one directly after another; then the choice that is typed, which ends every question of
+    /// Cursor's; and after the last question's, directly, Skip and then Continue. A card that offers the same
+    /// choices for another question, one that holds this question among others, and one whose choices merely end
+    /// with these, are each another chat's and none of them is found. Nil when the window does not hold all of
+    /// that. A chat keeps what it has asked above what it is asking, so the last place the card is found is the
+    /// one that is waiting.
     static func place(of card: CursorCard, in window: CursorAXNode) -> Placed? {
         placing(of: card, in: window).placed
     }
 
-    /// `place`, with how many cards in the window had the card's choices and its Skip and Continue under other
-    /// words than its question's: a count for the log, which tells a question that was not there from one that
-    /// was not taken for itself.
+    /// `place`, with how many cards in the window were this one in everything but the words of a question: a
+    /// count for the log, which tells a question that was not there from one that was not taken for itself.
     static func placing(of card: CursorCard, in window: CursorAXNode) -> (placed: Placed?, otherwise: Int) {
-        guard card.kind == .question else { return (nil, 0) }
-        let wanted = card.questions.map { question in question.choices.filter { !$0.typed }.map { words(ofChoice: $0.label) } }
-        guard let first = wanted.lazy.flatMap({ $0 }).first else { return (nil, 0) }
+        guard card.kind == .question, !card.questions.isEmpty else { return (nil, 0) }
         var found: [Mark] = []
         var drawn: [(before: Int, words: String)] = []
         marks(window, path: [], into: &found, drawn: &drawn)
-        /// What the window draws after one mark and up to another, in the order it is drawn: its text, and its
-        /// buttons' own words where they stand, since a file's name in a question is a button in the middle of it.
-        func stretch(from lower: Int, to upper: Int) -> String {
-            var words: [String] = []
-            var text = drawn.firstIndex { $0.before > lower } ?? drawn.count
-            for index in max(lower + 1, 0)...max(upper, 0) {
-                while text < drawn.count, drawn[text].before <= index {
-                    words.append(drawn[text].words)
-                    text += 1
-                }
-                if index < upper, case .button(let label, _, _) = found[index] { words.append(label) }
-            }
-            return words.joined(separator: " ")
+        func typed(_ node: CursorAXNode) -> Bool { node.children.contains { $0.role == "AXTextArea" } }
+        /// How many runs of text, from `index`, are a question's number: "2" and ".", or "2." as one. None when
+        /// they are not that number drawn directly before mark `at`.
+        func numbered(_ number: Int, from index: Int, before at: Int) -> Int {
+            guard index < drawn.count, drawn[index].before == at else { return 0 }
+            let first = drawn[index].words.trimmingCharacters(in: .whitespaces)
+            if first == "\(number)." { return 1 }
+            guard first == "\(number)", index + 1 < drawn.count, drawn[index + 1].before == at,
+                  drawn[index + 1].words.trimmingCharacters(in: .whitespaces) == "." else { return 0 }
+            return 2
         }
         var placed: Placed?
         var otherwise = 0
-        for start in found.indices {
-            guard case .button(let words, _, _) = found[start], words == first else { continue }
-            var at = start
-            // Where the words before the next question's choices begin: for the first, a few marks back, and
-            // not past the end of a card above this one, whose question is its own.
-            var since = start - questionReach - 1
-            if let above = found[..<start].lastIndex(where: { if case .end = $0 { true } else { false } }) { since = max(since, above) }
+        starts: for start in drawn.indices where numbered(1, from: start, before: drawn[start].before) > 0 {
+            var text = start
+            var at = drawn[start].before
             var asks = true
             var lists: [[Placed.Choice]] = []
-            for (question, labels) in wanted.enumerated() {
+            for (number, question) in card.questions.enumerated() {
+                // The question's number, drawn directly after the typed choice of the question before.
+                while text < drawn.count, drawn[text].before < at { text += 1 }
+                let runs = numbered(number + 1, from: text, before: at)
+                guard runs > 0 else { continue starts }
+                text += runs
+                // Its words: what is drawn from there to its first choice, a button among them where it stands.
+                let labels = question.choices.filter { !$0.typed }.map { drawnLabel($0.label) }
+                var words: [String] = []
+                var buttons = 0
+                while true {
+                    while text < drawn.count, drawn[text].before <= at {
+                        words.append(drawn[text].words)
+                        text += 1
+                    }
+                    guard at < found.count, case .button(let label, let node, _) = found[at] else { continue starts }
+                    if let first = labels.first {
+                        if label == first { break }
+                    } else if typed(node) {
+                        break
+                    }
+                    // A typed choice here ends another question, and these words are not this one's.
+                    guard !typed(node), buttons < questionReach else { continue starts }
+                    words.append(label)
+                    buttons += 1
+                    at += 1
+                }
+                if let asked = question.text, share(of: asked, in: words.joined(separator: " "), fromTheStart: true) < questionShare { asks = false }
                 var list: [Placed.Choice] = []
-                for (number, label) in labels.enumerated() {
-                    // A question's first choice comes after the typed choice of the one before and its own words,
-                    // which may hold buttons of their own; it does not come after the card has ended.
-                    if number == 0 {
-                        while at < found.count {
-                            if case .button(let words, _, _) = found[at], words == label { break }
-                            if case .end = found[at] { at = found.count } else { at += 1 }
-                        }
-                    }
-                    guard at < found.count, case .button(let words, let node, let path) = found[at], words == label else { break }
-                    if number == 0, let text = card.questions[question].text, share(of: text, in: stretch(from: since, to: at)) < questionShare {
-                        asks = false
-                    }
+                for label in labels {
+                    guard at < found.count, case .button(label, let node, let path) = found[at], !typed(node) else { continue starts }
                     let letter = node.children.first { $0.role == "AXButton" }
                     let says = letter?.classes.contains { $0.hasSuffix(letterClassSuffix) } ?? false
                     list.append(.init(path: path, picked: says ? letter?.classes.contains { $0.hasSuffix(pickedClassSuffix) } : nil))
                     at += 1
                 }
-                guard list.count == labels.count else { break }
+                // The choice that is typed ends the question: a choice more than the card's is another question's.
+                guard at < found.count, case .button(_, let node, _) = found[at], typed(node) else { continue starts }
+                at += 1
                 lists.append(list)
-                if !labels.isEmpty { since = at - 1 }
             }
-            guard lists.count == wanted.count else { continue }
-            // Skip and then Continue, directly after the last choice with at most the typed choice between: a
-            // card above this one that has lost its own two must not be given the ones of the card below it.
-            if at < found.count, case .button = found[at] { at += 1 }
+            // Skip and then Continue, directly: a card above the one that is waiting, drawn without its own two,
+            // is not given the pair of the card below it.
             guard at + 1 < found.count, case .end("skip", let skip) = found[at], case .end(questionSend, let send) = found[at + 1] else { continue }
-            let ends = [(word: "skip", path: skip), (word: questionSend, path: send)]
             guard asks else {
                 otherwise += 1
                 continue
             }
-            placed = Placed(choices: lists, skip: ends[0].path, send: ends[1].path)
+            placed = Placed(choices: lists, skip: skip, send: send)
         }
         return (placed, otherwise)
     }
@@ -826,34 +847,40 @@ enum CursorAnswering {
         // seen for what they are and not answered in whichever was read first.
         var found = "read"
         var held: Held?
-        var seen = (windows: 0, pages: 0, holding: 0, otherwise: 0)
+        var seen = (windows: 0, pages: 0, holding: 0, otherwise: 0, whole: true)
         for attempt in 0..<reads {
             let windows = cursor.windows()
             var met: [(window: Cursor.Window, elements: Cursor.Elements)] = []
             var holding: [(held: Held, title: String)] = []
             var otherwise = 0
+            var whole = true
             for (window, title) in windows {
                 let one = read(window)
                 if let held = one.held { holding.append((held, title)) }
                 met.append((window, one.elements))
                 otherwise += one.otherwise
+                whole = whole && one.whole
             }
-            seen = (windows.count, met.filter { cursor.hasPage($0.elements) }.count, holding.count, otherwise)
-            if let index = chosen(among: holding.map(\.title), workspace: card.window, named: named) {
+            seen = (windows.count, met.filter { cursor.hasPage($0.elements) }.count, holding.count, otherwise, whole)
+            // Only on whole reads of every window: one Cursor fell behind on may be short of this chat's own
+            // card, and the only window left holding one like it would be another chat's.
+            if whole, let index = chosen(among: holding.map(\.title), workspace: card.window, named: named) {
                 held = holding[index].held
                 break
             }
             // Several windows hold it and their titles do not say which is this chat's: asking again changes nothing.
-            guard holding.count < 2, attempt + 1 < reads else { break }
+            guard holding.count < 2 || !whole, attempt + 1 < reads else { break }
             for (window, elements) in met { cursor.refresh(window, elements: elements) }
             found = "refreshed"
             cursor.pause()
         }
-        // How many windows were read, how many of them had a page to ask, how many held the card, and how many
-        // cards had its choices under another question: what tells a Cursor with no window to read from one
-        // whose window would not say, from two that both did, and from a question not taken for itself.
+        // How many windows were read, how many of them had a page to ask, how many held the card, how many
+        // cards had its choices under another question, and whether Cursor fell behind on the last read: what
+        // tells a Cursor with no window to read from one whose window would not say, from two that both did,
+        // and from a question not taken for itself.
         guard var at = held else {
-            return (.gone, "none of \(seen.windows) windows, \(seen.pages) pages, \(seen.holding) holding it, \(seen.otherwise) under other words")
+            return (.gone, "none of \(seen.windows) windows, \(seen.pages) pages, \(seen.holding) holding it, \(seen.otherwise) under other words"
+                + (seen.whole ? "" : ", read short"))
         }
 
         /// The card's window read once more, Cursor first asked to bring it up to date.

@@ -652,12 +652,22 @@ import Testing
         await cards.until { store.cursorCards[cards.key("c1")] == nil }
         #expect(ui.answers.count == 1 && ui.answers.first?.named == false)
 
-        // Answered in Cursor while the press was on its way: nothing is sent for a question that is no longer asked.
+        // The database cannot be read just then: that is no word that no other chat has asked the like, and the
+        // card is taken only from a window titled for this chat's workspace.
         let second = try #require(store.cursorCards[cards.key("c2")]?.first)
+        database.failing = true
+        ui.answerResult = .stillShown
+        store.pressCursorCard(second, option: "Skip", sessionID: cards.key("c2"))
+        await cards.until { store.cursorActionNotes[cards.key("c2")] != nil && store.cursorPressing.isEmpty }
+        #expect(ui.answers.count == 2 && ui.answers.last?.named == true)
+        #expect(store.cursorCards[cards.key("c2")]?.first?.answerable == true, "still asked, and still to be answered here")
+
+        // Answered in Cursor while the press was on its way: nothing is sent for a question that is no longer asked.
+        database.failing = false
         database.waiting = [:]
         store.pressCursorCard(second, option: "Skip", sessionID: cards.key("c2"))
         await cards.until { store.cursorCards[cards.key("c2")] == nil && store.cursorPressing.isEmpty }
-        #expect(ui.answers.count == 1)
+        #expect(ui.answers.count == 2)
     }
 
     @Test @MainActor func skipNeedsNoPick() async throws {

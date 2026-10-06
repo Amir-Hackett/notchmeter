@@ -2989,15 +2989,16 @@ extension UsageStore {
     /// read while the screen is locked or another user is at the Mac, as nothing of Cursor's windows is; what
     /// was on the rows stays, since a question asked before the lock is still asked after it, and the first read
     /// afterwards is for every Cursor chat, so one asked meanwhile is found.
-    func readCursorQuestions(now: Date = Date()) async {
+    @discardableResult
+    func readCursorQuestions(now: Date = Date()) async -> Bool {
         guard cursorQuestionsWanted else {
             cursorAskedCatchUp = true
             cursorQuestionsSeen([:], readAt: now)
-            return
+            return false
         }
         guard !sessionInactive, !screenLocked else {
             cursorAskedCatchUp = true
-            return
+            return false
         }
         // A chat that has left the panel takes its question with it.
         if cursorAsked.keys.contains(where: { sessions.sessions[$0] == nil }) {
@@ -3009,20 +3010,21 @@ extension UsageStore {
         } else if let database = (providers[.cursor] as? CursorProvider)?.stateDatabase {
             read = { CursorQuestions.read(ids: $0, database: database) }
         } else {
-            return
+            return false
         }
         let ids = CursorQuestions.reads(sessions.all, shown: Set(cursorAsked.keys), catchUp: cursorAskedCatchUp, last: cursorAskedRead, now: now)
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else { return false }
         cursorAskedRead = now
         let wanted = Set(ids.values)
         // A read that failed says nothing of any chat: what is on the rows stays until one succeeds.
-        guard let found = await Task.detached(priority: .utility, operation: { read(wanted) }).value else { return }
+        guard let found = await Task.detached(priority: .utility, operation: { read(wanted) }).value else { return false }
         cursorAskedCatchUp = false
         var asked: [String: CursorAsked] = [:]
         for (key, id) in ids {
             if let question = found[id] { asked[key] = question }
         }
         cursorQuestionsSeen(asked, readAt: now)
+        return true
     }
 
     /// The questions a read of Cursor's database found, by session, put beside what its windows last showed.
@@ -3137,7 +3139,8 @@ extension UsageStore {
     /// question that could be taken for this one (CursorQuestions.alike), the card is taken only from a window
     /// titled for this chat's workspace when the two are in workspaces of different names, and where they are
     /// not, nothing tells the two cards apart, nothing is pressed, and the row says so. That one can be sent
-    /// again once the other chat's question has been answered.
+    /// again once the other chat's question has been answered. A read that could not be made is no word that
+    /// there is no such chat, and the card is then taken only from a window so titled too.
     private func answerCursorQuestion(_ card: CursorCard, option: String, sessionID: String) {
         let word = option.lowercased()
         let skip = word == "skip"
@@ -3152,7 +3155,7 @@ extension UsageStore {
             guard let self else { return }
             self.cursorAskedCatchUp = true
             self.cursorAskedRead = .distantPast
-            await self.readCursorQuestions()
+            let known = await self.readCursorQuestions()
             // Answered in Cursor while this was on its way: there is nothing left to send.
             guard self.cursorAsked[sessionID]?.id == card.id else {
                 self.cursorPressing.remove(card.id)
@@ -3167,7 +3170,10 @@ extension UsageStore {
                                        note: L("Another chat is asking the same question; answer it in Cursor"))
                 return
             }
-            let named = !twins.isEmpty
+            // Where that read could not be made, a chat that has just asked a question like this one is not
+            // known of, and the card is taken only from a window titled for this chat's workspace, as it is
+            // when one is.
+            let named = !twins.isEmpty || !known
             let answered = await Task.detached(priority: .userInitiated) { ui.answer(held, skip: skip, named: named) }.value
             var result = answered.result
             if result == .stillShown, await self.cursorQuestionSettled(held, sessionID: sessionID) { result = .pressed }
