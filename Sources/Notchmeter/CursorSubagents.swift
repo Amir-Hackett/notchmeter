@@ -8,8 +8,8 @@ import Foundation
 /// it sends `subagentStart` and `subagentStop` under its own id, and those count the subagent on its row
 /// (Hook+Cursor.swift). Everything the subagent does in between, a command, a thought, the `stop` that ends its
 /// loop, arrives under the subagent's id with nothing of the parent in it. Until 0.9.21 that opened a session per
-/// subagent: a second row for the one conversation, named after the task, counted as a session and finished as a
-/// turn, while the chat it worked for went quiet and was shown as one that may be waiting.
+/// subagent: a second row for the one conversation, named after the task and counted as a session, while the
+/// chat it worked for went quiet and was shown as one that may be waiting.
 ///
 /// Whose chat a conversation is comes from Cursor's state database (the file CursorProvider reads the session
 /// token from), through the private copy every read of it takes (CursorProvider.withStateCopy): the chat's row
@@ -34,7 +34,7 @@ enum CursorSubagents {
     /// has a subagent running: Cursor saves a subagent's chat as it creates it, and a read that lands between the
     /// two finds nothing yet. A conversation the database still holds nothing of after them is a chat of its own.
     static let retries: [Duration] = [.milliseconds(250), .milliseconds(500), .seconds(1)]
-    /// How many conversations' places are kept before the ones no row needs are let go (`pruned`).
+    /// How many conversations' places are kept (`Places`).
     static let kept = 512
     /// What an event of a subagent's own chat is called on the row of the chat it works for when it says nothing
     /// of that chat's turn: the subagent's loop ending or failing, its chat starting or closing, its own context
@@ -82,21 +82,32 @@ enum CursorSubagents {
         return .child(of: parent)
     }
 
-    /// The chat at the top for `id` among the places settled so far: itself for a chat of its own, or for one
-    /// not placed.
-    static func top(of id: String, in places: [String: Place]) -> String {
-        var top = id
-        var seen: Set<String> = [id]
-        while case .child(let parent)? = places[top], seen.insert(parent).inserted { top = parent }
-        return top
-    }
+    /// The places settled so far, the newest `kept` of them. A conversation let go of costs one more read if it
+    /// speaks again, and only if it has no row: a chat on the panel is its own without asking. The one just
+    /// settled is never the one let go, so a conversation is not asked about twice in a row.
+    struct Places: Equatable, Sendable {
+        /// How many are held: `kept`, unless a test wants the edge nearer.
+        let limit: Int
+        private var places: [String: Place] = [:]
+        /// Oldest first.
+        private var order: [String] = []
 
-    /// `places` less the ones no row needs: kept are the chats in `live` (the conversations on the panel) and
-    /// the subagents working for one of them. A conversation let go is asked about again if it speaks.
-    static func pruned(_ places: [String: Place], live: Set<String>) -> [String: Place] {
-        places.filter { id, place in
-            if case .child(let parent) = place { return live.contains(parent) }
-            return live.contains(id)
+        init(limit: Int = CursorSubagents.kept) { self.limit = max(1, limit) }
+
+        subscript(id: String) -> Place? { places[id] }
+        var count: Int { places.count }
+
+        mutating func settle(_ id: String, as place: Place) {
+            if places.updateValue(place, forKey: id) == nil { order.append(id) }
+            while order.count > limit { places[order.removeFirst()] = nil }
+        }
+
+        /// The chat at the top for `id`: itself for a chat of its own, or for one not placed.
+        func top(of id: String) -> String {
+            var top = id
+            var seen: Set<String> = [id]
+            while case .child(let parent)? = places[top], seen.insert(parent).inserted { top = parent }
+            return top
         }
     }
 
@@ -107,8 +118,10 @@ enum CursorSubagents {
     /// as activity only (`chatEvent`, and Codex's name for a subagent's prompt), since the parent's turn neither
     /// starts nor ends with it. A command it runs, a call held for the notch and a failed tool cross as they
     /// are: they are what the conversation is doing. A subagent it starts in turn, or the end of one, is counted
-    /// on the same row under that subagent's own id.
-    static func folded(_ message: Hook.Message, from child: String, into parent: String) -> Hook.Message {
+    /// on the same row under that subagent's own id. The project and the branch cross only where the parent has
+    /// no row to carry them yet (`naming`): they are read from the same window and so are the parent's too, but
+    /// a row that has its own is not renamed on a subagent's word.
+    static func folded(_ message: Hook.Message, from child: String, into parent: String, naming: Bool) -> Hook.Message {
         let counted = message.event == "SubagentStart" || message.event == "SubagentStop"
         let event: String
         switch message.event {
@@ -116,8 +129,8 @@ enum CursorSubagents {
         case "SessionStart", "SessionEnd", "Stop", "StopFailure", "PreCompact": event = chatEvent
         default: event = message.event
         }
-        var folded = Hook.Message(event: event, needsInput: message.needsInput, sessionID: parent, project: message.project,
-                                  notificationType: message.notificationType, branch: message.branch,
+        var folded = Hook.Message(event: event, needsInput: message.needsInput, sessionID: parent, project: naming ? message.project : nil,
+                                  notificationType: message.notificationType, branch: naming ? message.branch : nil,
                                   agentID: counted ? message.agentID : child, host: message.host, tool: message.tool)
         folded.request = message.request
         folded.terminal = message.terminal

@@ -1079,6 +1079,10 @@ struct SessionTracker: Equatable, Sendable {
             // A SubagentStop is deliberately not the same proof: a background agent can finish while the main
             // loop is genuinely held at a prompt. Nor is a start proof about a background session's wait
             // (`waitsOnAgent`): the foreground loop that started the agent is not the one that is blocked.
+            // A call of Cursor's held for the notch is not answered this way: its hook is still waiting for the
+            // answer, so none has been given, whatever starts beside it. A subagent's held call stands on its
+            // conversation's row (CursorSubagents), where another subagent starting would otherwise take it down.
+            if session.tool == .cursor, session.pending != nil { break }
             if session.isWaiting, !session.waitsOnAgent { session.state = .working(since: now) }
             session.pending = nil
         case "SubagentStop":

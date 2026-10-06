@@ -155,11 +155,14 @@ final class UsageStore {
     /// loop itself adds it in `waitUntilDue`.
     func backoffAfterLastRead(_ tool: ToolID) -> TimeInterval { backoff[tool] ?? 0 }
     /// Cursor's subagents (CursorSubagents): where each conversation the hook has named stands, and the events
-    /// of the ones Cursor's database is still being asked about, in the order they came.
-    @ObservationIgnored private var cursorChats: [String: CursorSubagents.Place] = [:]
+    /// of the ones Cursor's database is still being asked about, in the order they came. The places are a test's
+    /// to replace with a smaller set.
+    @ObservationIgnored var cursorChats = CursorSubagents.Places()
     @ObservationIgnored private var cursorUnplaced: [String: [(message: Hook.Message, at: Date, reply: HookSocket.Reply?)]] = [:]
     /// Stands in for that read of Cursor's database, so no test opens a real one. Nil from it is a read that failed.
     @ObservationIgnored var cursorParentReader: (@Sendable (Set<String>) -> [String: CursorSubagents.Place]?)?
+    /// The waits between its re-reads (CursorSubagents.retries); a test's are shorter.
+    @ObservationIgnored var cursorParentRetries = CursorSubagents.retries
     /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
     /// the follow-up armed for a chat Cursor may name after its turn has ended.
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
@@ -853,7 +856,7 @@ final class UsageStore {
         if tool == .cursor {
             // What was known of Cursor's chats goes with them, and an event still waiting to be placed is let go
             // of: its hook is answered nothing, as every hook is while the sessions are not read.
-            cursorChats = [:]
+            cursorChats = CursorSubagents.Places(limit: cursorChats.limit)
             for event in cursorUnplaced.values.joined() { event.reply?.answer(nil) }
             cursorUnplaced = [:]
         }
@@ -2538,7 +2541,8 @@ final class UsageStore {
     /// as before 0.9.21.
     private func placedCursorEvent(_ message: Hook.Message, now: Date, reply: HookSocket.Reply?) -> Hook.Message? {
         guard message.host == nil, message.source == .hook, let id = message.sessionID, CursorChatNames.isConversationID(id) else { return message }
-        // A subagent's end names the chat it ran as, the one word of it Cursor's hooks give.
+        // A subagent's end names the chat it ran as, the one word of it Cursor's hooks give. It is Cursor's own
+        // word, so it stands over a database that named the chat no parent, which may only have been read early.
         if message.event == "SubagentStop", let child = message.childSessionID { placeCursorSubagent(child, under: id, from: "its end", now: now) }
         // Behind the events already waiting, whatever has been learned of the chat since: they are older.
         if cursorUnplaced[id] != nil {
@@ -2546,13 +2550,22 @@ final class UsageStore {
             return nil
         }
         switch cursorChats[id] {
-        case .child(let parent): return CursorSubagents.folded(message, from: id, into: CursorSubagents.top(of: parent, in: cursorChats))
+        case .child(let parent):
+            let top = cursorChats.top(of: parent)
+            let key = SessionTracker.key(tool: .cursor, session: top, host: nil)
+            // A conversation that has just ended is not brought back by its subagent's last words, which a hook
+            // process of its own may deliver after the end.
+            if let ended = sessions.ended[key], now.timeIntervalSince(ended) < SessionTracker.endedGrace {
+                reply?.answer(nil)
+                return nil
+            }
+            return CursorSubagents.folded(message, from: id, into: top, naming: sessions.sessions[key] == nil)
         case .own: return message
         case nil: break
         }
-        // A chat already on the panel is one that was placed, and let go of since (CursorSubagents.pruned).
+        // A chat already on the panel is one that was placed, and let go of since (CursorSubagents.Places).
         guard sessions.sessions[SessionTracker.key(tool: .cursor, session: id, host: nil)] == nil, let read = cursorParentRead else {
-            cursorChats[id] = .own
+            cursorChats.settle(id, as: .own)
             return message
         }
         cursorUnplaced[id] = [(message, now, reply)]
@@ -2569,7 +2582,7 @@ final class UsageStore {
 
     private func askCursorParent(of id: String, read: @escaping @Sendable (Set<String>) -> [String: CursorSubagents.Place]?, attempt: Int) {
         Task { [weak self] in
-            if attempt > 0 { try? await Task.sleep(for: CursorSubagents.retries[attempt - 1]) }
+            if attempt > 0, let self { try? await Task.sleep(for: self.cursorParentRetries[attempt - 1]) }
             let found = await Task.detached(priority: .userInitiated) { read([id]) }.value
             self?.cursorParentAnswered(found, of: id, read: read, attempt: attempt)
         }
@@ -2583,21 +2596,23 @@ final class UsageStore {
     private func cursorParentAnswered(_ found: [String: CursorSubagents.Place]?, of id: String,
                                       read: @escaping @Sendable (Set<String>) -> [String: CursorSubagents.Place]?, attempt: Int) {
         let running = sessions.all.contains { $0.tool == .cursor && $0.host == nil && !$0.agents.isEmpty }
-        if let found, found[id] == nil, cursorChats[id] == nil, running, attempt < CursorSubagents.retries.count, cursorUnplaced[id] != nil {
+        if let found, found[id] == nil, cursorChats[id] == nil, running, attempt < cursorParentRetries.count, cursorUnplaced[id] != nil {
             askCursorParent(of: id, read: read, attempt: attempt + 1)
             return
         }
         if case .child(let parent)? = found?[id] { placeCursorSubagent(id, under: parent, from: "Cursor's database", now: Date()) }
         // Placed one way or the other before its events come back, or they would only be asked about again.
         if cursorChats[id] == nil {
-            cursorChats[id] = .own
+            cursorChats.settle(id, as: .own)
             // Worth a line when it may have been one: the row that follows is the one this read was to prevent.
             if running { log.notice("cursor chat not placed as a subagent's: \(found == nil ? "the database was not read" : "the database names no parent for it", privacy: .public)") }
         }
-        if cursorChats.count > CursorSubagents.kept {
-            cursorChats = CursorSubagents.pruned(cursorChats, live: Set(sessions.all.compactMap(CursorChatNames.conversationID(of:))))
+        for event in cursorUnplaced.removeValue(forKey: id) ?? [] {
+            // A held call whose hook went away while it waited is over: it is not put on the notch to be taken
+            // straight off again.
+            if event.message.request != nil, event.reply?.isPeerClosed == true { continue }
+            hookReceived(event.message, now: event.at, reply: event.reply)
         }
-        for event in cursorUnplaced.removeValue(forKey: id) ?? [] { hookReceived(event.message, now: event.at, reply: event.reply) }
     }
 
     /// `child` is the chat a subagent of `parent` runs as: its events are that chat's row's from here on, and a
@@ -2605,9 +2620,9 @@ final class UsageStore {
     /// hook is answered nothing, so Cursor asks). `from` is where it was learned, for the log, which carries no
     /// id and no word of either chat.
     private func placeCursorSubagent(_ child: String, under parent: String, from: String, now: Date) {
-        let top = CursorSubagents.top(of: parent, in: cursorChats)
+        let top = cursorChats.top(of: parent)
         guard child != top, cursorChats[child] != .child(of: top) else { return }
-        cursorChats[child] = .child(of: top)
+        cursorChats.settle(child, as: .child(of: top))
         log.notice("cursor chat placed as a subagent's, from \(from, privacy: .public)")
         let key = SessionTracker.key(tool: .cursor, session: child, host: nil)
         Oracle.shared.emit("session", ["action": "subagentChat", "tool": ToolID.cursor.rawValue, "session": key,
