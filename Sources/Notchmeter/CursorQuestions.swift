@@ -30,9 +30,13 @@ import SQLite3
 /// The read is of a private copy of the database, as every read of that file is (CursorProvider.withStateCopy),
 /// so Cursor's live file is never opened.
 ///
-/// A question read this way is shown and not answered here: there is nothing of Cursor's window in it to press.
-/// Its row says the chat is waiting, the notch opens on it, and *Answer in Cursor* brings the window back. When
-/// the window can be read again, the card read from it takes this one's place, with its choices to press.
+/// A question read this way is the one a row shows, and it is answered there (0.9.20). What is asked is known
+/// here whatever Cursor's window is doing, so the choices are picked on the notch's own card, as Cursor's card
+/// takes a press, and nothing of Cursor is touched until Continue or Skip. Then Cursor's own card is found in
+/// its window by the choices' words and pressed where it is (CursorCards.place, CursorUIControlling.answer):
+/// Cursor is not brought forward, since having to look at Cursor is what the notch is for sparing. That takes
+/// the Accessibility permission, as every press on one of Cursor's cards does; without it the question is shown
+/// with *Answer in Cursor*, as it is once an answer could not be put on Cursor's card.
 struct CursorAsked: Hashable, Sendable {
     struct Question: Hashable, Sendable {
         var prompt: String
@@ -63,6 +67,16 @@ enum CursorQuestions {
     static let slowEvery: TimeInterval = 30
     /// What a question step's status reads once it is no longer waiting.
     static let settled: Set<String> = ["submitted", "cancelled"]
+    /// What Cursor's card reads on the choice it ends every question with, whose answer is typed.
+    static let typedChoice = "Other..."
+
+    /// Whether Cursor's card leaves a choice out. The agent sometimes offers an "Other" of its own, and the card
+    /// drops it for the typed choice it always adds, so the choices after it are lettered one earlier there
+    /// (Cursor 3.23.23's own rule: the label is "other", or opens with "other:", "other -" or "other (").
+    static func leftOut(_ label: String) -> Bool {
+        let label = label.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return label == "other" || ["other:", "other -", "other ("].contains { label.hasPrefix($0) }
+    }
 
     /// Which chats a read is for, and whether it is due. A chat on this Mac with a conversation of Cursor's that
     /// has been quiet for `quietBefore`, and is either in a turn or was heard from inside `followWindow`; one
@@ -97,9 +111,10 @@ enum CursorQuestions {
               let listed = object["questions"] as? [[String: Any]] else { return nil }
         let questions = listed.prefix(questionLimit).compactMap { question -> CursorAsked.Question? in
             guard let prompt = (question["prompt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !prompt.isEmpty else { return nil }
-            let options = ((question["options"] as? [[String: Any]]) ?? []).prefix(optionLimit).compactMap { option in
-                (option["label"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            }.filter { !$0.isEmpty }
+            // A choice is running text on Cursor's card, so its white space is one space there and here.
+            let options = ((question["options"] as? [[String: Any]]) ?? []).compactMap { option in
+                (option["label"] as? String)?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            }.filter { !$0.isEmpty && !leftOut($0) }.prefix(optionLimit)
             // The agent's own word for it is `allow_multiple`; Cursor stores it as `allowMultiple`.
             let several = question["allowMultiple"] as? Bool ?? question["allow_multiple"] as? Bool ?? false
             return CursorAsked.Question(prompt: prompt, allowsSeveral: several, options: Array(options))
@@ -108,30 +123,64 @@ enum CursorQuestions {
     }
 
     /// The card a row shows for a question read from the database: each question with its choices lettered as
-    /// Cursor's own card letters them, cut as a card read from the window is, and nothing to press.
-    static func card(_ asked: CursorAsked, window: String) -> CursorCard {
+    /// Cursor's own card letters them and cut as a card read from the window is, then the choice Cursor's card
+    /// ends every question with, whose answer is typed and so given in Cursor; and Cursor's own Skip and
+    /// Continue where the card can be answered from the notch (`answerable`: the Accessibility permission is
+    /// there to press Cursor's card with). No choice or button of it has a place in a window: a choice is picked
+    /// on this card (`picking`), and Cursor's is found when the answers are sent. `session` is the chat it is
+    /// on, and part of what makes it this card: two chats can ask the same thing word for word (the same prompt
+    /// run in two worktrees does), and what is picked, pressed or given up on one is not the other's.
+    static func card(_ asked: CursorAsked, window: String, session: String = "", answerable: Bool = true) -> CursorCard {
         let letters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         var hasher = Hasher()
         hasher.combine(asked)
+        hasher.combine(session)
         let questions = asked.questions.map { question in
-            CursorCard.Question(text: CursorCards.line(question.prompt), choices: question.options.enumerated().map { index, label in
-                .init(label: CursorCards.choiceLabel("\(letters[index]) \(label)"), path: [], picked: false, typed: false)
-            })
+            var choices = question.options.prefix(letters.count).enumerated().map { index, label in
+                CursorCard.Choice(label: CursorCards.choiceLabel("\(letters[index]) \(label)"), path: [], picked: false, typed: false)
+            }
+            if choices.count < letters.count {
+                choices.append(.init(label: "\(letters[choices.count]) \(typedChoice)", path: [], picked: false, typed: true))
+            }
+            return CursorCard.Question(text: CursorCards.line(question.prompt), choices: choices, several: question.allowsSeveral)
         }
-        var card = CursorCard(kind: .question, window: window, heading: questions.first.flatMap(\.text), options: [], fingerprint: hasher.finalize())
+        let ends = answerable ? ["Skip", "Continue"].map { CursorCard.Option(label: $0, path: []) } : []
+        var card = CursorCard(kind: .question, window: window, heading: questions.first.flatMap(\.text), options: ends, fingerprint: hasher.finalize())
         card.questions = questions
         card.choices = questions.flatMap { $0.choices.map(\.label) }
         card.fromDatabase = true
         return card
     }
 
-    /// Whether a card read from Cursor's window and one read from its database are the same question: the same
-    /// first question, and every choice the database has among the window's (which adds the one that is typed).
-    /// Where they are, the database says which chat is asking, and the window's card goes on that chat's row
-    /// whatever its window is called.
+    /// The card with one of its choices turned over, as Cursor's own card takes a press: on a question with one
+    /// answer the choice becomes the pick, or stops being it when it was; on one with several it is added to the
+    /// picks or taken from them. The choice that is typed is not picked here.
+    static func picking(_ card: CursorCard, question: Int, choice: Int) -> CursorCard {
+        guard card.questions.indices.contains(question), card.questions[question].choices.indices.contains(choice),
+              !card.questions[question].choices[choice].typed else { return card }
+        var card = card
+        let was = card.questions[question].choices[choice].picked
+        if !card.questions[question].several {
+            for index in card.questions[question].choices.indices { card.questions[question].choices[index].picked = false }
+        }
+        card.questions[question].choices[choice].picked = !was
+        return card
+    }
+
+    /// Whether two cards read from the database ask the same thing of two chats, word for word as far as a card
+    /// shows: the same questions over the same choices.
+    static func asksTheSame(_ one: CursorCard, _ other: CursorCard) -> Bool {
+        one.fromDatabase && other.fromDatabase && one.choices == other.choices && one.questions.map(\.text) == other.questions.map(\.text)
+    }
+
+    /// Whether a card read from Cursor's window and one read from its database are the same question: every
+    /// choice the database has is among the window's, by its words (CursorCards.words). Not by the question's
+    /// words: Cursor draws those from Markdown, so what the window reads is not what the database holds, and
+    /// 0.9.19, which asked that they be equal, took the two for different questions. Where they are the same
+    /// the database's card is the one a row shows, on the chat the database names.
     static func same(window: CursorCard, database: CursorCard) -> Bool {
-        guard window.kind == .question, !window.fromDatabase, database.fromDatabase, let heading = window.heading, heading == database.heading else { return false }
-        return Set(database.choices).isSubset(of: Set(window.choices))
+        guard window.kind == .question, !window.fromDatabase, database.fromDatabase, !database.choices.isEmpty else { return false }
+        return Set(database.choices.map(CursorCards.words(ofChoice:))).isSubset(of: Set(window.choices.map(CursorCards.words(ofChoice:))))
     }
 
     /// The kind of step that is a message from the user (`fullConversationHeadersOnly[].type`).

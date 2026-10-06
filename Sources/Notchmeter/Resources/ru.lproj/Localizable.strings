@@ -1352,6 +1352,9 @@
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Каждая команда оболочки и каждый вызов MCP в Cursor ждут Разрешить или Запретить в вырезе, даже те, что список разрешённого Cursor выполнил бы без вопроса. Без ответа Cursor показывает свой запрос; без ответа ничего не запускается.";
 "Presses this button on Cursor's card" = "Нажимает эту кнопку на карточке Cursor";
 "Picks this choice on Cursor's card" = "Выбирает этот вариант на карточке Cursor";
+"Picks this choice; Continue sends it" = "Выбирает этот вариант; Continue отправляет его";
+"Could not reach this question in Cursor's window; answer it in Cursor" = "Не удалось добраться до этого вопроса в окне Cursor; ответьте в Cursor";
+"Another chat is asking the same question; answer it in Cursor" = "Другой чат задаёт тот же вопрос; ответьте в Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Показывает карточки Cursor с Run, сменой режима и планом в строке сессии и нажимает выбранную кнопку. Читает окна Cursor через Универсальный доступ, никогда не экран.";
 "Cursor is waiting to run a command" = "Cursor ждёт, чтобы выполнить команду";
 "Cursor is asking a question" = "Cursor задаёт вопрос";

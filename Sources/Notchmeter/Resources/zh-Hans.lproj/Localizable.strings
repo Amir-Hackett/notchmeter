@@ -1352,6 +1352,9 @@
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor 运行的每条 shell 命令和 MCP 调用都会在刘海中等待 允许 或 拒绝，包括 Cursor 允许列表本会直接运行的。无人回应时，Cursor 会显示自己的提示；不会默默运行。";
 "Presses this button on Cursor's card" = "按下 Cursor 卡片上的这个按钮";
 "Picks this choice on Cursor's card" = "在 Cursor 的卡片上选择这个选项";
+"Picks this choice; Continue sends it" = "选择这个选项；Continue 会发送它";
+"Could not reach this question in Cursor's window; answer it in Cursor" = "无法在 Cursor 的窗口中找到这个问题；请在 Cursor 中回答";
+"Another chat is asking the same question; answer it in Cursor" = "另一个对话正在问同样的问题；请在 Cursor 中回答";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "在会话行上显示 Cursor 的 Run、切换模式和计划卡片，并按下你选的按钮。通过辅助功能读取 Cursor 的窗口，从不读取屏幕。";
 "Cursor is waiting to run a command" = "Cursor 正在等待运行命令";
 "Cursor is asking a question" = "Cursor 正在提问";

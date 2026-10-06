@@ -1352,6 +1352,9 @@
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence.";
 "Presses this button on Cursor's card" = "Presses this button on Cursor's card";
 "Picks this choice on Cursor's card" = "Picks this choice on Cursor's card";
+"Picks this choice; Continue sends it" = "Picks this choice; Continue sends it";
+"Could not reach this question in Cursor's window; answer it in Cursor" = "Could not reach this question in Cursor's window; answer it in Cursor";
+"Another chat is asking the same question; answer it in Cursor" = "Another chat is asking the same question; answer it in Cursor";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen.";
 "Cursor is waiting to run a command" = "Cursor is waiting to run a command";
 "Cursor is asking a question" = "Cursor is asking a question";

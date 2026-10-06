@@ -2,10 +2,11 @@ import SwiftUI
 
 /// One of Cursor's own cards on its session's row (CursorAccessibility): what Cursor is asking, and the buttons it
 /// shows, in its words and order. The primary button (Run, Switch, Build) is filled, as Cursor fills it. A question
-/// is answered as it is in Cursor: each choice is a button that picks it there and shows what Cursor shows picked,
-/// and Continue sends the answers (CursorCard.questions). One that cannot be answered from here, because its words
-/// are hidden or Cursor's window does not say what is picked, shows its choices and one button that brings Cursor
-/// forward.
+/// is answered as it is in Cursor: each choice is a button that picks it, and Continue sends the answers
+/// (CursorCard.questions). A question read from Cursor's database is picked on this card and put on Cursor's own
+/// when it is sent; one read from Cursor's window is picked there, and shows what Cursor shows picked. One that
+/// cannot be answered from here, because its words are hidden, there is no permission to press Cursor's card
+/// with, or an answer could not be put on it, shows its choices and one button that brings Cursor forward.
 struct CursorCardView: View {
     let card: CursorCard
     let hideDetails: Bool
@@ -48,7 +49,7 @@ struct CursorCardView: View {
     /// Continue does nothing until then (its handler asks that of every question, Cursor 3.23.12), so the notch's
     /// is held too, and is not pressed to no effect.
     static func canSend(_ card: CursorCard) -> Bool {
-        card.answerable && card.questions.allSatisfy { $0.choices.contains(where: \.picked) }
+        card.answerable && card.complete
     }
 
     /// Whether one of the card's buttons is held: Continue on a question that still has a question unanswered.
@@ -175,7 +176,7 @@ struct CursorCardView: View {
                     .accessibilityLabel(Self.listed(choice.label))
                     .accessibilityValue(choice.typed ? "" : choice.picked ? L("Selected") : L("Not selected"))
                     .accessibilityHint(choice.typed ? L("Brings Cursor forward, where the question is answered")
-                                                    : L("Picks this choice on Cursor's card"))
+                                       : card.fromDatabase ? L("Picks this choice; Continue sends it") : L("Picks this choice on Cursor's card"))
                     .disabled(pressing)
                 }
             }

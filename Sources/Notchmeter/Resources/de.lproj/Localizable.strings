@@ -1353,6 +1353,9 @@
 "Every shell command and MCP call Cursor runs waits for Allow or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Jeder Shell-Befehl und jeder MCP-Aufruf von Cursor wartet in der Notch auf Erlauben oder Ablehnen, auch die, die Cursors Allowlist ohne Nachfrage ausführen würde. Unbeantwortet zeigt Cursor seine eigene Abfrage; ohne Antwort läuft nichts.";
 "Presses this button on Cursor's card" = "Drückt diese Taste auf der Karte von Cursor";
 "Picks this choice on Cursor's card" = "Wählt diese Option auf der Karte von Cursor aus";
+"Picks this choice; Continue sends it" = "Wählt diese Option aus; Continue sendet sie";
+"Could not reach this question in Cursor's window; answer it in Cursor" = "Diese Frage war im Fenster von Cursor nicht erreichbar; in Cursor antworten";
+"Another chat is asking the same question; answer it in Cursor" = "Ein anderer Chat stellt dieselbe Frage; in Cursor antworten";
 "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Zeigt die Run-, Moduswechsel- und Plankarten von Cursor in der Zeile der Sitzung und drückt die gewählte Taste. Liest die Fenster von Cursor über die Bedienungshilfen, nie den Bildschirm.";
 "Cursor is waiting to run a command" = "Cursor wartet darauf, einen Befehl auszuführen";
 "Cursor is asking a question" = "Cursor stellt eine Frage";

@@ -341,6 +341,182 @@ import Testing
         #expect(CursorCards.picked(question: 0, choice: 0, in: shown.shownOnly) == nil)
     }
 
+    /// The two questions `askedCard` draws, as Cursor's database holds them and the notch's own card shows them.
+    func heldCard(picked: Set<String> = [], several: Bool = false, asking first: String = "Pick a **fruit**") -> CursorCard {
+        var card = CursorQuestions.card(CursorAsked(questions: [.init(prompt: first, allowsSeveral: several, options: ["apple", "banana", "cherry"]),
+                                                                .init(prompt: "Pick a color", allowsSeveral: several, options: ["red", "green", "blue"])]), window: "proj")
+        for question in card.questions.indices {
+            for choice in card.questions[question].choices.indices where picked.contains(CursorCards.words(ofChoice: card.questions[question].choices[choice].label)) {
+                card.questions[question].choices[choice].picked = true
+            }
+        }
+        return card
+    }
+
+    @Test func aQuestionTheDatabaseHoldsIsFoundInTheWindowByItsChoices() throws {
+        let window = group([askedCard(picked: ["banana"])])
+        let placed = try #require(CursorCards.place(of: heldCard(), in: window))
+        // Each choice that is not typed, as the button of its words, and what Cursor shows picked.
+        #expect(placed.choices.map { $0.map { node(at: $0.path, in: window)?.label } } == [["A apple", "B banana", "C cherry"], ["A red", "B green", "C blue"]])
+        #expect(placed.choices.map { $0.map(\.picked) } == [[false, true, false], [false, false, false]])
+        // And the two groups Cursor ends its card with.
+        #expect(node(at: placed.skip, in: window)?.children.first?.label == "Skip")
+        #expect(node(at: placed.send, in: window)?.children.first?.label == "Continue")
+        #expect(node(at: placed.send, in: window)?.role == "AXGroup")
+
+        // Cursor draws a question from Markdown, so a real one holds what its words call for: a file's name that
+        // is a button, a command, a list. Read whole out of the window such a card is not known for a question at
+        // all (0.9.19); found by its choices it is, since what the question holds is not asked of the window.
+        var rich = askedCard()
+        rich.children[1].children[0].children[1] = group([group([text("Should "), button("theme.css"), text(" keep its "), text("dark palette"), text("?")]),
+                                                          group([code(["make", " ", "icons"])]), group([text("•"), text("It is read on every launch.")])])
+        #expect(CursorCards.detect(in: group([rich]), title: "proj").isEmpty)
+        let asked = heldCard(asking: "Should [`theme.css`](styles/theme.css) keep its **dark palette**?\n\n```\nmake icons\n```\n- It is read on every launch.")
+        let found = try #require(CursorCards.place(of: asked, in: group([rich])))
+        #expect(found.choices.map(\.count) == [3, 3])
+        #expect(found.choices[0].map { node(at: $0.path, in: group([rich]))?.label } == ["A apple", "B banana", "C cherry"])
+        // The same question drawn with its letters one on, as when Cursor's card leaves a choice out, is the same.
+        var shifted = askedCard()
+        shifted.children[1].children[0].children[2].label = "B apple"
+        #expect(CursorCards.place(of: heldCard(), in: group([shifted])) != nil)
+
+        // Letters that do not say what is picked: found, and nothing known of its picks.
+        let silent = try #require(CursorCards.place(of: heldCard(), in: group([askedCard(classes: false)])))
+        #expect(silent.choices.allSatisfy { $0.allSatisfy { $0.picked == nil } })
+    }
+
+    @Test func nothingIsFoundOnPartOfACardOrOnAnotherQuestion() {
+        // Another question's choices.
+        let other = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Pick a fruit", allowsSeveral: false, options: ["apple", "pear"])]), window: "proj")
+        #expect(CursorCards.place(of: other, in: group([askedCard()])) == nil)
+        // A card with a choice missing, or its choices in another order.
+        var short = askedCard()
+        short.children[1].children[0].children.remove(at: 3)
+        #expect(CursorCards.place(of: heldCard(), in: group([short])) == nil)
+        var swapped = askedCard()
+        swapped.children[1].children[0].children.swapAt(2, 3)
+        #expect(CursorCards.place(of: heldCard(), in: group([swapped])) == nil)
+        // Cursor's card minimised: its header is there and its choices are not.
+        var minimised = askedCard()
+        minimised.children.removeSubrange(1...)
+        #expect(CursorCards.place(of: heldCard(), in: group([minimised])) == nil)
+        // No Continue after the last choice, or Continue as bare text that takes no press.
+        var endless = askedCard()
+        endless.children.remove(at: 3)
+        #expect(CursorCards.place(of: heldCard(), in: group([endless])) == nil)
+        var bare = askedCard()
+        bare.children[3] = text("Continue")
+        #expect(CursorCards.place(of: heldCard(), in: group([bare])) == nil)
+        // The second question's choices after the card has ended are not the card's.
+        var split = askedCard()
+        let second = Array(split.children[1].children[0].children[6...])
+        split.children[1].children[0].children.removeSubrange(6...)
+        #expect(CursorCards.place(of: heldCard(), in: group([split, group(second)])) == nil)
+        // A card of another kind, and one with only a typed choice, have nothing to be found by.
+        #expect(CursorCards.place(of: CursorCard(kind: .run, window: "proj", heading: "ls", options: []), in: group([askedCard()])) == nil)
+        let typed = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Name it", allowsSeveral: false, options: [])]), window: "proj")
+        #expect(typed.questions[0].choices.map(\.label) == ["A Other..."])
+        #expect(CursorCards.place(of: typed, in: group([askedCard()])) == nil)
+    }
+
+    @Test func anotherQuestionWithTheSameChoicesIsNotThisOne() throws {
+        // Two chats can offer the same choices for different questions (Yes and No). What is drawn before the
+        // choices has to be the question the notch's card holds, or its answer would go to the other chat.
+        func yesNo(_ question: String, picked: Bool = false) -> CursorAXNode {
+            var yes = button("A Yes", [button("A"), text("Yes")])
+            yes.children[0].classes = ["composer-questionnaire-toolbar-option-letter"] + (picked ? ["composer-questionnaire-toolbar-option-letter-selected"] : [])
+            var no = button("B No", [button("B"), text("No")])
+            no.children[0].classes = ["composer-questionnaire-toolbar-option-letter"]
+            return group([group([text("Questions")]), group([text("1"), text(".")]), group([group([text(question)])]), yes, no,
+                          button("C Other...", [button("C"), CursorAXNode(role: "AXTextArea", label: nil)]),
+                          group([text("Skip"), text("Esc")]), group([text("Continue"), text("⏎")])])
+        }
+        func held(_ prompt: String) -> CursorCard {
+            CursorQuestions.card(CursorAsked(questions: [.init(prompt: prompt, allowsSeveral: false, options: ["Yes", "No"])]), window: "proj")
+        }
+        let migrate = "Print the report on both sides of the page?", delete = "Sort the list by name as well?"
+        #expect(CursorCards.place(of: held(migrate), in: group([yesNo(migrate)])) != nil)
+        #expect(CursorCards.place(of: held(migrate), in: group([yesNo(delete)])) == nil, "the same choices under another question")
+        // Which is told from a card that is not there at all, for the log.
+        #expect(CursorCards.placing(of: held(migrate), in: group([yesNo(delete)])).otherwise == 1)
+        #expect(CursorCards.placing(of: held(migrate), in: group([askedCard()])).otherwise == 0)
+        #expect(CursorCards.placing(of: held(migrate), in: group([yesNo(migrate)])).otherwise == 0)
+        // Both in one window, the other one last: the card is the one that asks this question, not the last.
+        let both = group([group([yesNo(migrate, picked: true)]), group([text("and then")]), group([yesNo(delete)])])
+        let first = try #require(CursorCards.place(of: held(migrate), in: both))
+        #expect(first.choices[0].map(\.path.first) == [0, 0] && first.choices[0].map(\.picked) == [true, false])
+        let second = try #require(CursorCards.place(of: held(delete), in: both))
+        #expect(second.choices[0].map(\.path.first) == [2, 2] && second.send.first == 2)
+        // On a card of several questions each is checked: the second question's choices under other words are not it.
+        var swapped = askedCard()
+        swapped.children[1].children[0].children[7] = group([group([text("Pick a size")])])
+        #expect(CursorCards.place(of: heldCard(), in: group([swapped])) == nil)
+
+        // What is compared is the question with its marks gone, and how much of it is there.
+        #expect(CursorCards.essence("Should [`theme.css`](styles/theme.css) keep its **dark palette**?") == Array("shouldthemecsskeepitsdarkpalette"))
+        #expect(CursorCards.share(of: "Pick a **fruit**", in: "Questions 1 of 2 1 . Pick a fruit") == 1)
+        #expect(CursorCards.share(of: migrate, in: "Questions 1 . " + delete) < 0.2)
+        #expect(CursorCards.share(of: migrate + " It takes twice the paper…", in: "1 . " + migrate) >= CursorCards.questionShare, "a question cut short is still most of itself")
+        #expect(CursorCards.share(of: "OK?", in: "anything at all") == 1, "too short to tell from another, and not held against the card")
+        #expect(CursorCards.share(of: migrate, in: "") == 0)
+    }
+
+    @Test func theWindowToPressIsTheOnlyOneOrTheOneTitledForTheChatsWorkspace() {
+        // One window holds the card: it is the one, whatever it is called (a worktree's is titled by its folder).
+        #expect(LiveCursorUI.chosen(among: ["plan.md — atlas-worktree-2"], workspace: "atlas", named: false) == 0)
+        #expect(LiveCursorUI.chosen(among: [], workspace: "atlas", named: false) == nil)
+        // Several hold it: the one whose title names the chat's workspace, as one of its parts and not a part of one.
+        #expect(LiveCursorUI.chosen(among: ["notes.md — birch", "plan.md — atlas"], workspace: "atlas", named: false) == 1)
+        #expect(LiveCursorUI.chosen(among: ["atlas.md — birch", "plan.md — atlas-two"], workspace: "atlas", named: false) == nil)
+        #expect(LiveCursorUI.chosen(among: ["a.md — atlas", "b.md — atlas"], workspace: "atlas", named: false) == nil, "two windows on one workspace")
+        #expect(LiveCursorUI.chosen(among: ["Cursor Agents", "Cursor Agents"], workspace: "atlas", named: false) == nil)
+        #expect(LiveCursorUI.chosen(among: ["a.md — birch", "b.md — atlas"], workspace: "", named: false) == nil, "a chat with no workspace known")
+        // Another chat is asking the same thing: only a window titled for this chat's workspace will do, even alone.
+        #expect(LiveCursorUI.chosen(among: ["plan.md — birch"], workspace: "atlas", named: true) == nil)
+        #expect(LiveCursorUI.chosen(among: ["plan.md — atlas"], workspace: "atlas", named: true) == 0)
+        #expect(LiveCursorUI.chosen(among: ["Cursor Agents"], workspace: "atlas", named: true) == nil)
+    }
+
+    @Test func theCardThatIsWaitingIsTheLastOfItsWordsInTheWindow() throws {
+        // A chat keeps what it has asked above what it is asking: the same choices drawn twice are the earlier
+        // card, answered, and the one that waits below it.
+        let window = group([group([askedCard(picked: ["apple", "red"])]), group([text("Thanks, apple it is.")]), group([askedCard()])])
+        let placed = try #require(CursorCards.place(of: heldCard(), in: window))
+        #expect(placed.choices.allSatisfy { $0.allSatisfy { $0.path.first == 2 && $0.picked == false } })
+        #expect(placed.send.first == 2 && placed.skip.first == 2)
+        // A choice that runs to several lines, or past what a card shows, is matched as it is cut.
+        let tail = String(repeating: "x", count: CursorCards.headingLimit)
+        let long = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which?", allowsSeveral: false, options: ["one  two", "\(tail) at the end"])]), window: "proj")
+        let drawn = group([text("Questions"), group([text("Which?")]), button("A one two"), button("B \(tail) at the end"), button("C Other..."),
+                           group([text("Skip"), text("Esc")]), group([text("Continue"), text("⏎")])])
+        #expect(CursorCards.place(of: long, in: drawn)?.choices.first?.count == 2)
+        #expect(CursorCards.words(ofChoice: "A  apple\n pie") == "apple pie" && CursorCards.words(ofChoice: "apple") == "apple")
+        #expect(CursorCards.words(ofChoice: "a apple") == "a apple", "a letter is Cursor's capital, not a word that happens to be one long")
+    }
+
+    @Test func cursorsCardIsBroughtToTheNotchsOnePressAtATime() throws {
+        func placed(_ picked: Set<String>, classes: Bool = true) throws -> CursorCards.Placed {
+            try #require(CursorCards.place(of: heldCard(), in: group([askedCard(picked: picked, classes: classes)])))
+        }
+        // Nothing picked in Cursor: the notch's picks are pressed, in the card's order.
+        #expect(CursorCards.step(toward: heldCard(picked: ["banana", "red"]), from: try placed([])) == .press(question: 0, choice: 1))
+        #expect(CursorCards.step(toward: heldCard(picked: ["banana", "red"]), from: try placed(["banana"])) == .press(question: 1, choice: 0))
+        #expect(CursorCards.step(toward: heldCard(picked: ["banana", "red"]), from: try placed(["banana", "red"])) == .same)
+        // A press turns a choice over, so one Cursor already shows picked is not pressed again.
+        #expect(CursorCards.step(toward: heldCard(picked: ["apple", "red"]), from: try placed(["apple"])) == .press(question: 1, choice: 0))
+        // Another choice picked in Cursor on a question with one answer: the notch's is pressed, which drops it.
+        #expect(CursorCards.step(toward: heldCard(picked: ["cherry", "red"]), from: try placed(["apple", "red"])) == .press(question: 0, choice: 2))
+        // On one with several answers both stay picked, and what the notch has not picked is pressed after.
+        #expect(CursorCards.step(toward: heldCard(picked: ["cherry", "red"], several: true), from: try placed(["apple", "cherry", "red"])) == .press(question: 0, choice: 0))
+        #expect(CursorCards.step(toward: heldCard(picked: ["apple", "cherry", "blue"], several: true), from: try placed(["apple", "red"])) == .press(question: 0, choice: 2))
+        // A card that does not say what is picked: no press can be told from its opposite.
+        #expect(CursorCards.step(toward: heldCard(picked: ["apple", "red"]), from: try placed([], classes: false)) == .unread)
+        // A place for another card's shape is no place to press.
+        var odd = try placed([])
+        odd.choices[1].removeLast()
+        #expect(CursorCards.step(toward: heldCard(picked: ["apple", "red"]), from: odd) == .unread)
+    }
+
     @Test func aQuestionIsReadWholeAndEachQuestionsLettersRunFromA() throws {
         // A question drawn as several runs, a word of it in bold, is one question.
         var rich = askedCard()
@@ -862,7 +1038,8 @@ import Testing
         private var _pressed: [String] = []
         private var _released = 0
         private var _planReads = 0
-        var trusted: Bool { true }
+        /// Whether there is the Accessibility permission to press Cursor's cards with.
+        var trusted = true
         var result: CursorPressResult = .pressed
         var cards: [CursorCard] {
             get { lock.withLock { _cards } }
@@ -884,6 +1061,23 @@ import Testing
         /// Whether a read came back whole, to stand for one Cursor fell behind on.
         var whole = true
         func read() -> (cards: [CursorCard], whole: Bool) { (scan(), whole) }
+        private var _refreshes: [Bool] = []
+        /// For each read, whether Cursor was first asked to bring its windows' trees up to date.
+        var refreshes: [Bool] { lock.withLock { _refreshes } }
+        func read(refresh: Bool) -> (cards: [CursorCard], whole: Bool) {
+            lock.withLock { _refreshes.append(refresh) }
+            return read()
+        }
+        private var _answers: [(card: CursorCard, skip: Bool, named: Bool)] = []
+        /// The questions whose answers were sent to Cursor's own card, each as the notch's card stood, whether it
+        /// was skipped, and whether only a window titled for its workspace would do.
+        var answers: [(card: CursorCard, skip: Bool, named: Bool)] { lock.withLock { _answers } }
+        /// What sending a question's answers comes to.
+        var answerResult: CursorPressResult = .pressed
+        func answer(_ card: CursorCard, skip: Bool, named: Bool) -> (result: CursorPressResult, found: String) {
+            lock.withLock { _answers.append((card, skip, named)) }
+            return (answerResult, answerResult == .gone ? "none" : "read")
+        }
         func scanForPlan() -> [CursorCard] { lock.withLock { _planReads += 1; return _cards } }
         func press(_ card: CursorCard, option: String) -> CursorPressResult {
             lock.withLock { _pressed.append(card.kind.rawValue + ":" + option) }
@@ -1137,6 +1331,45 @@ import Testing
         #expect(ui.press(card, option: "Continue") == .pressed)
         #expect(ui.scan().isEmpty, "sent, the card is gone")
         #expect(ui.pick(card, question: 0, choice: 0).result == .gone)
+    }
+
+    @Test func theStandInsCardGoesWhenItsQuestionIsAnsweredFromTheNotchsOwnCard() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-cards-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try Data(#"[{"kind":"run","window":"proj","heading":"ls","options":["Skip","Run"]},{"kind":"question","window":"proj","heading":"Which fruit?","options":["Skip","Continue"],"questions":[{"text":"Which fruit?","choices":[{"label":"A apple"},{"label":"B banana"},{"label":"C Other...","typed":true}]}]}]"#.utf8).write(to: file)
+        let ui = FileCursorUI(path: file.path)
+        let other = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "pear"])]), window: "proj")
+        #expect(ui.answer(other, skip: false, named: false).result == .gone, "another question's card is not in the file")
+        let held = CursorQuestions.card(CursorAsked(questions: [.init(prompt: "Which fruit?", allowsSeveral: false, options: ["apple", "banana"])]), window: "proj")
+        let sent = ui.answer(held, skip: false, named: false)
+        #expect(sent.result == .pressed && sent.found == "read")
+        #expect(ui.scan().map(\.kind) == [.run], "the question's card is gone, and the other card is not")
+        #expect(ui.answer(held, skip: true, named: false).result == .gone)
+    }
+
+    @Test @MainActor func cursorIsAskedToBringItsWindowsUpToDateOnlyForAChatThatHasGoneQuiet() async {
+        let suite = "NotchmeterTests.CursorCardStore.refresh"
+        let (store, ui, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        // A read is timed by the clock, so the chats' events are too. One heard from this moment is working, and
+        // its window is not asked for more than it has.
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor), now: Date())
+        #expect(!store.cursorRefreshWanted())
+        await store.readCursorCards()
+        #expect(ui.refreshes == [false])
+        // One that has said nothing for a moment may be held by a card its window has not said, as a minimised
+        // window may not.
+        let quiet = Date().addingTimeInterval(UsageStore.cursorRefreshQuiet + 1)
+        #expect(store.cursorRefreshWanted(now: quiet))
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c2", project: "other", tool: .cursor),
+                           now: Date().addingTimeInterval(-30))
+        await store.readCursorCards()
+        #expect(ui.refreshes == [false, true])
+        // A chat whose turn has ended holds no card, and neither does another assistant's or another Mac's.
+        store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor), now: Date())
+        store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "c2", project: "other", tool: .cursor), now: Date())
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "k1", project: "proj", tool: .claude), now: Date().addingTimeInterval(-30))
+        #expect(!store.cursorRefreshWanted(now: quiet))
     }
 
     @Test @MainActor func aPickShowsOnTheCardWhichStaysUntilContinue() async throws {
