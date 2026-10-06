@@ -163,9 +163,9 @@ enum CursorSubagents {
         folded.toolFailure = message.toolFailure
         folded.source = message.source
         folded.truncated = message.truncated
-        // The model the chat's own event names is the subagent's, for its line; a subagent it starts in turn
-        // keeps what its own start said of it.
-        folded.agentModel = counted ? message.agentModel : message.reportedModel
+        // The model the chat's own event names is the subagent's, for its line. A subagent it starts in turn
+        // keeps the call its own start named, and the model on that event is nobody's to show.
+        folded.agentModel = counted ? nil : message.reportedModel
         folded.agentCall = counted ? message.agentCall : nil
         return folded
     }

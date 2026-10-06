@@ -894,6 +894,11 @@ private struct SessionRow: View {
         .accessibilityValue(Spoken.line(value, isOpen ? L("Expanded") : L("Collapsed")))
     }
 
+    /// The most of a subagent's line its model takes: room for "Composer 2.5 Fast" and its like at caption size.
+    /// And the least, beside a name that would fill the line: a word of it and the mark that it goes on.
+    static let agentModelWidth: CGFloat = 130
+    static let agentModelLeast: CGFloat = 72
+
     private var agentList: some View {
         VStack(alignment: .leading, spacing: 3) {
             ForEach(Array(row.agents.enumerated()), id: \.element.id) { index, agent in
@@ -902,9 +907,13 @@ private struct SessionRow: View {
                 let name = agent.name ?? L("Subagent %ld", index + 1)
                 HStack(spacing: 5) {
                     Image(systemName: "person.fill").font(.caption2).foregroundStyle(Caption.style)
-                    Text(verbatim: name).font(.caption).lineLimit(1).truncationMode(.tail)
+                    // The name keeps its width before the model does, and neither is ever wider than the line: a
+                    // model's name can be eighty characters, and held at its full width it pushed the card out.
+                    // The model keeps enough of the line to be read beside the longest name.
+                    Text(verbatim: name).font(.caption).lineLimit(1).truncationMode(.tail).layoutPriority(1)
                     if let model = agent.model {
-                        Text(verbatim: model).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
+                        Text(verbatim: model).font(.caption).foregroundStyle(Caption.style).lineLimit(1).truncationMode(.tail)
+                            .frame(minWidth: Self.agentModelLeast, maxWidth: Self.agentModelWidth, alignment: .leading)
                     }
                     Spacer(minLength: 8)
                     Text(verbatim: elapsed).font(.caption).foregroundStyle(Caption.style).monospacedDigit().fixedSize()

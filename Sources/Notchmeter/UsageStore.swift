@@ -164,6 +164,8 @@ final class UsageStore {
     @ObservationIgnored var cursorParentReader: (@Sendable (Set<String>, Bool) -> [String: CursorSubagents.Record]?)?
     /// The waits between its re-reads (CursorSubagents.retries); a test's are shorter.
     @ObservationIgnored var cursorParentRetries = CursorSubagents.retries
+    /// When each subagent's chat was last read again for its line on the row (describeCursorSubagentAgain).
+    @ObservationIgnored private var cursorDescribed: [String: Date] = [:]
     /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
     /// the follow-up armed for a chat Cursor may name after its turn has ended.
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
@@ -858,6 +860,7 @@ final class UsageStore {
             // What was known of Cursor's chats goes with them, and an event still waiting to be placed is let go
             // of: its hook is answered nothing, as every hook is while the sessions are not read.
             cursorChats = CursorSubagents.Places(limit: cursorChats.limit)
+            cursorDescribed = [:]
             for event in cursorUnplaced.values.joined() { event.reply?.answer(nil) }
             cursorUnplaced = [:]
         }
@@ -2560,6 +2563,7 @@ final class UsageStore {
                 reply?.answer(nil)
                 return nil
             }
+            describeCursorSubagentAgain(id, on: key, now: now)
             return CursorSubagents.folded(message, from: id, into: top, naming: sessions.sessions[key] == nil)
         case .own: return message
         case nil: break
@@ -2607,6 +2611,8 @@ final class UsageStore {
         if let record = found?[id], case .child(let parent) = record.place {
             placeCursorSubagent(id, under: parent, from: "Cursor's database", now: Date())
             nameCursorSubagent(id, record)
+            // Just read: what this read could not say of its line, the same read a moment later will not.
+            cursorDescribed[id] = cursorUnplaced[id]?.first?.at ?? Date()
         }
         // Placed one way or the other before its events come back, or they would only be asked about again.
         if cursorChats[id] == nil {
@@ -2619,6 +2625,32 @@ final class UsageStore {
             // straight off again.
             if event.message.request != nil, event.reply?.isPeerClosed == true { continue }
             hookReceived(event.message, now: event.at, reply: event.reply)
+        }
+    }
+
+    /// A subagent's chat whose line on the row is not all there is read again as it speaks, at most every
+    /// `CursorChatNames.retryAfter`, and nothing waits for the read. That is a chat no line is matched to while
+    /// a line stands unmatched (a subagent started again under a new tool call, which Cursor runs as the chat it
+    /// had; or one whose start was applied after its chat was first read), and a line with no name while a name
+    /// may be shown (Cursor named the chat after it made it, or titles were off or the screen shared when it was
+    /// read).
+    private func describeCursorSubagentAgain(_ child: String, on key: String, now: Date) {
+        guard let session = sessions.sessions[key], !session.agents.isEmpty else { return }
+        let names = CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures)
+        let wanted: Bool
+        if let matched = session.agentDetails.values.first(where: { $0.chat == child }) {
+            wanted = names && matched.name == nil
+        } else {
+            wanted = session.agents.keys.contains { session.agentDetails[$0]?.chat == nil }
+        }
+        guard wanted, let read = cursorParentRead else { return }
+        if let last = cursorDescribed[child], abs(now.timeIntervalSince(last)) < CursorChatNames.retryAfter { return }
+        cursorDescribed = cursorDescribed.filter { abs(now.timeIntervalSince($0.value)) < CursorChatNames.retryAfter }
+        cursorDescribed[child] = now
+        Task { [weak self] in
+            let found = await Task.detached(priority: .utility) { read([child], names) }.value
+            guard let self, let record = found?[child], case .child = record.place else { return }
+            self.nameCursorSubagent(child, record)
         }
     }
 

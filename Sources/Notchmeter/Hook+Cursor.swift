@@ -73,9 +73,8 @@ extension Hook {
         /// workspace root's project name (ProjectName) and `subagent_id` are read, with the prompt's first line, the
         /// model, the transcript path, `composer_mode`, `is_background_agent`, a compaction's trigger and fill, a
         /// failed tool's name, `is_interrupt` and whether its `failure_type` is a denial, the plan file a Build
-        /// attaches, `child_conversation_id` on `subagentStop`, and `tool_call_id` and `subagent_model` on
-        /// `subagentStart`. Email, timings, a failure's error text, a subagent's task and every tool's input and
-        /// output are not.
+        /// attaches, `child_conversation_id` on `subagentStop`, and `tool_call_id` on `subagentStart`. Email,
+        /// timings, a failure's error text, a subagent's task and every tool's input and output are not.
         ///
         /// The session is the conversation the user is in, so `subagentStart`'s `parent_conversation_id` outranks
         /// the common `conversation_id`: the reference sends both on that event without saying whether the common
@@ -143,11 +142,9 @@ extension Hook {
                 message.childSessionID = nonEmpty(object["child_conversation_id"]).flatMap { CursorChatNames.isConversationID($0) ? $0 : nil }
             }
             // Since 0.9.22, for the subagent's line on the row: the tool call that started it, which Cursor records
-            // the subagent's own chat under, and the model it was given, where the call named one.
-            if canonical == "SubagentStart" {
-                message.agentCall = Hook.callID(object["tool_call_id"])
-                message.agentModel = Hook.reportedModel(object["subagent_model"])
-            }
+            // the subagent's own chat under. Not `subagent_model`: it is the call's own word for a model, which can
+            // be a tier ("fast"), and the chat's own events name the model it runs on a moment later.
+            if canonical == "SubagentStart" { message.agentCall = Hook.callID(object["tool_call_id"]) }
             // The task list's source: Cursor's hooks never fire for its to-do tool, but its transcript records it.
             message.transcriptPath = CursorPlans.transcript(object["transcript_path"] as? String)?.path
             message.request = held

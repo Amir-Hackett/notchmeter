@@ -348,8 +348,11 @@ struct AgentDetail: Equatable, Sendable {
     /// Cursor's own name for that conversation: the few words the subagent was started with. Held only while
     /// titles are (Preferences.sessionTitles), and dropped with them (AgentSession.withoutTitles).
     var name: String?
-    /// The model it runs on, tidied for the row as a session's is.
+    /// The model it runs on, as its own chat's events name it, tidied for the row as a session's is.
     var model: String?
+    /// When its own chat was last heard from: a subagent at work is not one whose stop never came
+    /// (SessionTracker.agentTimeout).
+    var heard: Date?
 }
 
 /// One assistant session a hook has reported, or one found running without it (SessionDetection, OpenCodeSessions):
@@ -1096,11 +1099,8 @@ struct SessionTracker: Equatable, Sendable {
         case "SubagentStart":
             let agent = message.agentID ?? "agent-\(session.agents.count + 1)"
             session.agents[agent] = now
-            if message.agentCall != nil || message.agentModel != nil {
-                session.agentDetails[agent] = AgentDetail(call: message.agentCall, model: message.agentModel.map(Hook.tidyModelName))
-            } else {
-                session.agentDetails[agent] = nil
-            }
+            // Whatever was known of an earlier subagent under this id is not this one's.
+            session.agentDetails[agent] = message.agentCall.map { AgentDetail(call: $0) }
             // A session that has just started an agent is running its own loop, so it is not waiting on the user.
             // This is the only proof of an answered permission prompt the hook ever sends: Claude Code reports
             // the prompt and never the answer, so without it an approved prompt — or one auto mode settled by
@@ -1115,7 +1115,10 @@ struct SessionTracker: Equatable, Sendable {
             if session.isWaiting, !session.waitsOnAgent { session.state = .working(since: now) }
             session.pending = nil
         case "SubagentStop":
-            if let agentID = message.agentID, session.agents[agentID] != nil {
+            if let agentID = message.agentID {
+                // A stop that names its subagent ends that one or none. Until 0.9.22 one no longer listed (timed
+                // out, or started before the app was listening) took the oldest of the others with it, which was
+                // still running.
                 session.agents[agentID] = nil
             } else if let oldest = session.agents.min(by: { $0.value < $1.value }) {
                 session.agents[oldest.key] = nil
@@ -1329,10 +1332,11 @@ struct SessionTracker: Equatable, Sendable {
             outcome.trouble = (session, .stuck(failures: session.failureStreak))
         }
         if !session.agentDetails.isEmpty {
-            // The model a subagent's own chat names is that subagent's, whichever its start said or did not.
-            if message.event != "SubagentStart", let model = message.agentModel, let chat = message.agentID,
+            // An event of a subagent's own chat: the subagent is at work, and the model the chat names is its own.
+            if message.event != "SubagentStart", let chat = message.agentID,
                let agent = session.agentDetails.first(where: { $0.value.chat == chat })?.key {
-                session.agentDetails[agent]?.model = Hook.tidyModelName(model)
+                session.agentDetails[agent]?.heard = now
+                if let model = message.agentModel { session.agentDetails[agent]?.model = Hook.tidyModelName(model) }
             }
             // A subagent that has gone (stopped, timed out, or its turn ended) takes what was known of it.
             if session.agentDetails.keys.contains(where: { session.agents[$0] == nil }) {
@@ -1428,6 +1432,9 @@ struct SessionTracker: Equatable, Sendable {
         detail.chat = chat
         if let name { detail.name = name }
         guard detail != session.agentDetails[agent] else { return }
+        // A chat is one subagent's at a time: one started again runs as the chat it had, under a new call, and a
+        // line still standing for its earlier run is that chat's no longer.
+        for (other, earlier) in session.agentDetails where other != agent && earlier.chat == chat { session.agentDetails[other]?.chat = nil }
         session.agentDetails[agent] = detail
         sessions[id] = session
     }
@@ -1786,7 +1793,11 @@ struct SessionTracker: Equatable, Sendable {
             if let finished = session.finished, now.timeIntervalSince(finished.at) >= Self.finishedHold {
                 session.finished = nil
             }
-            session.agents = session.agents.filter { now.timeIntervalSince($0.value) < Self.agentTimeout }
+            // An agent nothing has been heard from since it started; one whose own chat still speaks (a Cursor
+            // subagent's, AgentDetail.heard) is at work however long it has been.
+            session.agents = session.agents.filter { agent in
+                now.timeIntervalSince(Swift.max(agent.value, session.agentDetails[agent.key]?.heard ?? agent.value)) < Self.agentTimeout
+            }
             if !session.agentDetails.isEmpty { session.agentDetails = session.agentDetails.filter { session.agents[$0.key] != nil } }
             // A compaction that never reported its end, and idle teammates nothing has been heard of for as long as
             // an idle session is kept, are retired the same way.
