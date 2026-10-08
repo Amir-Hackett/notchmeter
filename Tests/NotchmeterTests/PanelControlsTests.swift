@@ -61,6 +61,52 @@ private func session(_ id: String, project: String? = "notchmeter", branch: Stri
     }
 }
 
+// MARK: - Rows hold their place
+
+/// The tracker hands sessions out newest event first, and every tool call is an event: a card that kept that
+/// order had three sessions at work trading places on every call. Inside a group the rows go by the clock each
+/// shows, so a row moves only when its state changes or a new turn starts.
+@Suite struct SessionRowsHoldTheirPlace {
+    private func working(_ id: String, turn: TimeInterval, heard: TimeInterval) -> AgentSession {
+        var s = session(id, state: .working(since: t0.addingTimeInterval(turn)), lastEvent: heard)
+        s.turnStarted = t0.addingTimeInterval(turn)
+        return s
+    }
+
+    private func ids(_ sessions: [AgentSession], at: TimeInterval = 60) -> [String] {
+        SessionsCard.rows(sessions, hideTitles: false, jump: false, now: t0.addingTimeInterval(at)).rows.map(\.id)
+    }
+
+    @Test func workingRowsKeepTheirOrderAsToolCallsArrive() {
+        let before = [working("a", turn: 0, heard: 30), working("b", turn: 10, heard: 20), working("c", turn: 20, heard: 10)]
+        #expect(ids(before) == ["c", "b", "a"], "the newest turn leads, whatever was heard from last")
+        // A call on `a` makes it the newest event and puts it first in the tracker's list; its row stays put.
+        let after = [working("a", turn: 0, heard: 40), working("c", turn: 20, heard: 10), working("b", turn: 10, heard: 20)]
+        #expect(ids(after) == ["c", "b", "a"])
+        // A new turn on `a` is the one move a working row makes: to the top of the working rows.
+        let newTurn = [working("a", turn: 50, heard: 50), working("c", turn: 20, heard: 10), working("b", turn: 10, heard: 20)]
+        #expect(ids(newTurn) == ["a", "c", "b"])
+    }
+
+    @Test func aChangeOfStateStillMovesARow() {
+        var waits = working("b", turn: 10, heard: 20)
+        waits.state = .waiting(since: t0.addingTimeInterval(20))
+        let withWait = [working("a", turn: 0, heard: 30), waits, working("c", turn: 20, heard: 10)]
+        #expect(ids(withWait) == ["b", "c", "a"], "a wait goes to the top; the working rows keep their order")
+        var done = working("c", turn: 20, heard: 10)
+        done.state = .idle
+        done.turnStarted = nil
+        let withIdle = [working("a", turn: 0, heard: 30), done, working("b", turn: 10, heard: 20)]
+        #expect(ids(withIdle) == ["b", "a", "c"], "an idle row drops below the working ones")
+    }
+
+    @Test func idleRowsGoByWhenEachLastDidAnything() {
+        let idle = [session("a", lastEvent: 10), session("b", lastEvent: 30), session("c", lastEvent: 20)]
+        #expect(ids(idle) == ["b", "c", "a"])
+        #expect(ids(Array(idle.reversed())) == ["b", "c", "a"], "the tracker's order does not decide it")
+    }
+}
+
 // MARK: - What a row leads with
 
 @Suite struct SessionRowLeadRules {
