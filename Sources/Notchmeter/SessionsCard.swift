@@ -160,9 +160,12 @@ struct SessionsCard: View {
         let rows: [Row]
     }
 
-    /// The rows for `sessions` (newest first), live ones ahead of idle ones, at most `cap` of them, and how many
-    /// were left off. The sort is stable, so recency still orders each group, and a run of idle terminals can no
-    /// longer push a working one off.
+    /// The rows for `sessions`, live ones ahead of idle ones, at most `cap` of them, and how many were left off.
+    /// Inside a group the rows are ordered by the clock each shows: a working or waiting row by when its turn
+    /// began, an idle or finished one by when it last did anything. Not by the last event heard, which every tool
+    /// call moves, so three sessions at work changed places on every call and the eye lost the one it was on. A
+    /// row moves only when its state changes or a new turn starts, and a run of idle terminals can never push a
+    /// working one off. The sort is stable, so the caller's order settles any tie.
     static func rows(_ sessions: [AgentSession], hideTitles: Bool, jump: Bool, now: Date, cap: Int = rowCap,
                      lead: SessionRowLead = .title) -> (rows: [Row], more: Int) {
         func status(_ session: AgentSession) -> Row.Status {
@@ -177,9 +180,14 @@ struct SessionsCard: View {
         // row knows its model, and a line of chips all naming the same one tells the rows apart by nothing while
         // wrapping the extras sooner on the narrow panel.
         let modelsDiffer = Set(sessions.compactMap(\.model)).count > 1
+        func since(_ session: AgentSession, _ status: Row.Status) -> Date {
+            status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started
+        }
         let ordered = sessions.enumerated().sorted { a, b in
-            let (ra, rb) = (status(a.element).rank, status(b.element).rank)
-            return ra != rb ? ra < rb : a.offset < b.offset
+            let (sa, sb) = (status(a.element), status(b.element))
+            if sa.rank != sb.rank { return sa.rank < sb.rank }
+            let (ta, tb) = (since(a.element, sa), since(b.element, sb))
+            return ta != tb ? ta > tb : a.offset < b.offset
         }.map(\.element)
         let cap = max(1, cap)
         let rows = ordered.prefix(cap).map { session -> Row in
@@ -200,7 +208,7 @@ struct SessionsCard: View {
             let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id), lead: lead)
             var row = Row(id: session.id, tool: session.tool, title: lines.title, detail: lines.detail, chips: [session.assistantName],
                           branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
-                          since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
+                          since: since(session, status),
                           status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
                           todos: hideTitles ? session.todos?.withoutContent() : session.todos, source: session.source)
             row.compaction = compactionMark(of: session)

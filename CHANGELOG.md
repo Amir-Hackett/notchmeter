@@ -2,6 +2,12 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.23](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.23) — 2026-10-09
+
+### Sessions
+
+- **A session's row keeps its place while it works.** The Sessions card listed sessions by whichever was last heard from, and every tool call is heard, so two or three sessions at work changed places on every call and the eye lost the one it was on. Now the rows that need you come first, then the ones at work, then the idle, and inside each of those a row sits by the clock it shows: when its turn began, or, for an idle or just-finished row, when it last did anything. A row moves only when its state changes or a new turn starts.
+
 ## [0.9.22](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.22) — 2026-10-06
 
 0.9.20 and 0.9.21 were test builds and were not offered as updates, so these notes cover everything since 0.9.19.

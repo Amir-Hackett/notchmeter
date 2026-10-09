@@ -212,7 +212,8 @@ import Testing
         #expect(SessionsCard.rowCap == 6)
         let left = 3
         #expect(more == left)
-        #expect(rows.map(\.id) == ["s0", "s1", "s2", "s3", "s4", "s5"], "the order is the caller's, which is the tracker's newest first")
+        #expect(rows.map(\.id) == ["s8", "s7", "s6", "s5", "s4", "s3"],
+                "idle rows go by when each last did anything, newest first, whatever order the caller passed them in")
     }
 
     /// One project, no headers; two, a header per project in the order of its most urgent row, with the rows
