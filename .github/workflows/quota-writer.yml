@@ -1,0 +1,35 @@
+name: Quota writer
+
+# The quota writer is pure Python and runs on Linux, so it gets its own cheap job on every
+# push to main and every pull request that touches it, separate from the macOS app build.
+on:
+  push:
+    branches: [main]
+    paths: ['scripts/quota_status*.py', 'scripts/quota_writer_*.py', 'scripts/fixtures/**', '.github/workflows/quota-writer.yml']
+  pull_request:
+    paths: ['scripts/quota_status*.py', 'scripts/quota_writer_*.py', 'scripts/fixtures/**', '.github/workflows/quota-writer.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Compile
+        run: python -m py_compile scripts/quota_status.py
+      - name: Unit tests
+        run: python -m unittest -v scripts/quota_status_test.py scripts/quota_writer_hardening_test.py
+      - name: No committed secrets
+        run: |
+          if git grep -nE 'GOCSPX-[A-Za-z0-9_-]{20,}|xai-[A-Za-z0-9]{20,}|"refresh_token"\s*:\s*"[^"]{20,}' -- . ':!*_test.py'; then
+            echo "::error::possible committed secret"; exit 1
+          fi

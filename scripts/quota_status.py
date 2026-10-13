@@ -29,6 +29,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -972,17 +973,36 @@ def _refresh_openai(cred: Credential, transport: Transport, now: datetime) -> Cr
 
 
 def _atomic_json(path: Path, payload: dict) -> None:
-    temporary = path.with_name(path.name + ".tmp")
+    """Best-effort token persistence: a failure keeps the old store intact and is not fatal."""
     try:
-        temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        os.chmod(temporary, 0o600)
-        temporary.replace(path)
-        os.chmod(path, 0o600)
+        _atomic_write_bytes(path, (json.dumps(payload, indent=2) + "\n").encode("utf-8"))
     except OSError:
+        return
+
+
+def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write data to path atomically with 0600 permissions.
+
+    Uses a unique O_EXCL temp file in the same directory (no predictable name to pre-plant a
+    symlink at), fsyncs it, then renames. On any failure the temp file is removed and the
+    previous file is untouched.
+    """
+    fd, name = tempfile.mkstemp(prefix="." + path.name + ".", suffix=".tmp", dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            os.fchmod(handle.fileno(), 0o600)
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
         try:
             temporary.unlink()
         except OSError:
-            return
+            pass
+        raise
+    os.chmod(path, 0o600)
 
 
 def _expiry_replacement(previous: object, expires_at: datetime | None) -> object:
@@ -1388,14 +1408,45 @@ def urllib_transport(method: str, url: str, headers: Mapping[str, str], body: by
         return error.code, error.read()
 
 
+def validate_report(report: object) -> None:
+    """Reject anything that does not match the quota.json schema before it reaches disk."""
+    if not isinstance(report, dict) or set(report) != {"updated_at", "accounts"}:
+        raise ValueError("report must have exactly updated_at and accounts")
+    if parse_time(report["updated_at"]) is None or not isinstance(report["updated_at"], str):
+        raise ValueError("updated_at must be an ISO 8601 timestamp with a zone")
+    accounts = report["accounts"]
+    if not isinstance(accounts, list):
+        raise ValueError("accounts must be a list")
+    keys = {"email", "provider", "state", "remaining", "resets_at"}
+    for account in accounts:
+        if not isinstance(account, dict) or set(account) != keys:
+            raise ValueError("account rows must have exactly " + ", ".join(sorted(keys)))
+        if not isinstance(account["email"], str) or not account["email"]:
+            raise ValueError("email must be a non-empty string")
+        if account["provider"] not in PROVIDERS:
+            raise ValueError("unknown provider")
+        if account["state"] not in STATES:
+            raise ValueError("unknown state")
+        remaining = account["remaining"]
+        if remaining is not None and (number(remaining) is None or remaining < 0):
+            raise ValueError("remaining must be null or a non-negative number")
+        resets_at = account["resets_at"]
+        if resets_at is not None and (not isinstance(resets_at, str) or parse_time(resets_at) is None):
+            raise ValueError("resets_at must be null or an ISO 8601 timestamp")
+        if account["state"] == "unknown" and (remaining is not None or resets_at is not None):
+            raise ValueError("an unknown row must not carry remaining or resets_at")
+
+
 def write_quota(path: Path, report: dict) -> None:
+    """Validate, then write atomically: a unique temp file in the same directory, fsync, rename.
+
+    A failure at any step leaves the previous quota.json untouched and no temp file behind.
+    """
+    validate_report(report)
+    data = (json.dumps(report, indent=2) + "\n").encode("utf-8")
     path.parent.mkdir(parents=True, exist_ok=True)
     os.chmod(path.parent, 0o700)
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    os.chmod(temporary, 0o600)
-    temporary.replace(path)
-    os.chmod(path, 0o600)
+    _atomic_write_bytes(path, data)
 
 
 def main(argv: list[str] | None = None, *, home: Path | None = None, env: Mapping[str, str] | None = None, transport: Transport | None = None, now: datetime | None = None) -> int:
@@ -1403,7 +1454,12 @@ def main(argv: list[str] | None = None, *, home: Path | None = None, env: Mappin
     root = home if home is not None else Path.home()
     report, notes = build_report(root, env=env, now=now, transport=transport)
     destination = quota_path(root)
-    write_quota(destination, report)
+    try:
+        write_quota(destination, report)
+    except (OSError, ValueError) as error:
+        # Never echo the report or any token here; the error names only the path and the reason.
+        print(f"could not write {destination}: {type(error).__name__}: {error}", file=sys.stderr)
+        return 1
     json.dump(report, sys.stdout, indent=2)
     sys.stdout.write("\n")
     for note in notes:
