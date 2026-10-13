@@ -55,6 +55,18 @@ A SuperGrok response that succeeds and does not carry a remaining number is `ope
 
 `scripts/fixtures/quota-observed-2026-10-04T0554-0400.json` is the observation from **5:54 AM ET on 2026-10-04** (`updated_at` `2026-10-04T05:54:00-04:00`). It is a test fixture. It is not the current file, and the probe does not read it.
 
+## Writing and failure behaviour
+
+- Before anything reaches disk the report is checked against the schema above. A row in an unknown state never carries `remaining` or `resets_at`, `remaining` is null or a non-negative number, and timestamps must carry a zone. A report that fails the check is not written.
+- The file is written atomically: a unique temp file in `~/.notchmeter/`, flushed to disk, then renamed over `quota.json`. If any step fails, the previous file stays as it was and no temp file is left behind. The file is `0600` and the directory `0700`.
+- Refreshed tokens are saved back to their own stores the same way. If that save fails, the old store is kept and the probe carries on.
+- If `quota.json` cannot be written, the command prints `could not write <path>: <reason>` to stderr and exits with status 1. No token or report content is printed with it.
+- Tokens, refresh tokens and OAuth client secrets are never written to stdout, stderr or `quota.json`. A test checks this.
+
+## Tests
+
 ```bash
-python3 scripts/quota_status_test.py
+python3 -m unittest scripts/quota_status_test.py scripts/quota_writer_hardening_test.py
 ```
+
+The `Quota writer` workflow runs both suites on Linux (Python 3.10 and 3.12) for every pull request and every push to main that touches the writer. It also fails if a Google client secret, xAI key or refresh token appears to be committed.

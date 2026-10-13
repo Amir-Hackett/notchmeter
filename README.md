@@ -64,7 +64,7 @@ The whole of it — every file read, every host and path asked, what is kept on 
 - [docs/energy.md](docs/energy.md): CPU and memory, measured, with the commands to reproduce them.
 - [docs/troubleshooting.md](docs/troubleshooting.md): what each message on a card means and what to do about it.
 - [docs/testing.md](docs/testing.md): the unit tests, the `--smoke` self check and its flags, `--probe --json`, the platform matrix, and the `--e2e-oracle` event log an automated tester can read.
-- [docs/quota-status.md](docs/quota-status.md): the per-account quota file at `~/.notchmeter/quota.json`, written by `python3 scripts/quota_status.py`.
+- [docs/quota-status.md](docs/quota-status.md): the per-account quota file at `~/.notchmeter/quota.json`, written by `python3 scripts/quota_status.py`. The file is checked against its schema and written atomically. Accounts that cannot be read stay `unknown` with no numbers. Tests run on Linux CI.
 - [plugin/skills/notchmeter/SKILL.md](plugin/skills/notchmeter/SKILL.md): a Claude Code skill that reads `notchmeter --json` so Claude can check its own windows and the advice before long work.
 - [docs/release.md](docs/release.md): the signed, notarised, Sparkle-updated release pipeline and its one-time setup; [docs/release-notes/](docs/release-notes) holds each version's notes, which the update alert shows.
 - [CHANGELOG.md](CHANGELOG.md): every released version, newest first.

@@ -1,0 +1,38 @@
+name: Main build
+
+# A single debug build of the app on each push to main that changes Swift code, so a broken main is caught
+# without paying for a second full release build, test run and bundle. ci.yml still does the full check on pull
+# requests. macOS minutes bill at ten times the Linux rate, so this job is limited to the paths below, to one run at
+# a time per ref, and to 20 minutes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Sources/**'
+      - 'Vendor/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - '.github/workflows/main-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: macos-15 debug build
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
+          swift --version
+      - name: Build (debug)
+        run: swift build
