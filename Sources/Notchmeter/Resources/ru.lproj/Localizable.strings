@@ -1298,3 +1298,6 @@
 "Notchmeter's catalog of %@" = "каталог Notchmeter от %@";
 "this build's table of %@" = "таблица этой сборки от %@";
 "a family guess" = "оценка по семейству моделей";
+"Probe timed out" = "Время запроса истекло";
+"Cursor's state database not found" = "База состояния Cursor не найдена";
+"Cursor's state database could not be copied" = "Не удалось скопировать базу состояния Cursor";

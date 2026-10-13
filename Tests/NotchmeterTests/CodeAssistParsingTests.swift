@@ -112,6 +112,49 @@ import Testing
         #expect(CodeAssistProvider.groupName("Models") == "Models")
     }
 
+    @Test func parsesGeminiQuotaWithToolIDGemini() throws {
+        let json = """
+        {"buckets":[
+          {"modelId":"gemini-2.5-pro","remainingFraction":0.7,"resetTime":"\(resetsAt)"},
+          {"modelId":"gemini-2.5-flash","remainingFraction":0.85,"resetTime":"\(resetsAt)"}
+        ]}
+        """
+        let reading = try CodeAssistProvider.parseQuota(Data(json.utf8), plan: "Google One AI Pro", tool: .gemini)
+        #expect(reading.tool == .gemini)
+        #expect(reading.plan == "Google One AI Pro")
+        #expect(reading.windows.map(\.id) == ["gemini_pro", "gemini_flash"])
+        #expect(reading.windows.map(\.label) == ["Gemini Pro", "Gemini Flash"])
+        let used = reading.windows.compactMap(\.usedFraction)
+        #expect(abs(used[0] - 0.3) < 1e-9)
+        #expect(abs(used[1] - 0.15) < 1e-9)
+    }
+
+    @Test func parsesGeminiQuotaSummaryWithToolIDGemini() throws {
+        let json = """
+        {"groups":[{"displayName":"Gemini Models","buckets":[
+                      {"bucketId":"gemini-5h","displayName":"Session Limit","window":"5h","resetTime":"2026-09-01T17:00:00Z","remainingFraction":0.4},
+                      {"bucketId":"gemini-weekly","displayName":"Weekly Limit","window":"weekly","resetTime":"\(resetsAt)","remaining":{"remainingFraction":0.6}}]}]}
+        """
+        let reading = try CodeAssistProvider.parseQuotaSummary(Data(json.utf8), plan: "Standard", tool: .gemini)
+        #expect(reading.tool == .gemini)
+        #expect(reading.plan == "Standard")
+        #expect(reading.windows.map(\.id) == ["gemini_session", "gemini_weekly"])
+        #expect(reading.windows.map(\.label) == ["Gemini Session", "Gemini Weekly"])
+        #expect(reading.windows[0].periodDuration == Period.fiveHours)
+        #expect(reading.windows[1].periodDuration == Period.week)
+    }
+
+    @Test func unmeteredDetectionRequiresIdenticalResets() throws {
+        let staggered = """
+        {"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":1,"resetTime":"2026-09-02T07:00:00Z"},
+                    {"modelId":"gemini-2.5-flash","remainingFraction":1,"resetTime":"2026-09-02T07:05:00Z"}]}
+        """
+        let reading = try CodeAssistProvider.parseQuota(Data(staggered.utf8), plan: nil)
+        #expect(reading.windows[0].usedFraction == 0)
+        #expect(reading.windows[1].usedFraction == 0)
+        #expect(reading.windows[0].note == nil)
+    }
+
     /// The host Antigravity's own CLI logged is the one the account is metered on; anything that is not a Code
     /// Assist host is ignored, and the newest mention wins.
     @Test func theLoggedHostIsReadFromTheCLILog() {
@@ -541,6 +584,345 @@ import Testing
 
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (503, Data()) : (429, Data()) }
         #expect(await failure(of: provider) == .rateLimited)
+    }
+
+    @Test func missingCredentialsThrowsNotSignedInWithAppropriateMessageForTool() async throws {
+        let emptyDir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-empty-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: emptyDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: emptyDir) }
+
+        let geminiMissing = CodeAssistProvider(tool: .gemini, session: session, geminiHome: emptyDir,
+                                               applicationBundle: emptyDir.appendingPathComponent("none.app"), antigravityHome: emptyDir.appendingPathComponent("none"))
+        do {
+            _ = try await geminiMissing.fetch()
+            Issue.record("Expected notSignedIn when credentials missing for Gemini")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error == .notSignedIn(L("Sign in to Gemini CLI (run `gemini` and choose Login with Google) to read your quota")))
+        }
+
+        let antigravityMissing = CodeAssistProvider(tool: .antigravity, session: session, geminiHome: emptyDir,
+                                                    applicationBundle: emptyDir.appendingPathComponent("none.app"), antigravityHome: emptyDir.appendingPathComponent("none"))
+        do {
+            _ = try await antigravityMissing.fetch()
+            Issue.record("Expected notSignedIn when credentials missing for Antigravity")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error == .notSignedIn(L("Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota")))
+        }
+    }
+
+    @Test func expiredCredentialsThrowsTokenExpiredWithAppropriateMessageForTool() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-exp-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let pastExpiry = Int(Date().addingTimeInterval(-100).timeIntervalSince1970 * 1000)
+        try Data(#"{"access_token":"ya29.expired","expiry_date":\#(pastExpiry)}"#.utf8).write(to: dir.appendingPathComponent("oauth_creds.json"))
+
+        let geminiExpired = CodeAssistProvider(tool: .gemini, session: session, geminiHome: dir,
+                                               applicationBundle: dir.appendingPathComponent("none.app"), antigravityHome: dir.appendingPathComponent("none"))
+        do {
+            _ = try await geminiExpired.fetch()
+            Issue.record("Expected tokenExpired for Gemini")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error == .tokenExpired(L("Gemini CLI's login has expired. Run Gemini CLI once so it signs back in")))
+        }
+
+        let antigravityExpired = CodeAssistProvider(tool: .antigravity, session: session, geminiHome: dir,
+                                                    applicationBundle: dir.appendingPathComponent("none.app"), antigravityHome: dir.appendingPathComponent("none"))
+        do {
+            _ = try await antigravityExpired.fetch()
+            Issue.record("Expected tokenExpired for Antigravity")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error == .tokenExpired(L("Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in")))
+        }
+    }
+
+    @Test func parseCredentialsExtractsTokenAndExpiryDate() throws {
+        let jsonValid = """
+        {"access_token":"ya29.my-token","refresh_token":"1//abc","expiry_date":1759352940000}
+        """
+        let creds = try CodeAssistProvider.parseCredentials(Data(jsonValid.utf8))
+        #expect(creds.accessToken == "ya29.my-token")
+        #expect(creds.expiresAt == Date(timeIntervalSince1970: 1_759_352_940))
+
+        let jsonNoExpiry = """
+        {"access_token":"ya29.only-token"}
+        """
+        let credsNoExp = try CodeAssistProvider.parseCredentials(Data(jsonNoExpiry.utf8))
+        #expect(credsNoExp.accessToken == "ya29.only-token")
+        #expect(credsNoExp.expiresAt == nil)
+
+        // Nested token dictionary with ISO 8601 string expiry (Antigravity CLI structure)
+        let jsonNested = """
+        {"token":{"access_token":"ya29.nested-token","expiry":"2026-10-08T12:00:00.000Z"}}
+        """
+        let credsNested = try CodeAssistProvider.parseCredentials(Data(jsonNested.utf8))
+        #expect(credsNested.accessToken == "ya29.nested-token")
+        #expect(credsNested.expiresAt == DateParsing.iso8601("2026-10-08T12:00:00.000Z"))
+
+        // String token with epoch seconds expires_at
+        let jsonStringToken = """
+        {"token":"ya29.string-tok","expires_at":1759352940}
+        """
+        let credsString = try CodeAssistProvider.parseCredentials(Data(jsonStringToken.utf8))
+        #expect(credsString.accessToken == "ya29.string-tok")
+        #expect(credsString.expiresAt == Date(timeIntervalSince1970: 1_759_352_940))
+
+        #expect(throws: ProviderError.self) {
+            try CodeAssistProvider.parseCredentials(Data(#"{"refresh_token":"1//x"}"#.utf8))
+        }
+        #expect(throws: ProviderError.self) {
+            try CodeAssistProvider.parseCredentials(Data("invalid".utf8))
+        }
+    }
+
+    @Test func antigravityFallsBackToAntigravityOAuthTokenWhenOAuthCredsMissing() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-fallback-\(UUID().uuidString)")
+        let geminiHome = dir.appendingPathComponent(".gemini")
+        let agyHome = geminiHome.appendingPathComponent("antigravity-cli")
+        try FileManager.default.createDirectory(at: agyHome, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let expiry = Int(Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000)
+        let tokenJSON = #"{"token":{"access_token":"ya29.from-agy-file","expiry_date":\#(expiry)}}"#
+        try Data(tokenJSON.utf8).write(to: agyHome.appendingPathComponent("antigravity-oauth-token"))
+
+        let quota = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.5, "resetTime": "2026-09-02T07:00:00Z"]]])
+        let account = json(["currentTier": ["id": "standard-tier"], "cloudaicompanionProject": "p-1"])
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": (200, account)
+            case "/v1internal:retrieveUserQuota": (200, quota)
+            default: (404, Data())
+            }
+        }
+
+        let antigravityProvider = CodeAssistProvider(tool: .antigravity, session: session, geminiHome: geminiHome,
+                                                     applicationBundle: dir.appendingPathComponent("none.app"), antigravityHome: dir.appendingPathComponent("none"))
+        let reading = try await antigravityProvider.fetch()
+        #expect(reading.tool == .antigravity)
+        #expect(reading.windows[0].usedFraction == 0.5)
+        #expect(exchange.seen.first?.request.value(forHTTPHeaderField: "Authorization") == "Bearer ya29.from-agy-file")
+    }
+
+    @Test func isInstalledChecksGeminiCredentialsAndAntigravityPresence() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-install-\(UUID().uuidString)")
+        let geminiHome = dir.appendingPathComponent(".gemini")
+        let appBundle = dir.appendingPathComponent("Antigravity.app")
+        let antigravityHome = dir.appendingPathComponent(".antigravity")
+        try FileManager.default.createDirectory(at: geminiHome, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let geminiProvider = CodeAssistProvider(tool: .gemini, geminiHome: geminiHome,
+                                                applicationBundle: appBundle, antigravityHome: antigravityHome)
+        let antigravityProvider = CodeAssistProvider(tool: .antigravity, geminiHome: geminiHome,
+                                                     applicationBundle: appBundle, antigravityHome: antigravityHome)
+
+        // Neither is installed yet
+        #expect(!geminiProvider.isInstalled())
+        #expect(!antigravityProvider.isInstalled())
+
+        // 1. Gemini CLI login created: gemini is installed, antigravity is still not
+        let credsFile = geminiHome.appendingPathComponent("oauth_creds.json")
+        try "creds".write(to: credsFile, atomically: true, encoding: .utf8)
+        #expect(geminiProvider.isInstalled())
+        #expect(!antigravityProvider.isInstalled())
+
+        // 2. Antigravity CLI home created: antigravity is now installed
+        let cliHome = geminiHome.appendingPathComponent("antigravity-cli")
+        try FileManager.default.createDirectory(at: cliHome, withIntermediateDirectories: true)
+        #expect(antigravityProvider.isInstalled())
+
+        // 3. Alternatively via applicationBundle or antigravityHome
+        try FileManager.default.removeItem(at: cliHome)
+        #expect(!antigravityProvider.isInstalled())
+        try FileManager.default.createDirectory(at: appBundle, withIntermediateDirectories: true)
+        #expect(antigravityProvider.isInstalled())
+        try FileManager.default.removeItem(at: appBundle)
+        #expect(!antigravityProvider.isInstalled())
+        try FileManager.default.createDirectory(at: antigravityHome, withIntermediateDirectories: true)
+        #expect(antigravityProvider.isInstalled())
+    }
+
+    @Test func loggedHostReadsHostFromCLILog() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-log-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let logFile = dir.appendingPathComponent("cli.log")
+        let logContent = """
+        [2026-10-08T00:00:00Z] init
+        [2026-10-08T00:00:01Z] POST https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist 200
+        [2026-10-08T00:00:02Z] POST https://cloudcode-pa.googleapis.com/v1internal:generateContent 200
+        """
+        try logContent.write(to: logFile, atomically: true, encoding: .utf8)
+        #expect(CodeAssistProvider.loggedHost(in: logFile) == "cloudcode-pa.googleapis.com")
+
+        let dailyLog = "POST https://daily-cloudcode-pa.googleapis.com/v1internal:quota 200\n"
+        try dailyLog.write(to: logFile, atomically: true, encoding: .utf8)
+        #expect(CodeAssistProvider.loggedHost(in: logFile) == "daily-cloudcode-pa.googleapis.com")
+
+        #expect(CodeAssistProvider.loggedHost(inText: "nothing here") == nil)
+        #expect(CodeAssistProvider.loggedHost(inText: "https://evil-host.com/v1internal") == nil)
+    }
+
+    @Test func summaryQuotaCallRefusal401ThrowsNotSignedInNeedsAttention() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let licensed = json(["currentTier": ["id": "standard-tier"]])
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": return (200, licensed)
+            case "/v1internal:retrieveUserQuotaSummary": return (401, Data())
+            default: return (500, Data())
+            }
+        }
+        do {
+            _ = try await provider.fetch()
+            Issue.record("Expected notSignedIn on 401 retrieveUserQuotaSummary")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error == .notSignedIn(L("Gemini CLI's login was refused. Run Gemini CLI once so it signs back in")))
+        }
+    }
+
+    @Test func projectRetryRefusalRespectsProjectlessRetryStatus() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let licensedWithProject = json(["currentTier": ["id": "standard-tier"], "cloudaicompanionProject": "proj-xyz"])
+        let subscriptionRefusal = json(["error": ["code": 403, "status": "PERMISSION_DENIED", "details": [["reason": "SUBSCRIPTION_REQUIRED"]]]])
+
+        // First project call gets 403 license error; retry without project returns 403 with SUBSCRIPTION_REQUIRED
+        var callCount = 0
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": return (200, licensedWithProject)
+            case "/v1internal:retrieveUserQuotaSummary": return (404, Data())
+            case "/v1internal:retrieveUserQuota":
+                callCount += 1
+                if callCount == 1 {
+                    return (403, Data(#"{"error":{"message":"project license missing"}}"#.utf8))
+                } else {
+                    return (403, subscriptionRefusal)
+                }
+            default: return (404, Data())
+            }
+        }
+        #expect(await failure(of: provider) == .notServed)
+    }
+
+    @Test func needsAttentionErrorTakesPrecedenceOverShutdownNotServed() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        // Daily host returns 401 unauthorized (needsAttention); production host returns shutdown unsupported
+        let unsupported = json(["ineligibleTiers": [["reasonCode": "UNSUPPORTED_CLIENT", "tierId": "free-tier"]]])
+        exchange.answer = { url in
+            if url.host == CodeAssistProvider.dailyHost {
+                return (401, Data())
+            } else {
+                return (200, unsupported)
+            }
+        }
+        do {
+            _ = try await provider.fetch()
+            Issue.record("Expected notSignedIn when daily host returns 401")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error == .notSignedIn(L("Gemini CLI's login was refused. Run Gemini CLI once so it signs back in")))
+        }
+    }
+
+    @Test func parseCredentialsWithAntigravityToolProducesAntigravityMessage() {
+        let invalidJSON = Data("not json".utf8)
+        let emptyTokenJSON = Data(#"{"token":{"access_token":""}}"#.utf8)
+
+        // Gemini tool
+        #expect(throws: ProviderError.notSignedIn(L("Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google"))) {
+            try CodeAssistProvider.parseCredentials(invalidJSON, tool: .gemini)
+        }
+        #expect(throws: ProviderError.notSignedIn(L("Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google"))) {
+            try CodeAssistProvider.parseCredentials(emptyTokenJSON, tool: .gemini)
+        }
+
+        // Antigravity tool
+        let agyExpected = L("Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota")
+        #expect(throws: ProviderError.notSignedIn(agyExpected)) {
+            try CodeAssistProvider.parseCredentials(invalidJSON, tool: .antigravity)
+        }
+        #expect(throws: ProviderError.notSignedIn(agyExpected)) {
+            try CodeAssistProvider.parseCredentials(emptyTokenJSON, tool: .antigravity)
+        }
+    }
+
+    @Test func antigravityFallsBackToAntigravityOAuthTokenWhenOAuthCredsCorrupt() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-corrupt-\(UUID().uuidString)")
+        let geminiHome = dir.appendingPathComponent(".gemini")
+        let agyHome = geminiHome.appendingPathComponent("antigravity-cli")
+        try FileManager.default.createDirectory(at: agyHome, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // Write corrupt oauth_creds.json in .gemini
+        try Data("{\"invalid_json\":".utf8).write(to: geminiHome.appendingPathComponent("oauth_creds.json"))
+
+        // Write valid antigravity-oauth-token
+        let expiry = Int(Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000)
+        let tokenJSON = #"{"token":{"access_token":"ya29.from-agy-fallback","expiry_date":\#(expiry)}}"#
+        try Data(tokenJSON.utf8).write(to: agyHome.appendingPathComponent("antigravity-oauth-token"))
+
+        let quota = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.8, "resetTime": "2026-09-02T07:00:00Z"]]])
+        let account = json(["currentTier": ["id": "standard-tier"], "cloudaicompanionProject": "p-corrupt"])
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": (200, account)
+            case "/v1internal:retrieveUserQuota": (200, quota)
+            default: (404, Data())
+            }
+        }
+
+        let antigravityProvider = CodeAssistProvider(tool: .antigravity, session: session, geminiHome: geminiHome,
+                                                     applicationBundle: dir.appendingPathComponent("none.app"), antigravityHome: dir.appendingPathComponent("none"))
+        let reading = try await antigravityProvider.fetch()
+        #expect(reading.tool == .antigravity)
+        #expect(abs((reading.windows[0].usedFraction ?? 0) - 0.2) < 1e-9)
+        #expect(exchange.seen.first?.request.value(forHTTPHeaderField: "Authorization") == "Bearer ya29.from-agy-fallback")
+    }
+
+    @Test func quotaSummarySubscriptionRequiredThrowsNotServedShutdown() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-ca-subreq-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let expiry = Int(Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000)
+        try Data(#"{"access_token":"ya29.valid","expiry_date":\#(expiry)}"#.utf8).write(to: dir.appendingPathComponent("oauth_creds.json"))
+
+        let account = json(["currentTier": ["id": "standard-tier"]])
+        let subReqError = json([
+            "error": [
+                "code": 403,
+                "message": "Subscription required",
+                "details": [
+                    ["@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "SUBSCRIPTION_REQUIRED"]
+                ]
+            ]
+        ])
+
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": (200, account)
+            case "/v1internal:retrieveUserQuotaSummary": (403, subReqError)
+            default: (404, Data())
+            }
+        }
+
+        let geminiProvider = CodeAssistProvider(tool: .gemini, session: session, geminiHome: dir,
+                                                applicationBundle: dir.appendingPathComponent("none.app"), antigravityHome: dir.appendingPathComponent("none"))
+        do {
+            _ = try await geminiProvider.fetch()
+            Issue.record("Expected notServed when retrieveUserQuotaSummary returns 403 SUBSCRIPTION_REQUIRED")
+        } catch let error as ProviderError {
+            #expect(!error.needsAttention)
+            #expect(error == .notServed(CodeAssistProvider.shutdownMessage))
+        }
     }
 }
 

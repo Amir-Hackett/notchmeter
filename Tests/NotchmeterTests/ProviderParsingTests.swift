@@ -177,6 +177,68 @@ import Testing
         #expect(CodexProvider.label(forMinutes: 1440).text == "1-day")
         #expect(CodexProvider.label(forMinutes: 90).text == "90-minute")
     }
+
+    @Test func parsesAdditionalRateLimitsForExtraModels() throws {
+        let json = """
+        {"plan_type":"plus",
+         "rate_limit":{"primary_window":{"used_percent":20,"reset_at":1759352940,"limit_window_seconds":18000}},
+         "additional_rate_limits":[{"model":"gpt-5.3-codex-spark",
+                                    "rate_limit":{"primary_window":{"used_percent":45,"reset_at":1759352940,"limit_window_seconds":18000}}}]}
+        """
+        let reading = try CodexProvider.parseBackend(Data(json.utf8))
+        #expect(reading.windows.count == 3)
+        let spark = reading.windows[2]
+        #expect(spark.id == "gpt_5.3_codex_spark_session")
+        #expect(spark.label == "GPT 5.3 Codex Spark Session")
+        #expect(spark.usedFraction == 0.45)
+        #expect(spark.model == "GPT 5.3 Codex Spark")
+    }
+
+    @Test func parsesCreditsBalanceInNumericAndStringFormats() throws {
+        let numeric = """
+        {"plan_type":"plus",
+         "rate_limit":{"primary_window":{"used_percent":10,"reset_at":1759352940,"limit_window_seconds":18000}},
+         "credits":{"has_credits":true,"unlimited":false,"balance":12.5}}
+        """
+        let readingNumeric = try CodexProvider.parseBackend(Data(numeric.utf8))
+        let creditsNumeric = try #require(readingNumeric.windows.first { $0.id == "credits" })
+        #expect(creditsNumeric.amountUSD == 12.5)
+        #expect(creditsNumeric.note == "$12.50 remaining")
+        #expect(creditsNumeric.usedFraction == nil)
+
+        let stringBalance = """
+        {"plan_type":"plus",
+         "rate_limit":{"primary_window":{"used_percent":10,"reset_at":1759352940,"limit_window_seconds":18000}},
+         "credits":{"has_credits":true,"unlimited":false,"balance":" 25.00 "}}
+        """
+        let readingString = try CodexProvider.parseBackend(Data(stringBalance.utf8))
+        let creditsString = try #require(readingString.windows.first { $0.id == "credits" })
+        #expect(creditsString.amountUSD == 25.0)
+        #expect(creditsString.note == "$25.00 remaining")
+    }
+
+    @Test func rejectsPayloadWithNoMeasuredWindows() {
+        let emptyLimits = """
+        {"plan_type":"plus",
+         "rate_limit":{"primary_window":null,"secondary_window":null},
+         "credits":{"has_credits":true,"unlimited":false,"balance":10.0}}
+        """
+        #expect(throws: ProviderError.self) {
+            try CodexProvider.parseBackend(Data(emptyLimits.utf8))
+        }
+        #expect(throws: ProviderError.self) {
+            try CodexProvider.parseBackend(Data("invalid json".utf8))
+        }
+    }
+
+    @Test func parsesDirectAccountIdInTokens() throws {
+        let json = """
+        {"auth_mode":"chatgpt","tokens":{"access_token":"token_abc","account_id":"org_direct"}}
+        """
+        let auth = try CodexProvider.parseAuth(Data(json.utf8))
+        #expect(auth.accessToken == "token_abc")
+        #expect(auth.accountID == "org_direct")
+    }
 }
 
 @Suite struct PaceProjection {

@@ -1281,3 +1281,6 @@
 "Notchmeter's catalog of %@" = "%@ の Notchmeter カタログ";
 "this build's table of %@" = "%@ のこのビルドの表";
 "a family guess" = "モデルファミリーによる推定";
+"Probe timed out" = "取得がタイムアウトしました";
+"Cursor's state database not found" = "Cursor の状態データベースが見つかりません";
+"Cursor's state database could not be copied" = "Cursor の状態データベースをコピーできませんでした";

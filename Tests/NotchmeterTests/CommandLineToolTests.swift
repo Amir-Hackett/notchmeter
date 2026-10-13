@@ -64,6 +64,23 @@ import Testing
         #expect(!String(decoding: codex.data, as: UTF8.self).contains("\"cost\""))
     }
 
+    @Test func probeFlagForcesCacheBypassInCommandLineTool() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-cli-probe-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let reportFile = dir.appendingPathComponent("report.json")
+        try report(pid: Int(ProcessInfo.processInfo.processIdentifier), generatedAt: now).write(to: reportFile)
+
+        // Without force, cachedReport finds the fresh report file
+        let normal = CommandLineTool.cachedReport(force: false, reportFile: reportFile, now: now)
+        #expect(normal != nil)
+        #expect(normal?.source == .reportFile)
+
+        // With force: true (as triggered by --force or --probe), cachedReport bypasses cache
+        let forced = CommandLineTool.cachedReport(force: true, reportFile: reportFile, now: now)
+        #expect(forced == nil)
+    }
+
     /// The report carries the price sources behind the 30-day figure as `cost.priceSources` and per provider, and
     /// each range its own, as `PriceSource.key`s; the probe's cost line prints the same clause. This is the
     /// contract docs/accuracy.md and the Claude Code skill read, so a renamed key or a dropped clause fails here.

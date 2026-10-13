@@ -156,6 +156,25 @@ import Testing
         #expect(KimiProvider.date("soon") == nil)
         #expect(KimiProvider.date(42) == nil)
     }
+
+    @Test func ratiosAreClampedBetweenZeroAndOne() throws {
+        let json = #"""
+        {"usages":{"limit_5h":{"used_ratio":1.4,"reset_time":"2026-09-30T00:00:00Z"},
+                   "limit_7d":{"used_ratio":-0.2,"reset_time":"2026-09-30T00:00:00Z"}}}
+        """#
+        let reading = try parse(json)
+        #expect(reading.windows[0].usedFraction == 1.0)
+        #expect(reading.windows[1].usedFraction == 0.0)
+    }
+
+    @Test func periodsHandleSecondAndWeekUnitsAndRejectInvalidDurations() {
+        #expect(KimiProvider.period(duration: 45, unit: "TIME_UNIT_SECOND") == 45.0)
+        #expect(KimiProvider.period(duration: 2, unit: "TIME_UNIT_WEEK") == Double(2 * 7 * 86400))
+        #expect(KimiProvider.period(duration: 0, unit: "TIME_UNIT_DAY") == nil)
+        #expect(KimiProvider.period(duration: -5, unit: "TIME_UNIT_HOUR") == nil)
+        #expect(KimiProvider.period(duration: 10, unit: "TIME_UNIT_CENTURY") == nil)
+        #expect(KimiProvider.period(duration: nil, unit: "TIME_UNIT_DAY") == nil)
+    }
 }
 
 /// The login the CLI keeps, read and never refreshed, and where it is kept.
@@ -170,6 +189,15 @@ import Testing
         #expect(unknown.expiresAt == nil, "the CLI writes 0 for an expiry it was never told; that is unknown, not long past")
         #expect(throws: ProviderError.self) { try KimiProvider.parseCredentials(Data(#"{"refresh_token":"only"}"#.utf8)) }
         #expect(throws: ProviderError.self) { try KimiProvider.parseCredentials(Data("not json".utf8)) }
+    }
+
+    @Test func rejectsEmptyAccessTokenInCredentials() {
+        #expect(throws: ProviderError.self) {
+            try KimiProvider.parseCredentials(Data(#"{"access_token":""}"#.utf8))
+        }
+        #expect(throws: ProviderError.self) {
+            try KimiProvider.parseCredentials(Data(#"{"access_token":null}"#.utf8))
+        }
     }
 
     @Test func theShareFolderAndTheBaseFollowTheCLIsOverrides() {
@@ -197,6 +225,7 @@ import Testing
         private let lock = NSLock()
         private var seen: [URLRequest] = []
         var answer: @Sendable (URL) -> (Int, Data) = { _ in (404, Data()) }
+        var customResponse: (@Sendable (URLRequest) -> Result<(status: Int, headers: [String: String], body: Data), URLError>)?
 
         func record(_ request: URLRequest) {
             lock.withLock { seen.append(request) }
@@ -215,6 +244,20 @@ import Testing
         override func startLoading() {
             let recorder = Self.recorder
             recorder.record(request)
+            if let custom = recorder.customResponse {
+                switch custom(request) {
+                case .success(let val):
+                    var headers = val.headers
+                    if headers["Content-Type"] == nil { headers["Content-Type"] = "application/json" }
+                    let response = HTTPURLResponse(url: request.url!, statusCode: val.status, httpVersion: nil, headerFields: headers)!
+                    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                    client?.urlProtocol(self, didLoad: val.body)
+                    client?.urlProtocolDidFinishLoading(self)
+                case .failure(let error):
+                    client?.urlProtocol(self, didFailWithError: error)
+                }
+                return
+            }
             let (status, data) = recorder.answer(request.url!)
             let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -301,6 +344,69 @@ import Testing
         await #expect(throws: ProviderError.rateLimited(retryAfter: nil)) { try await provider.fetch() }
         recorder.answer = { _ in (502, Data()) }
         await #expect(throws: ProviderError.http(502, "Kimi's usage endpoint answered")) { try await provider.fetch() }
+    }
+
+    @Test func fetchMapsURLErrorToOffline() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        try login(expiresIn: 600)
+        recorder.customResponse = { _ in .failure(URLError(.notConnectedToInternet)) }
+        do {
+            _ = try await provider.fetch()
+            Issue.record("Expected offline error on URLError")
+        } catch let error as ProviderError {
+            #expect(!error.needsAttention)
+            switch error {
+            case .offline: break
+            default: Issue.record("Expected .offline, got \(error)")
+            }
+        }
+    }
+
+    @Test func fetchMaps429WithRetryAfterHeader() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        try login(expiresIn: 600)
+        recorder.customResponse = { _ in .success((status: 429, headers: ["Retry-After": "120"], body: Data())) }
+        do {
+            _ = try await provider.fetch()
+            Issue.record("Expected rateLimited on 429")
+        } catch let error as ProviderError {
+            #expect(!error.needsAttention)
+            switch error {
+            case .rateLimited(let retry):
+                #expect(retry == 120)
+            default:
+                Issue.record("Expected .rateLimited(retryAfter: 120), got \(error)")
+            }
+        }
+    }
+
+    @Test func refusalsHaveNeedsAttentionClassification() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        try login(expiresIn: 600)
+
+        // 401: needsAttention
+        recorder.answer = { _ in (401, Data()) }
+        do {
+            _ = try await provider.fetch()
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+        }
+
+        // 403: needsAttention
+        recorder.answer = { _ in (403, Data()) }
+        do {
+            _ = try await provider.fetch()
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+        }
+
+        // 404: !needsAttention
+        recorder.answer = { _ in (404, Data()) }
+        do {
+            _ = try await provider.fetch()
+        } catch let error as ProviderError {
+            #expect(!error.needsAttention)
+        }
     }
 }
 

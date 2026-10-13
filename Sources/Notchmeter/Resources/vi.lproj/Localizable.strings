@@ -1281,3 +1281,6 @@
 "Notchmeter's catalog of %@" = "danh mục Notchmeter ngày %@";
 "this build's table of %@" = "bảng của bản dựng này ngày %@";
 "a family guess" = "ước tính theo họ mô hình";
+"Probe timed out" = "Truy vấn đã hết thời gian";
+"Cursor's state database not found" = "Không tìm thấy cơ sở dữ liệu trạng thái của Cursor";
+"Cursor's state database could not be copied" = "Không thể sao chép cơ sở dữ liệu trạng thái của Cursor";

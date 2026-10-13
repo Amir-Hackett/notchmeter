@@ -1299,3 +1299,6 @@
 "Notchmeter's catalog of %@" = "Notchmeters Katalog vom %@";
 "this build's table of %@" = "die Tabelle dieses Builds vom %@";
 "a family guess" = "eine Schätzung nach Modellfamilie";
+"Probe timed out" = "Zeitüberschreitung bei der Abfrage";
+"Cursor's state database not found" = "Cursors Zustandsdatenbank nicht gefunden";
+"Cursor's state database could not be copied" = "Cursors Zustandsdatenbank konnte nicht kopiert werden";

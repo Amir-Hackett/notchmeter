@@ -1298,3 +1298,6 @@
 "Notchmeter's catalog of %@" = "Notchmeter %@ 的目录";
 "this build's table of %@" = "此版本 %@ 的价格表";
 "a family guess" = "按模型系列估算";
+"Probe timed out" = "查询超时";
+"Cursor's state database not found" = "未找到 Cursor 的状态数据库";
+"Cursor's state database could not be copied" = "无法复制 Cursor 的状态数据库";

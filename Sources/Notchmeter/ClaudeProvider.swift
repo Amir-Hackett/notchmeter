@@ -149,6 +149,7 @@ actor ClaudeProvider: UsageProvider {
 
     /// Every source in order; `mayPrompt` is the one thing that decides whether the Keychain dialog can appear.
     static func resolveCredentials(configDir: URL, mayPrompt: Bool, environment: [String: String] = ProcessInfo.processInfo.environment,
+                                   claudeJSON: URL = Paths.home.appendingPathComponent(".claude.json"),
                                    keychain: (_ prompt: Bool) throws -> Data = { try Keychain.genericPassword(service: keychainService, prompt: $0) },
                                    securityTool: () -> Data? = { Keychain.genericPasswordViaSecurityTool(service: keychainService) }) throws -> ClaudeCredentials {
         var denied: OSStatus?
@@ -189,7 +190,7 @@ actor ClaudeProvider: UsageProvider {
                 ? L("macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks")
                 : L("Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read"))
         }
-        switch authMode(environment: environment, configDir: configDir) {
+        switch authMode(environment: environment, configDir: configDir, claudeJSON: claudeJSON) {
         case .apiKey:
             throw ProviderError.apiKeyOnly(L("Claude Code is on an API key: no plan windows to meter; the Cost card is the meter"))
         case .oauth, .none:

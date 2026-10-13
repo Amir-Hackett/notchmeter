@@ -1281,3 +1281,6 @@
 "Notchmeter's catalog of %@" = "%@ Notchmeter 카탈로그";
 "this build's table of %@" = "%@ 이 빌드의 표";
 "a family guess" = "모델 계열에 따른 추정";
+"Probe timed out" = "조회 시간이 초과되었습니다";
+"Cursor's state database not found" = "Cursor 상태 데이터베이스를 찾을 수 없습니다";
+"Cursor's state database could not be copied" = "Cursor 상태 데이터베이스를 복사할 수 없습니다";

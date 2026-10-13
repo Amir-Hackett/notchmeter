@@ -461,6 +461,9 @@ enum ProviderError: Error, Equatable {
     var needsAttention: Bool {
         switch self {
         case .notSignedIn, .tokenExpired, .accessDenied: true
+        // A refusal the provider did not classify (a status it passes straight through) is still the vendor
+        // saying the login is not good: retrying it with a doubling backoff cannot fix it, signing in again can.
+        case .http(let code, _): code == 401 || code == 403
         default: false
         }
     }

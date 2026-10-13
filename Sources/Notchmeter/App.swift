@@ -23,7 +23,7 @@ enum NotchmeterMain {
         }
         // --no-prompt: never raise the Keychain dialog; a locked item reports "needs attention" instead. The
         // command-line tool and the MCP server run headless and never ask either.
-        if arguments.contains("--no-prompt") || arguments.contains("--smoke") || arguments.contains("--render-assets") || arguments.contains("--render-gallery")
+        if arguments.contains("--no-prompt") || arguments.contains("--probe") || arguments.contains("--smoke") || arguments.contains("--render-assets") || arguments.contains("--render-gallery")
             || arguments.contains("--render-dashboard") || arguments.contains("--mcp") || CommandLineTool.isInvokedAsTool(arguments: arguments) {
             Keychain.setPromptsAllowed(false)
         }
@@ -1832,8 +1832,85 @@ final class MenuTarget: NSObject {
 /// versioned object of UsageReport with a Claude-Code-Usage-Monitor-style exit code (`--history` adds the daily
 /// rows). Tokens are never printed. `gather()` is the same read for the command-line tool and the MCP server.
 enum Probe {
+    /// The maximum duration allowed for the overall probe run before timing out cleanly.
+    static let timeout: TimeInterval = 20
+    /// The maximum duration allowed for an individual provider's fetch during a probe.
+    static let providerTimeout: TimeInterval = 6
+
+    enum TimeoutError: Error {
+        case timedOut
+    }
+
+    private enum TimeoutGroupResult<R: Sendable>: Sendable {
+        case success(R)
+        case timedOut
+        case error(any Error)
+    }
+
+    static func withTimeout<T: Sendable>(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> T) async throws -> T {
+        let task = Task {
+            try await operation()
+        }
+        let timeoutTask = Task {
+            try await Task.sleep(nanoseconds: UInt64(max(0.001, seconds) * 1_000_000_000))
+        }
+        return try await withTaskCancellationHandler {
+            let outcome: TimeoutGroupResult<T> = await withTaskGroup(of: TimeoutGroupResult<T>.self) { group -> TimeoutGroupResult<T> in
+                group.addTask {
+                    do {
+                        return .success(try await task.value)
+                    } catch {
+                        return .error(error)
+                    }
+                }
+                group.addTask {
+                    do {
+                        try await timeoutTask.value
+                        return .timedOut
+                    } catch {
+                        return .error(error)
+                    }
+                }
+                guard let first = await group.next() else {
+                    return TimeoutGroupResult<T>.timedOut
+                }
+                group.cancelAll()
+                return first
+            }
+            task.cancel()
+            timeoutTask.cancel()
+            switch outcome {
+            case .success(let result):
+                return result
+            case .timedOut:
+                if Task.isCancelled {
+                    throw CancellationError()
+                }
+                throw TimeoutError.timedOut
+            case .error(let error):
+                throw error
+            }
+        } onCancel: {
+            task.cancel()
+            timeoutTask.cancel()
+        }
+    }
+
     static func run(json: Bool = false, history: Bool = false) {
+        Keychain.setPromptsAllowed(false)
         if !json { emit("\(AppInfo.name) probe: reads usage from tools signed in on this Mac; tokens are never printed.") }
+        let runTimeout = timeout + 5
+        DispatchQueue.main.asyncAfter(deadline: .now() + runTimeout) {
+            if json {
+                let empty = UsageReport(tools: [:], cost: nil, advice: [], now: Date())
+                FileHandle.standardOutput.write(empty.json)
+                FileHandle.standardOutput.write(Data("\n".utf8))
+            } else {
+                emit("\(AppInfo.name) probe timed out after \(Int(runTimeout))s")
+                emit("exit code 30 (0 ok, 10 near a limit, 11 limit hit, 20 nothing used, 30 no data)")
+            }
+            exit(UsageReport.ExitCode.noData.rawValue)
+        }
         Task.detached {
             let report = await gather(verbose: !json, history: history)
             if json {
@@ -1849,10 +1926,12 @@ enum Probe {
     }
 
     /// One read per signed-in tool, the transcript scan, the drain log and the advice, as a report.
-    static func gather(verbose: Bool = false, history: Bool = false) async -> UsageReport {
+    static func gather(verbose: Bool = false, history: Bool = false, timeout: TimeInterval = timeout) async -> UsageReport {
+        Keychain.setPromptsAllowed(false)
         var readings: [UsageReading] = []
         var statuses: [ToolID: ToolStatus] = [:]
         let defaults = UserDefaults.standard
+        let deadline = Date().addingTimeInterval(timeout)
         for provider in ProviderRegistry.all(defaults: defaults) {
             let name = provider.tool.displayName
             guard provider.isInstalled() else {
@@ -1860,19 +1939,35 @@ enum Probe {
                 statuses[provider.tool] = .notInstalled
                 continue
             }
+            if Date() >= deadline {
+                if verbose { emit("\(name): probe deadline exceeded, skipping") }
+                statuses[provider.tool] = .failed(L("Probe timed out"), cached: nil)
+                continue
+            }
             if verbose { emit("\(name): reading…") }
+            let remainingBudget = max(1.0, deadline.timeIntervalSinceNow)
+            let perProviderLimit = min(providerTimeout, remainingBudget)
             do {
-                let reading = try await provider.fetch()
+                let reading = try await withTimeout(seconds: perProviderLimit) {
+                    try await provider.fetch()
+                }
                 readings.append(reading)
                 statuses[provider.tool] = .ready(reading)
                 if verbose { emit(describe(reading)) }
+            } catch is TimeoutError {
+                statuses[provider.tool] = .failed(L("Probe timed out"), cached: nil)
+                if verbose { emit("\(name): timed out") }
             } catch let error as ProviderError {
                 // The same mapping the store applies, so a 429 reads `rateLimited` here as it does from the running
                 // app's report, the local API and the MCP server, rather than `failed` with a fault to report.
                 statuses[provider.tool] = ToolStatus(error, cached: nil)
                 if verbose { emit("\(name): \(error.message)") }
             } catch {
-                statuses[provider.tool] = .failed(error.localizedDescription, cached: nil)
+                if let offline = ProviderError.offline(from: error) {
+                    statuses[provider.tool] = ToolStatus(offline, cached: nil)
+                } else {
+                    statuses[provider.tool] = .failed(error.localizedDescription, cached: nil)
+                }
                 if verbose { emit("\(name): \(error.localizedDescription)") }
             }
         }
@@ -1881,7 +1976,18 @@ enum Probe {
         let weekly = claude?.windows.first { $0.id == "seven_day" }
         let session = claude?.windows.first { $0.id == "five_hour" }
         let scanner = ClaudeCostScanner()
-        let cost = await scanner.scan(weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction, sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction)
+        let scanBudget = max(1.0, min(5.0, deadline.timeIntervalSinceNow))
+        let cost: CostSummary
+        if Date() >= deadline {
+            if verbose { emit("Probe deadline exceeded, skipping cost scan") }
+            cost = .empty
+        } else if let scanned = try? await withTimeout(seconds: scanBudget, operation: {
+            await scanner.scan(weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction, sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction)
+        }) {
+            cost = scanned
+        } else {
+            cost = .empty
+        }
         let now = Date()
         let samples = DrainLog().load(now: now)
         var drains: [DrainLog.Key: Drain] = [:]

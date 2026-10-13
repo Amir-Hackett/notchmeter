@@ -12,6 +12,7 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "cop
 actor CopilotProvider: UsageProvider {
     nonisolated let tool: ToolID = .copilot
     nonisolated let refreshInterval: TimeInterval = 300
+    nonisolated let home: URL
     nonisolated let configRoot: URL
     nonisolated let ghHosts: URL
 
@@ -42,13 +43,15 @@ actor CopilotProvider: UsageProvider {
     private let defaults: UserDefaults
 
     init(session: URLSession? = nil,
-         configRoot: URL = Paths.home.appendingPathComponent(".config/github-copilot"),
-         ghHosts: URL = Paths.home.appendingPathComponent(".config/gh/hosts.yml"),
+         home: URL = Paths.home,
+         configRoot: URL? = nil,
+         ghHosts: URL? = nil,
          defaults: UserDefaults = .standard, readOrgBilling: (@Sendable () -> Bool)? = nil,
          history: CostHistory? = CostHistory(tool: .copilot)) {
         self.session = session
-        self.configRoot = configRoot
-        self.ghHosts = ghHosts
+        self.home = home
+        self.configRoot = configRoot ?? home.appendingPathComponent(".config/github-copilot")
+        self.ghHosts = ghHosts ?? home.appendingPathComponent(".config/gh/hosts.yml")
         self.defaults = defaults
         self.readOrgBilling = readOrgBilling ?? ProviderOptIn.copilotOrgBilling.reader(defaults)
         self.history = history
@@ -56,8 +59,8 @@ actor CopilotProvider: UsageProvider {
 
     nonisolated func isInstalled() -> Bool {
         let fm = FileManager.default
-        return fm.fileExists(atPath: configRoot.path) || fm.fileExists(atPath: Paths.home.appendingPathComponent(".vscode/extensions").path)
-            && (try? fm.contentsOfDirectory(atPath: Paths.home.appendingPathComponent(".vscode/extensions").path))?.contains { $0.hasPrefix("github.copilot") } == true
+        return fm.fileExists(atPath: configRoot.path) || fm.fileExists(atPath: home.appendingPathComponent(".vscode/extensions").path)
+            && (try? fm.contentsOfDirectory(atPath: home.appendingPathComponent(".vscode/extensions").path))?.contains { $0.hasPrefix("github.copilot") } == true
     }
 
     func fetch() async throws -> UsageReading {
@@ -69,8 +72,18 @@ actor CopilotProvider: UsageProvider {
             candidates.insert(candidates.remove(at: index), at: 0)
         }
         var refused: [URL] = []
+        var noSubCount = 0
+        var serverError: ProviderError?
         for candidate in candidates {
-            let (data, response) = try await get(Self.userURL, token: candidate.token, copilotHeaders: true)
+            let data: Data
+            let response: HTTPURLResponse?
+            do {
+                (data, response) = try await get(Self.userURL, token: candidate.token, copilotHeaders: true)
+            } catch let error as ProviderError {
+                if case .offline = error { throw error }
+                serverError = error
+                continue
+            }
             switch response?.statusCode ?? 0 {
             case 200:
                 working = candidate
@@ -84,16 +97,27 @@ actor CopilotProvider: UsageProvider {
                 refused.append(candidate.file)
                 continue
             case 404:
-                throw ProviderError.unavailable(L("This GitHub account has no Copilot subscription"))
+                noSubCount += 1
+                continue
             case 429:
                 throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
             case let code:
-                throw ProviderError.http(code, L("GitHub's Copilot endpoint answered"))
+                serverError = ProviderError.http(code, L("GitHub's Copilot endpoint answered"))
+                continue
             }
         }
         working = nil
-        let files = refused.map { Self.shortPath($0) }.joined(separator: ", ")
-        throw ProviderError.notSignedIn(L("GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`", files))
+        if !refused.isEmpty {
+            let files = refused.map { Self.shortPath($0) }.joined(separator: ", ")
+            throw ProviderError.notSignedIn(L("GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`", files))
+        }
+        if noSubCount > 0 {
+            throw ProviderError.unavailable(L("This GitHub account has no Copilot subscription"))
+        }
+        if let serverError {
+            throw serverError
+        }
+        throw ProviderError.notSignedIn(L("Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage"))
     }
 
     private func get(_ url: URL, token: String, copilotHeaders: Bool) async throws -> (Data, HTTPURLResponse?) {
@@ -110,10 +134,15 @@ actor CopilotProvider: UsageProvider {
             request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
             request.setValue(Self.apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
         }
-        let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)
-        let http = response as? HTTPURLResponse
-        DiagnosticLog.request(log, url.lastPathComponent, status: http?.statusCode ?? 0, bytes: data.count)
-        return (data, http)
+        do {
+            let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)
+            let http = response as? HTTPURLResponse
+            DiagnosticLog.request(log, url.lastPathComponent, status: http?.statusCode ?? 0, bytes: data.count)
+            return (data, http)
+        } catch {
+            if let offline = ProviderError.offline(from: error) { throw offline }
+            throw error
+        }
     }
 
     /// The organisations the token holder belongs to, and for each that answers, its Copilot billing for the month.
@@ -132,9 +161,9 @@ actor CopilotProvider: UsageProvider {
     // MARK: - Token
 
     /// `apps.json` and `hosts.json` map "github.com:<client id>" to `{"user", "oauth_token"}`; gh's hosts.yml keeps
-    /// `github.com:\n  oauth_token: …`. Every entry is a candidate, ordered by its file's modification date, newest
-    /// first, then by file name; duplicates of one token are folded.
-    static func tokenCandidates(configRoot: URL, ghHosts: URL) -> [TokenCandidate] {
+    /// `github.com:\n  oauth_token: …` or delegates to the Keychain (`gh:github.com`). Every entry is a candidate,
+    /// ordered by its file's modification date, newest first, then by file name; duplicates of one token are folded.
+    static func tokenCandidates(configRoot: URL, ghHosts: URL, keychain: () -> String? = { defaultKeychainToken() }) -> [TokenCandidate] {
         var candidates: [TokenCandidate] = []
         for name in ["apps.json", "hosts.json"] {
             let file = configRoot.appendingPathComponent(name)
@@ -148,13 +177,24 @@ actor CopilotProvider: UsageProvider {
                 }
             }
         }
-        if let text = try? String(contentsOf: ghHosts, encoding: .utf8), let token = token(inHostsYAML: text) {
+        if let text = try? String(contentsOf: ghHosts, encoding: .utf8) {
             let modified = (try? ghHosts.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-            candidates.append(TokenCandidate(token: token, file: ghHosts, modified: modified))
+            if let token = token(inHostsYAML: text) {
+                candidates.append(TokenCandidate(token: token, file: ghHosts, modified: modified))
+            } else if let token = keychain() {
+                candidates.append(TokenCandidate(token: token, file: ghHosts, modified: modified))
+            }
         }
         var seen: Set<String> = []
         return candidates.sorted { ($0.modified, $1.file.lastPathComponent) > ($1.modified, $0.file.lastPathComponent) }
             .filter { seen.insert($0.token).inserted }
+    }
+
+    static func defaultKeychainToken() -> String? {
+        guard let data = Keychain.genericPasswordViaSecurityTool(service: "gh:github.com"),
+              let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty
+        else { return nil }
+        return text
     }
 
     /// The first candidate's token, for callers that want one; nil with none.

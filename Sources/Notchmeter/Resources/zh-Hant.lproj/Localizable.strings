@@ -1281,3 +1281,6 @@
 "Notchmeter's catalog of %@" = "Notchmeter %@ 的目錄";
 "this build's table of %@" = "此版本 %@ 的價格表";
 "a family guess" = "按模型系列估算";
+"Probe timed out" = "查詢逾時";
+"Cursor's state database not found" = "找不到 Cursor 的狀態資料庫";
+"Cursor's state database could not be copied" = "無法複製 Cursor 的狀態資料庫";

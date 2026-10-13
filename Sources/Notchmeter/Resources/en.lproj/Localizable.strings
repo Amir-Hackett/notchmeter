@@ -1298,3 +1298,6 @@
 "Notchmeter's catalog of %@" = "Notchmeter's catalog of %@";
 "this build's table of %@" = "this build's table of %@";
 "a family guess" = "a family guess";
+"Probe timed out" = "Probe timed out";
+"Cursor's state database not found" = "Cursor's state database not found";
+"Cursor's state database could not be copied" = "Cursor's state database could not be copied";

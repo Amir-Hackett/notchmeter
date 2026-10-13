@@ -607,7 +607,8 @@ actor CursorProvider: UsageProvider {
     /// Reads one ItemTable value from a private copy of Cursor's state database, so the editor's open
     /// write-ahead log is never touched and a mid-write never trips the read.
     static func stateValue(forKey key: String, database: URL) throws -> String? {
-        try withStateCopy(of: database) { db in
+        guard FileManager.default.fileExists(atPath: database.path) else { return nil }
+        return try withStateCopy(of: database) { db in
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, "SELECT value FROM ItemTable WHERE key = ?1 LIMIT 1", -1, &statement, nil) == SQLITE_OK, let statement else {
                 throw ProviderError.unavailable(L("Cursor's state database has no ItemTable"))
@@ -626,12 +627,19 @@ actor CursorProvider: UsageProvider {
     /// through this (the session token here, the chats' names in CursorChatNames).
     static func withStateCopy<T>(of database: URL, _ body: (OpaquePointer) throws -> T) throws -> T {
         let fm = FileManager.default
+        guard fm.fileExists(atPath: database.path) else {
+            throw ProviderError.unavailable(L("Cursor's state database not found"))
+        }
         let scratch = fm.temporaryDirectory.appendingPathComponent("notchmeter-cursor-\(UUID().uuidString)")
         try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: scratch) }
 
         let copy = scratch.appendingPathComponent("state.vscdb")
-        try fm.copyItem(at: database, to: copy)
+        do {
+            try fm.copyItem(at: database, to: copy)
+        } catch {
+            throw ProviderError.unavailable(L("Cursor's state database could not be copied"))
+        }
         for suffix in ["-wal", "-shm"] {
             let sidecar = URL(fileURLWithPath: database.path + suffix)
             if fm.fileExists(atPath: sidecar.path) {

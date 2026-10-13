@@ -1298,3 +1298,6 @@
 "Notchmeter's catalog of %@" = "le catalogue de Notchmeter du %@";
 "this build's table of %@" = "la table de cette version du %@";
 "a family guess" = "une estimation par famille";
+"Probe timed out" = "La requête a expiré";
+"Cursor's state database not found" = "Base d'état de Cursor introuvable";
+"Cursor's state database could not be copied" = "Impossible de copier la base d'état de Cursor";
