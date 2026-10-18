@@ -1004,11 +1004,6 @@ struct NotchCompactView: View {
     /// The room the news may take either side of the notch: what DynamicNotchKit's window leaves on this screen
     /// (NotchPeek.windowRoom), or a 14-inch display's where there is no screen to ask.
     var peekRoom: NotchPeek.Room = NotchPeek.builtIn
-    /// A file dragged over this half opens the panel; one dropped here goes to the session FileDrop.target picks
-    /// (NotchController.dragEntered / dropped). Nil on the probes and the renders, which take no drops.
-    var dragEntered: (() -> Void)? = nil
-    var dropFiles: (([URL]) -> Void)? = nil
-    @State private var dropTargeted = false
 
     /// The news this side names, and how: nil when there is no peek, when it is switched off, when this view was
     /// handed a run to measure (CompactStripProbe asks for readouts, never for a peek), or when the layout gives
@@ -1066,12 +1061,8 @@ struct NotchCompactView: View {
         // grey rather than the light scheme's dark grey on black. The edge pill does not pass through here and
         // keeps following Appearance (EdgePanelRoot).
         .environment(\.colorScheme, .dark)
-        .onDrop(of: [.fileURL], isTargeted: dropFiles == nil ? nil : $dropTargeted) { providers in
-            guard let dropFiles else { return false }
-            FileDrop.urls(from: providers) { urls in if !urls.isEmpty { dropFiles(urls) } }
-            return true
-        }
-        .onChange(of: dropTargeted) { _, targeted in if targeted { dragEntered?() } }
+        // No drop target here: the strip sits in the menu bar's band, which macOS offers no drag to. A file
+        // dragged up to it opens the panel instead (NotchController.fileDragged), and the panel takes the drop.
     }
 
     /// What this side draws in place of a peek: the readouts, the assistants' symbols or nothing, as the closed
@@ -1291,7 +1282,9 @@ struct NotchExpandedView: View {
         .environment(\.density, prefs.density)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         // A file dropped anywhere on the panel that is not a session's row (SessionRow takes its own) goes to the
-        // session FileDrop.target picks. Off with the setting; the probes and the renders are never dropped on.
+        // session FileDrop.target picks. The panel is what a drag can reach: it opens as the file nears the notch
+        // (NotchController.fileDragged) and sits below the menu bar's band, which macOS offers no drag to. Off
+        // with the setting; the probes and the renders are never dropped on.
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             guard prefs.fileDrop, entrance else { return false }
             FileDrop.urls(from: providers) { urls in if !urls.isEmpty { actions.dropFiles(urls, nil) } }

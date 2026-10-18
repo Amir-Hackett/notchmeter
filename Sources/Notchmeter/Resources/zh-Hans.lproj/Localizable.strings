@@ -1364,7 +1364,9 @@
 
 /* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
 "Drop a file on the notch to hand it to a session" = "将文件拖放到刘海上以交给某个会话";
-"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name." = "把文件拖到圆环或打开的面板上，其路径会被输入到正在等你的会话（否则是最新的会话）的提示符中；拖到某一行上即可选择会话。iTerm2、kitty、WezTerm 和 tmux 窗格直接接收文本；Terminal、Ghostty 和编辑器则随跳转一起把它放入剪贴板，刘海会提示。Claude Code 会话会在前面加上 @，以便文件被读入本轮。Notchmeter 不读取文件内容，也不发送任何东西；助手会像对待你点名的任何文件一样处理它。";
+"Drag a file up to the notch and the panel opens; let go on it and the file's path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name." = "把文件拖近刘海，面板就会打开；在面板上松开，其路径会被输入到正在等你的会话（否则是最新的会话）的提示符中；拖到某一行上即可选择会话。iTerm2、kitty、WezTerm 和 tmux 窗格直接接收文本；Terminal、Ghostty 和编辑器则随跳转一起把它放入剪贴板，刘海会提示。Claude Code 会话会在前面加上 @，以便文件被读入本轮。Notchmeter 不读取文件内容，也不发送任何东西；助手会像对待你点名的任何文件一样处理它。";
+"Drop to hand it to %@" = "放下以交给 %@";
+"Drop a file here" = "把文件拖到这里";
 "Dropped into %@" = "已放入 %@";
 "Copied for %@ — paste it with ⌘V" = "已为 %@ 复制 – 用 ⌘V 粘贴";
 "Nothing to drop that on: no session with a terminal" = "没有可放置的目标：没有带终端的会话";

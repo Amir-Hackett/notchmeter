@@ -397,12 +397,6 @@ extension NotchVisibility {
 /// Top layout on a screen with a notch: compact rings beside it, the full panel below it on hover. A notchless
 /// screen gets an EdgePanelController pill under the menu bar instead (AppDelegate.buildPresenters).
 @MainActor
-/// The compact views' way back to their controller for a drag or a drop (FileDrop): built before the controller
-/// is, pointed at it after `super.init`.
-final class DropHook {
-    weak var controller: NotchController?
-}
-
 final class NotchController: NSObject, PanelPresenting {
     let edge: PanelEdge = .top
     let screenKey: String
@@ -413,12 +407,14 @@ final class NotchController: NSObject, PanelPresenting {
     private let actions: NotchActions
     private let menu: OptionsMenu
     private let notch: DynamicNotch<NotchExpandedView, NotchCompactView, NotchCompactView>
-    private let dropHook: DropHook
     private let leadingProbe: NSHostingView<NotchCompactView>
     private let trailingProbe: NSHostingView<NotchCompactView>
     private let expandedProbe: NSHostingView<NotchExpandedView>
     private var clickMonitor: Any?
     private var keyMonitor: Any?
+    /// The watch on file drags (`watchFileDrags`), and what the drag pasteboard last said, by its change count.
+    private var dragMonitors: [Any] = []
+    private var dragBoard: (change: Int, files: Bool) = (-1, false)
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
     private var held = false
@@ -429,6 +425,7 @@ final class NotchController: NSObject, PanelPresenting {
     private var reporter = PanelReporter()
     /// The light under the collapsed notch (NotchGlow), in a click-through window of its own.
     private let glow = NotchGlowPresenter()
+    private let dropCatcher = FileDropCatcher()
     /// The readouts on screen, for a scroll over one of them (RingRetarget), and the label naming the window a
     /// scroll moved a ring to, in a click-through window of its own like the glow.
     private let ringTargets = RingTargets()
@@ -465,25 +462,18 @@ final class NotchController: NSObject, PanelPresenting {
         let targets = ringTargets
         let leaving = leaving
         let room = NotchPeek.windowRoom(screen: screen.frame, notch: Self.notchRect(on: screen))
-        // The compact halves are built after init; this reaches the controller from them without capturing
-        // `self` before `super.init`.
-        let drops = DropHook()
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
             NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true, leaving: leaving)
         } compactLeading: {
-            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room,
-                             dragEntered: { drops.controller?.dragEntered() }, dropFiles: { drops.controller?.dropped($0) })
+            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
         } compactTrailing: {
-            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room,
-                             dragEntered: { drops.controller?.dragEntered() }, dropFiles: { drops.controller?.dropped($0) })
+            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
         }
-        dropHook = drops
         leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading, peekRoom: room))
         trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing, peekRoom: room))
         expandedProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
         hover = HoverDriver(mode: prefs.visibility.hoverMode, dwell: prefs.hoverDelay)
         super.init()
-        dropHook.controller = self
         applyWindowBehaviour()
         configureTransition(closing: false)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
@@ -540,6 +530,7 @@ final class NotchController: NSObject, PanelPresenting {
             }
             return handled ? nil : event
         }
+        watchFileDrags()
         observeContent()
     }
 
@@ -673,17 +664,66 @@ final class NotchController: NSObject, PanelPresenting {
         hover.glance(for: AccessibilityDisplay.shared.motionReduced ? duration + 2 : duration)
     }
 
-    /// A file dragged over the rings (FileDrop): the panel opens for long enough to drop on a session's row, and
-    /// the pointer, which is holding the file, keeps it open as a hover would. Off with the setting.
-    func dragEntered() {
-        guard prefs.fileDrop, hover.state != .expanded else { return }
-        glance(for: Self.dragGlance)
+    /// A file dragged up to the notch opens the panel before it gets there (FileDrop). The strip sits in the menu
+    /// bar's band, and macOS hands no drag to a window in that band however high its level: a file held over the
+    /// rings is never offered to the strip, and after half a second the system opens Mission Control for it
+    /// instead, as it does for a file held at the top edge. So the strip is not the target; the open panel is,
+    /// below the band, and it opens as the file comes near (FileDrop.approach), while the pointer still has room
+    /// to drop. The watch is the same pair of monitors the hover uses, for `leftMouseDragged` alone: the pointer is
+    /// read from the event stream and the drag pasteboard is asked only whether it carries a file URL, once per
+    /// change of its contents, and nothing is read from the file. Off with the setting.
+    private func watchFileDrags() {
+        guard dragMonitors.isEmpty else { return }
+        let mask: NSEvent.EventTypeMask = [.leftMouseDragged, .leftMouseUp]
+        dragMonitors.append(NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            MainActor.assumeIsolated { self?.fileDragged(at: NSEvent.mouseLocation, ended: event.type == .leftMouseUp) }
+            return event
+        } as Any)
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            MainActor.assumeIsolated { self?.fileDragged(at: NSEvent.mouseLocation, ended: event.type == .leftMouseUp) }
+        }) {
+            dragMonitors.append(global)
+        }
     }
 
-    /// A file dropped on the rings: FileDrop.target picks the session; the panel stays for the line that says
-    /// where it went.
+    /// Each `leftMouseDragged`, and the `leftMouseUp` that ends a drag. With a file in hand near the notch, the
+    /// panel opens and the drop-zone box (FileDropCatcher) is shown over it; once the pointer leaves, or the drag
+    /// ends, the box is taken down. The pasteboard is asked only whether it carries a file URL, once per change of
+    /// its contents, so a drag of something else costs one read and a drag across the screen one rectangle test
+    /// per event; nothing is read from the file.
+    func fileDragged(at pointer: CGPoint, ended: Bool) {
+        guard prefs.fileDrop else { return }
+        if ended {
+            dragBoard = (-1, false)
+            // The drop is delivered at mouse-up too; let performDragOperation (which hides the box via dropped)
+            // win, and only clean up after, for a drag that ended off the box.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.dropCatcher.hide() }
+            return
+        }
+        let board = NSPasteboard(name: .drag)
+        if board.changeCount != dragBoard.change {
+            dragBoard = (board.changeCount, board.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]))
+        }
+        guard dragBoard.files else { return }
+        let near = FileDrop.approach(to: hover.regions.compact).contains(pointer)
+            || (!hover.regions.expanded.isNull && hover.regions.expanded.contains(pointer))
+        guard near else { dropCatcher.hide(); return }
+        if hover.state != .expanded {
+            Oracle.shared.emit("drag", ["open": true])
+            // The panel opens and the pointer, holding the file, keeps it open as a hover would.
+            glance(for: Self.dragGlance)
+        }
+        let target = FileDrop.target(among: store.sessions.all)
+        dropCatcher.show(over: hover.regions.expanded, label: target.map(FileDrop.Notice.label),
+                         behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen))
+    }
+
+    /// A file dropped on the box (FileDropCatcher): FileDrop.target picks the session, the panel stays for the
+    /// line that says where it went, and the box comes down.
     func dropped(_ urls: [URL]) {
         guard prefs.fileDrop else { return }
+        dropCatcher.hide()
+        dragBoard = (-1, false)
         actions.dropFiles(urls, nil)
         glance(for: FileDrop.Notice.duration)
     }
@@ -696,6 +736,9 @@ final class NotchController: NSObject, PanelPresenting {
         clickMonitor = nil
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
+        for monitor in dragMonitors { NSEvent.removeMonitor(monitor) }
+        dragMonitors = []
+        dropCatcher.hide()
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
         // hide() is only ever the discard path (App.rebuildPresenters drops the controller once it returns),

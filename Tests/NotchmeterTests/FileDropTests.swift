@@ -34,6 +34,26 @@ import Testing
     }
 }
 
+@Suite struct FileDropApproach {
+    /// The strip in screen coordinates (origin bottom-left): a 14-inch notch band, 1512 points wide, 37 tall.
+    let strip = CGRect(x: 540, y: 982 - 37, width: 440, height: 37)
+
+    @Test func theBandIsTheStripAndAMarginUnderAndBesideIt() {
+        let band = FileDrop.approach(to: strip)
+        #expect(band.contains(CGPoint(x: 760, y: 982 - 37 - 20)), "twenty points under the strip is in")
+        #expect(!band.contains(CGPoint(x: 760, y: 982 - 37 - 40)), "forty points under it is not")
+        #expect(band.contains(CGPoint(x: 540 - 10, y: 960)) && band.contains(CGPoint(x: 980 + 10, y: 960)), "a little either side is in")
+        #expect(!band.contains(CGPoint(x: 540 - 40, y: 960)), "far beside is not")
+        #expect(band.contains(CGPoint(x: 700, y: 970)), "the strip itself is in, for a drag that comes from the side")
+        #expect(band.maxY == strip.maxY, "nothing above the screen")
+    }
+
+    @Test func aStripNotMeasuredYetOpensNothing() {
+        #expect(FileDrop.approach(to: .null).isNull)
+        #expect(!FileDrop.approach(to: .null).contains(CGPoint(x: 0, y: 0)))
+    }
+}
+
 @Suite struct FileDropText {
     @Test func claudeCodeGetsAMentionOthersThePlainPath() {
         let urls = [URL(fileURLWithPath: "/Users/a/Desktop/shot.png")]

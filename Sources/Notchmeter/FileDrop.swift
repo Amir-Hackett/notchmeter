@@ -2,8 +2,10 @@ import AppKit
 import Foundation
 import UniformTypeIdentifiers
 
-/// Drop a file on the notch and it lands in a session's prompt (0.9.24). The rings and the open panel take a drop
-/// for the session that is waiting on you, or else the newest one with a terminal; a row takes it for that session.
+/// Drop a file on the notch and it lands in a session's prompt (0.9.24). A file dragged up to the notch opens the
+/// panel (NotchController.fileDragged; the strip itself can take no drop, see `approach`), the open panel takes the
+/// drop for the session that is waiting on you, or else the newest one with a terminal, and a row takes it for that
+/// session.
 /// What is dropped is the file's PATH, typed where the terminal can take text (a tmux pane, iTerm2, kitty, WezTerm)
 /// and otherwise put on the clipboard with the jump (TerminalJump) to the terminal, so one ⌘V finishes it. Claude
 /// Code's prompt gets `@` in front of each path, which is how Claude Code reads a file into the turn; every other
@@ -75,7 +77,22 @@ enum FileDrop {
         }
     }
 
-    /// Which session a drop on the rings or the panel's background goes to: the one waiting on you; the newest
+    /// Where a dragged file opens the panel, around the strip's own rectangle (HoverRegions.compact, screen
+    /// coordinates): a little either side and `approachBelow` points under it, so the panel is open before the
+    /// pointer reaches the menu bar's band. macOS offers no drag to a window in that band, whatever its level, and
+    /// a file held there for about half a second opens Mission Control, so the drop has to land on the panel below
+    /// it; opening on the approach gives the hand somewhere to go before the band does anything. Null for a null
+    /// strip (nothing measured yet), which contains nothing.
+    static let approachBelow: CGFloat = 28
+    static let approachBeside: CGFloat = 24
+
+    static func approach(to compact: CGRect) -> CGRect {
+        guard !compact.isNull else { return .null }
+        return CGRect(x: compact.minX - approachBeside, y: compact.minY - approachBelow,
+                      width: compact.width + 2 * approachBeside, height: compact.height + approachBelow)
+    }
+
+    /// Which session a drop on the panel's background goes to: the one waiting on you; the newest
     /// waiting one when several are; else the newest session of any state. Only sessions on this Mac whose hook
     /// named a terminal count, since the others have nowhere to type. Nil when there is none.
     static func target(among sessions: [AgentSession]) -> AgentSession? {

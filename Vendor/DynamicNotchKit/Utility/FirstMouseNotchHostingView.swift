@@ -21,4 +21,10 @@ import SwiftUI
 /// is declared here because the vendored framework cannot see the app's target.
 final class FirstMouseNotchHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    /// Notchmeter: the view is registered for file URLs itself. SwiftUI's `onDrop` targets inside it (the panel,
+    /// a session's row) had left `registeredDraggedTypes` empty, so AppKit never offered this window a drag at all.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil, registeredDraggedTypes.isEmpty { registerForDraggedTypes([.fileURL]) }
+    }
 }
