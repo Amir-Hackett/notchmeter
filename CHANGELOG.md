@@ -2,7 +2,7 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
-## [0.9.24](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.24) — unreleased
+## [0.9.24](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.24) — 2026-10-18
 
 ### Sessions
 
