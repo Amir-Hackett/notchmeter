@@ -912,6 +912,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "No hay sesiones ahora mismo";
 "How long since this session last did anything" = "Cuánto hace que esta sesión no hace nada";
+"How long since this turn finished" = "Cuánto hace que terminó este turno";
 "How long this turn has run" = "Cuánto lleva este turno";
 "The assistant running this session" = "El asistente que ejecuta esta sesión";
 "Subagents" = "Subagentes";
@@ -1360,3 +1361,10 @@
 "Cursor is asking a question" = "Cursor hace una pregunta";
 "Cursor is waiting for your approval" = "Cursor está esperando tu aprobación";
 "Brings Cursor forward, where the question is answered" = "Trae Cursor al frente, donde se responde la pregunta";
+
+/* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
+"Drop a file on the notch to hand it to a session" = "Suelta un archivo en el notch para pasarlo a una sesión";
+"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name." = "Arrastra un archivo sobre los anillos o el panel abierto y su ruta se escribe en la entrada de la sesión que te espera, o si no en la más reciente; suéltalo sobre una fila para elegir la sesión. iTerm2, kitty, WezTerm y un panel de tmux reciben el texto directamente; Terminal, Ghostty y un editor lo reciben en el portapapeles junto con el salto, y el notch lo indica. Una sesión de Claude Code recibe una @ delante, para que el archivo se lea en el turno. Notchmeter no lee nada del archivo ni envía nada; el asistente lo trata como cualquier archivo que nombres.";
+"Dropped into %@" = "Soltado en %@";
+"Copied for %@ — paste it with ⌘V" = "Copiado para %@: pégalo con ⌘V";
+"Nothing to drop that on: no session with a terminal" = "No hay dónde soltarlo: ninguna sesión con terminal";

@@ -336,6 +336,8 @@ final class UsageStore {
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
     var attentionNotice: AttentionNotice?
+    /// Where the last dropped file went (FileDrop), shown on the panel for FileDrop.Notice.duration.
+    var dropNotice: FileDrop.Notice?
     /// The Sessions card's open lists, as "<session id>/agents" or "<session id>/todos" (SessionsCard.listKey).
     /// Held here and not as a row's own state because the panel is sized from a separate measuring copy of its
     /// content (NotchController.expandedContentSize): a list opened in view state alone grew the drawn card and

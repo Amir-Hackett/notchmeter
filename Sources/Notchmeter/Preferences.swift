@@ -1202,6 +1202,10 @@ final class Preferences {
     var jumpToTerminal: Bool {
         didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
     }
+    /// A file dropped on the notch, the panel or a row is typed into a session's prompt (FileDrop, 0.9.24).
+    var fileDrop: Bool {
+        didSet { defaults.set(fileDrop, forKey: Keys.fileDrop); report(Keys.fileDrop, fileDrop, changed: fileDrop != oldValue) }
+    }
     /// How long the app holds a request before handing it back to the terminal, 15 s to 9 min. The socket's own
     /// cap (HookSocket.Listener.holdCap), the command's wait and the entries' timeouts are all ten minutes, and
     /// the vendor's clock starts before the command has even connected, so the range stops a minute short of
@@ -1510,6 +1514,7 @@ final class Preferences {
         static let feedbackDestination = "feedbackDestination"
         static let feedbackDiagnostics = "feedbackDiagnostics"
         static let jumpToTerminal = "jumpToTerminal"
+        static let fileDrop = "fileDrop"
         static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
         static let debugLogging = "debugLogging"
@@ -1677,6 +1682,7 @@ final class Preferences {
         feedbackDestination = Feedback.Destination(rawValue: defaults.string(forKey: Keys.feedbackDestination) ?? "") ?? .github
         feedbackDiagnostics = defaults.object(forKey: Keys.feedbackDiagnostics) as? Bool ?? true
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
+        fileDrop = defaults.object(forKey: Keys.fileDrop) as? Bool ?? true
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
         debugLogging = defaults.bool(forKey: Keys.debugLogging)

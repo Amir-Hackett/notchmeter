@@ -912,6 +912,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "Aucune session en ce moment";
 "How long since this session last did anything" = "Depuis combien de temps cette session n'a rien fait";
+"How long since this turn finished" = "Depuis combien de temps ce tour est terminé";
 "How long this turn has run" = "Depuis combien de temps ce tour dure";
 "The assistant running this session" = "L'assistant qui exécute cette session";
 "Subagents" = "Sous-agents";
@@ -1360,3 +1361,10 @@
 "Cursor is asking a question" = "Cursor pose une question";
 "Cursor is waiting for your approval" = "Cursor attend votre approbation";
 "Brings Cursor forward, where the question is answered" = "Met Cursor au premier plan, où l'on répond à la question";
+
+/* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
+"Drop a file on the notch to hand it to a session" = "Déposer un fichier sur l'encoche pour le transmettre à une session";
+"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name." = "Faites glisser un fichier sur les anneaux ou le panneau ouvert : son chemin est saisi dans l'invite de la session qui vous attend, sinon de la plus récente ; déposez-le sur une ligne pour choisir la session. iTerm2, kitty, WezTerm et un volet tmux reçoivent le texte directement ; Terminal, Ghostty et un éditeur le reçoivent dans le presse-papiers avec le saut, et l'encoche le dit. Une session Claude Code reçoit un @ devant, pour que le fichier soit lu dans le tour. Notchmeter ne lit rien dans le fichier et n'envoie rien ; l'assistant le traite comme tout fichier que vous nommez.";
+"Dropped into %@" = "Déposé dans %@";
+"Copied for %@ — paste it with ⌘V" = "Copié pour %@ – collez-le avec ⌘V";
+"Nothing to drop that on: no session with a terminal" = "Rien sur quoi le déposer : aucune session avec un terminal";

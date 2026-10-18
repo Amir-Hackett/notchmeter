@@ -180,8 +180,15 @@ struct SessionsCard: View {
         // row knows its model, and a line of chips all naming the same one tells the rows apart by nothing while
         // wrapping the extras sooner on the narrow panel.
         let modelsDiffer = Set(sessions.compactMap(\.model)).count > 1
+        // A just-finished row clocks its finish, not the last event heard: Cursor goes on sending in-turn events
+        // after a chat's stop (a background terminal's, among others), and each one moved `lastEvent`, so a Done
+        // row read "0s" for as long as they came and changed place on every one.
         func since(_ session: AgentSession, _ status: Row.Status) -> Date {
-            status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started
+            switch status {
+            case .finished: session.finish(now: now)?.at ?? session.lastEvent
+            case .idle: session.lastEvent
+            case .working, .waiting: session.turnStarted ?? session.started
+            }
         }
         let ordered = sessions.enumerated().sorted { a, b in
             let (sa, sb) = (status(a.element), status(b.element))
@@ -407,6 +414,7 @@ struct SessionsCard: View {
                         }
                         ForEach(group.rows, id: \.id) { row in
                             SessionRow(row: row, now: context.date, jump: { actions.jump($0) }, session: sessions.all.first { $0.id == row.id },
+                                       drop: { urls, session in if prefs.fileDrop { actions.dropFiles(urls, session) } },
                                        remove: { store.dismissSession(row.id) }, removeIdle: { store.dismissIdleSessions() },
                                        nudgesMuted: { store.prefs.mutedNudgeProjects.contains($0) },
                                        muteNudges: { project, mute in
@@ -547,6 +555,10 @@ private struct SessionRow: View {
     let now: Date
     let jump: (AgentSession) -> Void
     let session: AgentSession?
+    /// Files dropped on this row go to its session (FileDrop, NotchActions.dropFiles); nothing for a row whose
+    /// session has no terminal on this Mac, which also has no jump.
+    var drop: ([URL], AgentSession) -> Void = { _, _ in }
+    @State private var dropTargeted = false
     /// Takes the row off the list until the session sends another event (UsageStore.dismissSession, 0.7.7): a
     /// conversation closed in Cursor never says it ended, so it would otherwise stay for hours.
     var remove: () -> Void = {}
@@ -684,6 +696,20 @@ private struct SessionRow: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: L("Remove from the list")) { if removable { remove() } }
+        // A file dropped on the row goes to this session (FileDrop); the row lights while one is held over it. The
+        // target is any session on this Mac whose hook named a terminal, the same test FileDrop.target applies, and
+        // not `canJump`, which also follows the click setting: a drop is its own setting and has to land with the
+        // click's jump turned off.
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: 8).strokeBorder(Ink.primary.opacity(0.5), lineWidth: 1.5).padding(-4).allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: [.fileURL], isTargeted: session.map { $0.host == nil && $0.terminal != nil } == true ? $dropTargeted : nil) { providers in
+            guard let session, session.host == nil, session.terminal != nil else { return false }
+            FileDrop.urls(from: providers) { urls in if !urls.isEmpty { drop(urls, session) } }
+            return true
+        }
     }
 
     /// Where the row's text starts: past the 13 pt status mark and its 7 pt gap, so the extras line up under it.
@@ -721,7 +747,7 @@ private struct SessionRow: View {
             Text(clock)
                 .font(.caption).foregroundStyle(Caption.style).monospacedDigit()
                 .padding(.top, 1)
-                .help(row.status == .idle || row.status == .finished ? L("How long since this session last did anything") : L("How long this turn has run"))
+                .help(row.status == .finished ? L("How long since this turn finished") : row.status == .idle ? L("How long since this session last did anything") : L("How long this turn has run"))
                 .accessibilityHidden(true)
         }
     }

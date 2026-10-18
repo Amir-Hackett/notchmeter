@@ -289,6 +289,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // a script that raised the terminal and then could not find the pane reports a jump that did not land.
             if NoticeCard.canJump(session, enabled: true) { self.handedOff() }
         }
+        actions.dropFiles = { [weak self] urls, chosen in
+            guard let self, self.prefs.fileDrop, !urls.isEmpty else { return }
+            guard let session = chosen ?? FileDrop.target(among: self.store.sessions.all) else {
+                self.showDropNotice(FileDrop.Notice(kind: .nothing, session: nil, files: urls.count))
+                return
+            }
+            self.jumper.drop(urls, onto: session) { [weak self] kind in
+                self?.showDropNotice(FileDrop.Notice(kind: kind, session: session, files: urls.count))
+            }
+        }
         actions.answerInCursor = { [weak self] session in
             guard let self else { return }
             if session.host == nil, let terminal = session.terminal, TerminalJump.resolve(terminal) != .none {
@@ -910,6 +920,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// *Answer in Cursor*): the panel closes, because it stands over the middle of the screen and, under Open on
     /// click, nothing else closes it until a click somewhere else. A panel with a request on it stays, since
     /// closing it would leave the hook held with no card to answer it on, and Always open stays as it always does.
+    /// The line under the panel's header that says where a dropped file went (FileDrop.Notice), for its duration
+    /// and no longer: a later drop's line replaces it, and only the latest one's timer clears it.
+    private func showDropNotice(_ notice: FileDrop.Notice) {
+        store.dropNotice = notice
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(FileDrop.Notice.duration))
+            guard let self, self.store.dropNotice?.at == notice.at else { return }
+            self.store.dropNotice = nil
+        }
+    }
+
     private func handedOff() {
         guard store.sessions.pending(now: Date()).isEmpty else { return }
         dismissOpenPanels(cause: .handOff)

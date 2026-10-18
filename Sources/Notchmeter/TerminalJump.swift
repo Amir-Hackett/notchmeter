@@ -501,3 +501,65 @@ enum TerminalJump {
         }
     }
 }
+
+// MARK: - A dropped file, typed into the session (FileDrop)
+
+extension TerminalJump.Executor {
+    /// Hands dropped files to `session`: the text is typed into its prompt where the terminal can take text
+    /// (FileDrop.resolve), else put on the clipboard; then the jump the row's click makes, so the terminal is in
+    /// front either way. `completion` says which it was, on the main thread. Nothing for a session on another Mac
+    /// or one whose hook named no terminal: the caller never offers those (FileDrop.target), and a row for one
+    /// cannot be dropped on.
+    func drop(_ urls: [URL], onto session: AgentSession, completion: @escaping @MainActor (FileDrop.Notice.Kind) -> Void) {
+        let text = FileDrop.text(for: urls, tool: session.tool)
+        guard !text.isEmpty, session.host == nil, let terminal = session.terminal else {
+            Oracle.shared.emit("drop", ["session": session.id, "delivery": "none", "files": urls.count])
+            completion(.nothing)
+            return
+        }
+        let delivery = FileDrop.resolve(terminal, text: text)
+        let jump = TerminalJump.resolve(terminal)
+        Oracle.shared.emit("drop", ["session": session.id, "delivery": delivery.name, "jump": jump.name, "files": urls.count])
+        let id = session.id
+        queue.async {
+            let typed = Self.send(delivery)
+            let landed = Self.run(jump)
+            Oracle.shared.emit("drop", ["session": id, "delivery": delivery.name, "typed": typed, "jump": jump.name, "ok": landed])
+            DispatchQueue.main.async {
+                if !typed {
+                    // The clipboard is written only when the text did not reach the prompt: a drop that landed
+                    // must not cost the reader whatever they had copied.
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(FileDrop.clipboardText(text), forType: .string)
+                }
+                NSApp.deactivate()
+                completion(typed ? .typed : .copied)
+            }
+        }
+    }
+
+    /// Runs off the main thread; returns whether the text reached the prompt. `.pasteboard` never does: the
+    /// caller writes the clipboard for it.
+    nonisolated static func send(_ delivery: FileDrop.Delivery) -> Bool {
+        switch delivery {
+        case .tmux(let socket, let pane, let text):
+            guard let tmux = locate("tmux") else { return false }
+            return runCommand(tmux, ["-S", socket, "send-keys", "-t", pane, "-l", "--", text])
+        case .appleScript(let bundleID, let source):
+            guard running(bundleID) != nil else { return false }
+            var error: NSDictionary?
+            NSAppleScript(source: source)?.executeAndReturnError(&error)
+            if let error {
+                log.info("drop script for \(bundleID, privacy: .public) failed: \(error[NSAppleScript.errorNumber] as? Int ?? 0, privacy: .public)")
+                return false
+            }
+            return true
+        case .command(let executable, let arguments):
+            guard let path = locate(executable) else { return false }
+            return runCommand(path, arguments)
+        case .pasteboard:
+            return false
+        }
+    }
+}

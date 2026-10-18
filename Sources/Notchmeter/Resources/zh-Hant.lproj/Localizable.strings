@@ -895,6 +895,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "目前沒有工作階段";
 "How long since this session last did anything" = "此工作階段上次活動至今的時間";
+"How long since this turn finished" = "此輪結束至今的時長";
 "How long this turn has run" = "本輪已執行的時間";
 "The assistant running this session" = "執行此工作階段的助理";
 "Subagents" = "子代理";
@@ -1343,3 +1344,10 @@
 "Cursor is asking a question" = "Cursor 正在提問";
 "Cursor is waiting for your approval" = "Cursor 正在等待你的核准";
 "Brings Cursor forward, where the question is answered" = "將 Cursor 帶到最前面，在那裡回答問題";
+
+/* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
+"Drop a file on the notch to hand it to a session" = "將檔案拖放到瀏海上以交給某個工作階段";
+"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name." = "把檔案拖到圓環或打開的面板上，其路徑會被輸入到正在等你的工作階段（否則是最新的）的提示列中；拖到某一列上即可選擇工作階段。iTerm2、kitty、WezTerm 和 tmux 窗格直接接收文字；Terminal、Ghostty 和編輯器則隨跳轉一起把它放入剪貼簿，瀏海會提示。Claude Code 工作階段會在前面加上 @，以便檔案被讀入本輪。Notchmeter 不讀取檔案內容，也不傳送任何東西；助理會像對待你點名的任何檔案一樣處理它。";
+"Dropped into %@" = "已放入 %@";
+"Copied for %@ — paste it with ⌘V" = "已為 %@ 複製 – 用 ⌘V 貼上";
+"Nothing to drop that on: no session with a terminal" = "沒有可放置的目標：沒有帶終端機的工作階段";

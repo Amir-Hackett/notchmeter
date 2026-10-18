@@ -912,6 +912,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "Сейчас нет сессий";
 "How long since this session last did anything" = "Сколько времени эта сессия ничего не делает";
+"How long since this turn finished" = "Сколько времени прошло с завершения этого хода";
 "How long this turn has run" = "Сколько идёт этот ход";
 "The assistant running this session" = "Ассистент, который ведёт эту сессию";
 "Subagents" = "Субагенты";
@@ -1360,3 +1361,10 @@
 "Cursor is asking a question" = "Cursor задаёт вопрос";
 "Cursor is waiting for your approval" = "Cursor ждёт вашего подтверждения";
 "Brings Cursor forward, where the question is answered" = "Выводит Cursor на передний план, где и даётся ответ на вопрос";
+
+/* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
+"Drop a file on the notch to hand it to a session" = "Перетащите файл на вырез, чтобы передать его сессии";
+"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name." = "Перетащите файл на кольца или открытую панель — его путь будет введён в строку сессии, которая ждёт вас, иначе самой новой; бросьте его на строку, чтобы выбрать сессию. iTerm2, kitty, WezTerm и панель tmux принимают текст напрямую; Terminal, Ghostty и редактор получают его в буфер обмена вместе с переходом, и вырез сообщает об этом. Сессия Claude Code получает @ в начале, чтобы файл был прочитан в ход. Notchmeter ничего не читает из файла и ничего не отправляет; ассистент обращается с ним как с любым файлом, который вы назвали.";
+"Dropped into %@" = "Передано в %@";
+"Copied for %@ — paste it with ⌘V" = "Скопировано для %@ — вставьте через ⌘V";
+"Nothing to drop that on: no session with a terminal" = "Некуда бросить: нет сессии с терминалом";

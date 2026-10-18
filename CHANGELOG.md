@@ -2,6 +2,13 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.24](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.24) — unreleased
+
+### Sessions
+
+- **Drop a file on the notch and it lands in a session's prompt.** Drag a screenshot, a log or a PDF onto the rings and the panel opens; let go and the file's path is typed into the prompt of the session that is waiting on you, or else the newest one with a terminal, with `@` in front for Claude Code so the file is read into the turn. Drop it on a row to pick the session. A tmux pane, iTerm2, kitty and WezTerm take the text directly, on the Automation grant the jump already holds; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the panel says *paste it with ⌘V*. Off with *Drop a file on the notch to hand it to a session* under Settings › Assistants › Sessions. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name in its prompt ([docs/features.md](docs/features.md#drop-a-file-on-the-notch)).
+- **A finished row's clock counts from the finish.** Cursor goes on sending in-turn events after a chat's stop (a background terminal's, among others), and each one moved the row's clock, so a *Done* row read *0s* for as long as they came and changed place on every one. The row now clocks the finish itself for the ninety seconds of the tick, and its quiet since it last did anything once it is idle.
+
 ## [0.9.23](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.23) — 2026-10-09
 
 ### Sessions
