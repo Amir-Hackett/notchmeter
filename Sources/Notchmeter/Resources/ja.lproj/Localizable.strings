@@ -1343,3 +1343,10 @@
 "Cursor is asking a question" = "Cursor が質問しています";
 "Cursor is waiting for your approval" = "Cursor が承認を待っています";
 "Brings Cursor forward, where the question is answered" = "Cursor を前面に出します。質問にはそこで回答します";
+
+/* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
+"Drop a file on the notch to hand it to a session" = "ノッチにファイルをドロップしてセッションに渡す";
+"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Nothing leaves this Mac." = "リングまたは開いたパネルにファイルをドラッグすると、そのパスが、あなたを待っているセッション（なければ最新のセッション）のプロンプトに入力されます。行にドロップするとセッションを選べます。iTerm2、kitty、WezTerm、tmux のペインはテキストを直接受け取ります。Terminal、Ghostty、エディタはジャンプと一緒にクリップボードで受け取り、ノッチがそのことを示します。Claude Code のセッションには先頭に @ が付き、ファイルがターンに読み込まれます。この Mac の外には何も送られません。";
+"Dropped into %@" = "%@ にドロップしました";
+"Copied for %@ — paste it with ⌘V" = "%@ 用にコピーしました – ⌘V で貼り付け";
+"Nothing to drop that on: no session with a terminal" = "ドロップ先がありません：ターミナルのあるセッションがありません";

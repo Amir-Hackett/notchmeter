@@ -181,6 +181,21 @@ extension String {
 /// not be read at a glance, which is the only way the panel is read.
 /// The levels are the panel's inks (`Ink`), which on the black panel are SwiftUI's own and on every other look the
 /// measured ones: SwiftUI's secondary is 3.1:1 on a light sheet.
+/// Where the last dropped file went (FileDrop.Notice): one caption line under the panel's header, read aloud when
+/// it appears, gone after FileDrop.Notice.duration.
+struct DropNoticeLine: View {
+    let notice: FileDrop.Notice
+
+    var body: some View {
+        Text(notice.text)
+            .modifier(Caption())
+            .lineLimit(2)
+            .padding(.bottom, 6)
+            .accessibilityAddTraits(.updatesFrequently)
+            .transition(.opacity)
+    }
+}
+
 struct Caption: ViewModifier {
     @MainActor
     static var style: AnyShapeStyle {
@@ -985,6 +1000,11 @@ struct NotchCompactView: View {
     /// The room the news may take either side of the notch: what DynamicNotchKit's window leaves on this screen
     /// (NotchPeek.windowRoom), or a 14-inch display's where there is no screen to ask.
     var peekRoom: NotchPeek.Room = NotchPeek.builtIn
+    /// A file dragged over this half opens the panel; one dropped here goes to the session FileDrop.target picks
+    /// (NotchController.dragEntered / dropped). Nil on the probes and the renders, which take no drops.
+    var dragEntered: (() -> Void)? = nil
+    var dropFiles: (([URL]) -> Void)? = nil
+    @State private var dropTargeted = false
 
     /// The news this side names, and how: nil when there is no peek, when it is switched off, when this view was
     /// handed a run to measure (CompactStripProbe asks for readouts, never for a peek), or when the layout gives
@@ -1042,6 +1062,12 @@ struct NotchCompactView: View {
         // grey rather than the light scheme's dark grey on black. The edge pill does not pass through here and
         // keeps following Appearance (EdgePanelRoot).
         .environment(\.colorScheme, .dark)
+        .onDrop(of: [.fileURL], isTargeted: dropFiles == nil ? nil : $dropTargeted) { providers in
+            guard let dropFiles else { return false }
+            FileDrop.urls(from: providers) { urls in if !urls.isEmpty { dropFiles(urls) } }
+            return true
+        }
+        .onChange(of: dropTargeted) { _, targeted in if targeted { dragEntered?() } }
     }
 
     /// What this side draws in place of a peek: the readouts, the assistants' symbols or nothing, as the closed
@@ -1260,6 +1286,13 @@ struct NotchExpandedView: View {
         .modifier(PanelInkEnvironment(look: look))
         .environment(\.density, prefs.density)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        // A file dropped anywhere on the panel that is not a session's row (SessionRow takes its own) goes to the
+        // session FileDrop.target picks. Off with the setting; the probes and the renders are never dropped on.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard prefs.fileDrop, entrance else { return false }
+            FileDrop.urls(from: providers) { urls in if !urls.isEmpty { actions.dropFiles(urls, nil) } }
+            return true
+        }
     }
 
     /// The look this panel is drawn in, for its layout.
@@ -1382,6 +1415,9 @@ struct NotchExpandedView: View {
                 // that takes (PanelLeaving keeps this true after the collapse has cleared the store's own).
                 EmptyView()
             } else {
+                if let notice = store.dropNotice {
+                    DropNoticeLine(notice: notice)
+                }
                 let parts = self.parts
                 ForEach(Array(parts.enumerated()), id: \.element) { index, part in
                     VStack(alignment: .leading, spacing: 0) {

@@ -82,6 +82,8 @@ on by default) brings that session's terminal tab or pane forward. For iTerm2, T
 Apple event each, and macOS gates Apple events per target app ([docs/hooks.md](hooks.md#jumping-to-the-terminal)
 has the full ladder).
 
+Since 0.9.24 a file dropped on the notch uses the same grant and asks for nothing more: for iTerm2 it is one `write text` event to the session the jump would select, with no newline, so nothing runs; Terminal and Ghostty are not driven at all for a drop, which is why those get the clipboard instead ([docs/features.md](features.md#drop-a-file-on-the-notch)).
+
 - **What it sends.** One instruction to the terminal named by the session's own hook: select the tab or session
   whose id or tty matches, and come to the front. It reads nothing back but whether the script ran; the tab is
   matched by the `unique id` or `tty` the hook already knew, never by a title. The code is

@@ -1360,3 +1360,10 @@
 "Cursor is asking a question" = "Cursor is asking a question";
 "Cursor is waiting for your approval" = "Cursor is waiting for your approval";
 "Brings Cursor forward, where the question is answered" = "Brings Cursor forward, where the question is answered";
+
+/* A file dropped on the notch is typed into a session's prompt (FileDrop, SettingsWindow, DropNoticeLine) */
+"Drop a file on the notch to hand it to a session" = "Drop a file on the notch to hand it to a session";
+"Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Nothing leaves this Mac." = "Drag a file onto the rings or the open panel and its path is typed into the prompt of the session that is waiting on you, or else the newest one; drop it on a row to choose the session. iTerm2, kitty, WezTerm and a tmux pane take the text directly; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the notch says so. A Claude Code session gets an @ in front, so the file is read into the turn. Nothing leaves this Mac.";
+"Dropped into %@" = "Dropped into %@";
+"Copied for %@ — paste it with ⌘V" = "Copied for %@ — paste it with ⌘V";
+"Nothing to drop that on: no session with a terminal" = "Nothing to drop that on: no session with a terminal";

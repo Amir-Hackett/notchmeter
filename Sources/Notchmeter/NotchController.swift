@@ -45,6 +45,9 @@ final class NotchActions {
     /// A click on a session row: jump to the terminal the session's hook reported (TerminalJump.swift). Wired by
     /// the app delegate, which owns the executor; the view never activates another app itself.
     var jump: (AgentSession) -> Void = { _ in }
+    /// Files dropped on the notch, the panel or a session's row (FileDrop, 0.9.24): typed into the prompt of the
+    /// given session, or of the one FileDrop.target picks when the drop named none.
+    var dropFiles: ([URL], AgentSession?) -> Void = { _, _ in }
     /// *Answer in Cursor* on a card that is answered there (a question Cursor asks): brings the chat's window
     /// forward, or Cursor itself when the hook named no folder to find it by. A button of its own, so it is not
     /// under *Jump to the terminal on click*, which is about a click on the row.
@@ -394,6 +397,12 @@ extension NotchVisibility {
 /// Top layout on a screen with a notch: compact rings beside it, the full panel below it on hover. A notchless
 /// screen gets an EdgePanelController pill under the menu bar instead (AppDelegate.buildPresenters).
 @MainActor
+/// The compact views' way back to their controller for a drag or a drop (FileDrop): built before the controller
+/// is, pointed at it after `super.init`.
+final class DropHook {
+    weak var controller: NotchController?
+}
+
 final class NotchController: NSObject, PanelPresenting {
     let edge: PanelEdge = .top
     let screenKey: String
@@ -404,6 +413,7 @@ final class NotchController: NSObject, PanelPresenting {
     private let actions: NotchActions
     private let menu: OptionsMenu
     private let notch: DynamicNotch<NotchExpandedView, NotchCompactView, NotchCompactView>
+    private let dropHook: DropHook
     private let leadingProbe: NSHostingView<NotchCompactView>
     private let trailingProbe: NSHostingView<NotchCompactView>
     private let expandedProbe: NSHostingView<NotchExpandedView>
@@ -455,18 +465,25 @@ final class NotchController: NSObject, PanelPresenting {
         let targets = ringTargets
         let leaving = leaving
         let room = NotchPeek.windowRoom(screen: screen.frame, notch: Self.notchRect(on: screen))
+        // The compact halves are built after init; this reaches the controller from them without capturing
+        // `self` before `super.init`.
+        let drops = DropHook()
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
             NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true, leaving: leaving)
         } compactLeading: {
-            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
+            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room,
+                             dragEntered: { drops.controller?.dragEntered() }, dropFiles: { drops.controller?.dropped($0) })
         } compactTrailing: {
-            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
+            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room,
+                             dragEntered: { drops.controller?.dragEntered() }, dropFiles: { drops.controller?.dropped($0) })
         }
+        dropHook = drops
         leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading, peekRoom: room))
         trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing, peekRoom: room))
         expandedProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
         hover = HoverDriver(mode: prefs.visibility.hoverMode, dwell: prefs.hoverDelay)
         super.init()
+        dropHook.controller = self
         applyWindowBehaviour()
         configureTransition(closing: false)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
@@ -655,6 +672,23 @@ final class NotchController: NSObject, PanelPresenting {
     func glance(for duration: TimeInterval) {
         hover.glance(for: AccessibilityDisplay.shared.motionReduced ? duration + 2 : duration)
     }
+
+    /// A file dragged over the rings (FileDrop): the panel opens for long enough to drop on a session's row, and
+    /// the pointer, which is holding the file, keeps it open as a hover would. Off with the setting.
+    func dragEntered() {
+        guard prefs.fileDrop, hover.state != .expanded else { return }
+        glance(for: Self.dragGlance)
+    }
+
+    /// A file dropped on the rings: FileDrop.target picks the session; the panel stays for the line that says
+    /// where it went.
+    func dropped(_ urls: [URL]) {
+        guard prefs.fileDrop else { return }
+        actions.dropFiles(urls, nil)
+        glance(for: FileDrop.Notice.duration)
+    }
+
+    static let dragGlance: TimeInterval = 12
 
     func hide() async {
         hover.stop()
