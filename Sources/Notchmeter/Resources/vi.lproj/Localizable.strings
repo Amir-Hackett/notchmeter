@@ -895,6 +895,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "Hiện không có phiên nào";
 "How long since this session last did anything" = "Đã bao lâu phiên này không làm gì";
+"How long since this turn finished" = "Đã bao lâu kể từ khi lượt này kết thúc";
 "How long this turn has run" = "Lượt này đã chạy bao lâu";
 "The assistant running this session" = "Trợ lý đang chạy phiên này";
 "Subagents" = "Tác tử con";

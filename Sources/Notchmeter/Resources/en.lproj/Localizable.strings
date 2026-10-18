@@ -912,6 +912,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "No sessions right now";
 "How long since this session last did anything" = "How long since this session last did anything";
+"How long since this turn finished" = "How long since this turn finished";
 "How long this turn has run" = "How long this turn has run";
 "The assistant running this session" = "The assistant running this session";
 "Subagents" = "Subagents";

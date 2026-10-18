@@ -136,6 +136,23 @@ import Testing
         return session
     }
 
+    /// Cursor keeps sending in-turn events after a chat's stop (a background terminal's, among others), and each
+    /// moved `lastEvent`, so a Done row read "0s" for as long as they came. The row clocks the finish itself.
+    @Test func aFinishedRowClocksItsFinishWhateverWasHeardSince() {
+        let finishedAt = t0.addingTimeInterval(120)
+        let heardSince = t0.addingTimeInterval(129)
+        let now = t0.addingTimeInterval(130)
+        let finished = make("f", tool: .cursor, finished: ToolSignal.Finish(turn: 60, at: finishedAt), lastEvent: heardSince)
+        let (rows, _) = SessionsCard.rows([finished], hideTitles: false, jump: false, now: now)
+        #expect(rows.map(\.status) == [.finished])
+        #expect(rows[0].since == finishedAt, "the clock counts from the finish, not from whatever Cursor sent after it")
+        // Once the tick's hold is over the row is idle, and an idle row's clock is its quiet since it last did anything.
+        let later = finishedAt.addingTimeInterval(SessionTracker.finishedHold + 1)
+        let idle = SessionsCard.rows([finished], hideTitles: false, jump: false, now: later).0
+        #expect(idle.map(\.status) == [.idle])
+        #expect(idle[0].since == heardSince)
+    }
+
     /// The branch has its own line under the title since the rows grew, so the fallback title is the project alone.
     @Test func theTitleIsThePromptThenThePlaceThenTheAssistant() {
         #expect(SessionsCard.title(of: make("a", title: "Fix the tests"), hideTitles: false) == "Fix the tests")

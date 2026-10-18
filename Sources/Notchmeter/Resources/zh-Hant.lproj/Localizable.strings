@@ -895,6 +895,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "目前沒有工作階段";
 "How long since this session last did anything" = "此工作階段上次活動至今的時間";
+"How long since this turn finished" = "此輪結束至今的時長";
 "How long this turn has run" = "本輪已執行的時間";
 "The assistant running this session" = "執行此工作階段的助理";
 "Subagents" = "子代理";

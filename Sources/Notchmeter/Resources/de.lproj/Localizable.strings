@@ -913,6 +913,7 @@
 /* The Sessions card: grouped rows, context gauge, subagents and the task list */
 "No sessions right now" = "Gerade keine Sitzungen";
 "How long since this session last did anything" = "Wie lange diese Sitzung schon nichts mehr getan hat";
+"How long since this turn finished" = "Wie lange dieser Durchlauf schon beendet ist";
 "How long this turn has run" = "Wie lange dieser Durchgang schon läuft";
 "The assistant running this session" = "Der Assistent, der diese Sitzung ausführt";
 "Subagents" = "Subagenten";

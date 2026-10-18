@@ -180,8 +180,15 @@ struct SessionsCard: View {
         // row knows its model, and a line of chips all naming the same one tells the rows apart by nothing while
         // wrapping the extras sooner on the narrow panel.
         let modelsDiffer = Set(sessions.compactMap(\.model)).count > 1
+        // A just-finished row clocks its finish, not the last event heard: Cursor goes on sending in-turn events
+        // after a chat's stop (a background terminal's, among others), and each one moved `lastEvent`, so a Done
+        // row read "0s" for as long as they came and changed place on every one.
         func since(_ session: AgentSession, _ status: Row.Status) -> Date {
-            status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started
+            switch status {
+            case .finished: session.finish(now: now)?.at ?? session.lastEvent
+            case .idle: session.lastEvent
+            case .working, .waiting: session.turnStarted ?? session.started
+            }
         }
         let ordered = sessions.enumerated().sorted { a, b in
             let (sa, sb) = (status(a.element), status(b.element))
@@ -738,7 +745,7 @@ private struct SessionRow: View {
             Text(clock)
                 .font(.caption).foregroundStyle(Caption.style).monospacedDigit()
                 .padding(.top, 1)
-                .help(row.status == .idle || row.status == .finished ? L("How long since this session last did anything") : L("How long this turn has run"))
+                .help(row.status == .finished ? L("How long since this turn finished") : row.status == .idle ? L("How long since this session last did anything") : L("How long this turn has run"))
                 .accessibilityHidden(true)
         }
     }
