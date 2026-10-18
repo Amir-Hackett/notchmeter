@@ -193,6 +193,10 @@ struct DropNoticeLine: View {
             .padding(.bottom, 6)
             .accessibilityAddTraits(.updatesFrequently)
             .transition(.opacity)
+            // The trait alone announces nothing; VoiceOver has to be told, and *Copied … paste it with ⌘V* asks
+            // for a hand.
+            .onAppear { AccessibilityNotification.Announcement(notice.text).post() }
+            .onChange(of: notice) { _, new in AccessibilityNotification.Announcement(new.text).post() }
     }
 }
 

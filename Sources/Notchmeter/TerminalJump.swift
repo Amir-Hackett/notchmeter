@@ -531,7 +531,7 @@ extension TerminalJump.Executor {
                     // must not cost the reader whatever they had copied.
                     let pasteboard = NSPasteboard.general
                     pasteboard.clearContents()
-                    pasteboard.setString(text.trimmingCharacters(in: .whitespaces), forType: .string)
+                    pasteboard.setString(FileDrop.clipboardText(text), forType: .string)
                 }
                 NSApp.deactivate()
                 completion(typed ? .typed : .copied)

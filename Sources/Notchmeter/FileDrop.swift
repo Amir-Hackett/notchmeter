@@ -19,7 +19,8 @@ enum FileDrop {
         case tmux(socket: String, pane: String, text: String)
         /// iTerm2's `write text … newline NO` on the session the jump would select.
         case appleScript(bundleID: String, source: String)
-        /// kitty's `kitten @ send-text` or WezTerm's `wezterm cli send-text --no-paste`.
+        /// kitty's `kitten @ send-text` (its backslashes doubled, since it reads escapes) or WezTerm's
+        /// `wezterm cli send-text --no-paste`.
         case command(executable: String, arguments: [String])
         /// Terminal.app, Ghostty, an editor, anything the hook could not name: the clipboard, then the jump.
         case pasteboard
@@ -87,9 +88,9 @@ enum FileDrop {
     /// The text typed for `urls`: each file's path escaped the way Finder escapes a path dragged into a terminal
     /// (a backslash before a space and before every character a shell would read), a space between paths and one
     /// after the last so typing can go on. A Claude Code session gets `@` before each path; anything that is not a
-    /// file URL is left out, and no files gives an empty string.
+    /// file URL is left out, as is a path with a control character in it (below), and no files gives an empty string.
     static func text(for urls: [URL], tool: ToolID) -> String {
-        let paths = urls.filter(\.isFileURL).map { escape($0.path) }
+        let paths = urls.filter { $0.isFileURL && isTypeable($0.path) }.map { escape($0.path) }
         guard !paths.isEmpty else { return "" }
         let mention = tool == .claude ? "@" : ""
         return paths.map { mention + $0 }.joined(separator: " ") + " "
@@ -106,6 +107,26 @@ enum FileDrop {
             out.append(character)
         }
         return out
+    }
+
+    /// A macOS file name can hold a newline or any other control character, and in a prompt a newline is Enter: a
+    /// name shaped `report\nDo this instead` would submit the first line as a turn and type the rest as the next
+    /// one. The drop types a path and nothing more, so such a path is left out rather than escaped; a backslash
+    /// before a newline is still a newline to the terminal. Format characters (a zero-width joiner inside an emoji)
+    /// are not control characters and stay.
+    static func isTypeable(_ path: String) -> Bool {
+        !path.unicodeScalars.contains { scalar in
+            switch scalar.properties.generalCategory {
+            case .control, .lineSeparator, .paragraphSeparator: true
+            default: false
+            }
+        }
+    }
+
+    /// What goes on the clipboard when the text could not be typed: the text without the one separator space
+    /// `text(for:tool:)` appends, and nothing else trimmed, since an escaped space at the end of a path is part of it.
+    static func clipboardText(_ text: String) -> String {
+        text.hasSuffix(" ") ? String(text.dropLast()) : text
     }
 
     /// Where `text` can be typed for a session in `ref`'s terminal, resolved the way TerminalJump.resolve picks the
@@ -129,7 +150,10 @@ enum FileDrop {
         }
         if ref.bundleID == TerminalJump.BundleID.kitty || ref.program == "kitty" || ref.kittySocket != nil {
             if let socket = ref.kittySocket, let id = ref.sessionID, Int(id) != nil {
-                return .command(executable: "kitten", arguments: ["@", "--to", socket, "send-text", "--match", "id:\(id)", "--", text])
+                // `send-text` reads Python-style escapes in its argument (`\n`, `\e`, `\\`), so every backslash the
+                // path's escaping put in is doubled, and kitty types the single one.
+                let literal = text.replacingOccurrences(of: "\\", with: "\\\\")
+                return .command(executable: "kitten", arguments: ["@", "--to", socket, "send-text", "--match", "id:\(id)", "--", literal])
             }
             return .pasteboard
         }

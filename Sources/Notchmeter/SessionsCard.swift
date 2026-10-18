@@ -696,15 +696,17 @@ private struct SessionRow: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: L("Remove from the list")) { if removable { remove() } }
-        // A file dropped on the row goes to this session (FileDrop); the row lights while one is held over it. Only
-        // a row that can jump has a terminal to type into, so only that row is a target.
+        // A file dropped on the row goes to this session (FileDrop); the row lights while one is held over it. The
+        // target is any session on this Mac whose hook named a terminal, the same test FileDrop.target applies, and
+        // not `canJump`, which also follows the click setting: a drop is its own setting and has to land with the
+        // click's jump turned off.
         .overlay {
             if dropTargeted {
                 RoundedRectangle(cornerRadius: 8).strokeBorder(Ink.primary.opacity(0.5), lineWidth: 1.5).padding(-4).allowsHitTesting(false)
             }
         }
-        .onDrop(of: [.fileURL], isTargeted: row.canJump && session != nil ? $dropTargeted : nil) { providers in
-            guard row.canJump, let session else { return false }
+        .onDrop(of: [.fileURL], isTargeted: session.map { $0.host == nil && $0.terminal != nil } == true ? $dropTargeted : nil) { providers in
+            guard let session, session.host == nil, session.terminal != nil else { return false }
             FileDrop.urls(from: providers) { urls in if !urls.isEmpty { drop(urls, session) } }
             return true
         }
