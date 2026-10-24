@@ -18,6 +18,10 @@ struct CursorCardView: View {
     var pressing = false
     /// Brings Cursor forward for a card answered there.
     var answerInCursor: () -> Void = {}
+    /// The chat the card belongs to, set where more than one chat has a card up, and spoken with the card's title:
+    /// the row above names it on screen, but VoiceOver reaching the choices of two questions with the same choices
+    /// cannot tell one card from the other (2026-10-24). Not drawn, since it repeated the row's name a line below it.
+    var chat: String? = nil
 
     static let primary: Set<String> = ["run", "switch", "build"]
     /// The choices of a question a row shows where they are only shown; one with more ends in a mark that there
@@ -126,7 +130,7 @@ struct CursorCardView: View {
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Themed.wash(Palette.calm, 0.12)))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(title)
+        .accessibilityLabel(chat.map { Spoken.line(title, $0) } ?? title)
     }
 
     /// Continue is filled once every question has a choice picked, when it can send; the others as Cursor fills them.

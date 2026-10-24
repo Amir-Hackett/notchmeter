@@ -609,6 +609,19 @@ import Testing
         #expect(early.nextRelease(now: due.addingTimeInterval(0.001)) == nil, "which is the turn nothing then retired")
     }
 
+    /// With Cursor's own cards read from its window, a wait is the card itself, so a quiet turn is not guessed at.
+    @Test func aQuietTurnIsNotGuessedAtWhileCursorsCardsAreWatched() {
+        var tracker = SessionTracker()
+        tracker.cursorCardsWatched = true
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(5))
+        let late = t0.addingTimeInterval(5 + SessionTracker.quietSpellCap + 1)
+        #expect(tracker.quietNudges(now: late).isEmpty)
+        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) == nil)
+        // A card on screen still makes the wait, as it always has.
+        #expect(tracker.cursorCardShown("cursor:c1", now: late) != nil)
+    }
+
     @Test func aQuietTurnWithNothingRunningIsNudgedOnce() throws {
         var tracker = SessionTracker()
         tracker.apply(cursor("UserPromptSubmit"), now: t0)

@@ -436,6 +436,8 @@ struct SessionsCard: View {
                                        planPreview: store.hidesFigures || !prefs.sessionTitles ? nil
                                            : store.planPreviews[row.id].flatMap { $0.file == row.plan?.file ? $0.preview : nil },
                                        cursorCards: store.cursorCards[row.id] ?? [],
+                                       cursorCardChat: store.cursorCards.values.filter { !$0.isEmpty }.count > 1
+                                           ? Self.chatName(sessions.all.first { $0.id == row.id }, titles: prefs.sessionTitles && !store.hidesFigures) : nil,
                                        cursorPress: { card, option in store.pressCursorCard(card, option: option, sessionID: row.id) },
                                        cursorPick: { card, question, choice in
                                            store.pickCursorChoice(card, question: question, choice: choice, sessionID: row.id)
@@ -519,6 +521,11 @@ extension SessionsCard {
     /// The key a row's open list is held under (UsageStore.openSessionLists).
     static func listKey(_ session: String, _ list: Disclosure) -> String { "\(session)/\(list.rawValue)" }
 
+    /// A chat's name on its Cursor cards: its title where titles may be shown, else its project.
+    static func chatName(_ session: AgentSession?, titles: Bool) -> String? {
+        (titles ? session?.displayTitle : nil) ?? session?.displayName
+    }
+
     /// Opens or closes one row's list, animated unless motion is reduced, and tells the oracle.
     private func toggle(_ session: String, _ list: Disclosure) {
         let key = Self.listKey(session, list)
@@ -585,6 +592,8 @@ private struct SessionRow: View {
     /// the last press or plan action came to. `hideDetails` drops the card's words, never its buttons, but for a
     /// question's, which go with the choices they send.
     var cursorCards: [CursorCard] = []
+    /// The chat's name on its cards, where another chat has a card up too (CursorCardView.chat).
+    var cursorCardChat: String? = nil
     var cursorPress: (CursorCard, String) -> Void = { _, _ in }
     /// Picks a choice of a question card: the card, the question's place and the choice's.
     var cursorPick: (CursorCard, Int, Int) -> Void = { _, _, _ in }
@@ -641,7 +650,8 @@ private struct SessionRow: View {
                 CursorCardView(card: card, hideDetails: hideDetails, press: { cursorPress(card, $0) },
                                pick: { cursorPick(card, $0, $1) },
                                pressing: cursorPressing.contains(card.id),
-                               answerInCursor: { if let session { answerInCursor(session) } })
+                               answerInCursor: { if let session { answerInCursor(session) } },
+                               chat: cursorCardChat)
                     .padding(.leading, SessionRow.textInset)
             }
             if let note = cursorNote {

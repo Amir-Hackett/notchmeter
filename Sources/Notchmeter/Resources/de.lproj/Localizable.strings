@@ -533,6 +533,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Ein weiterer Endpunkt mit demselben Token: Jede Organisation, zu der du gehörst und die antwortet (Inhaber und Abrechnungsverantwortliche), fügt standardmäßig ausgeblendete Fenster für Org-Credits und Org-Ausgaben des Monats hinzu.";
 "Only turns longer than" = "Nur Durchgänge länger als";
 "Call a quiet Cursor turn a possible wait after" = "Stille Cursor-Durchgänge als mögliches Warten melden nach";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "Cursors Wartezustände werden aus seinen eigenen Karten gelesen, daher wird bei einem stillen Cursor-Durchlauf nicht geraten";
 "Don't nudge me for %@" = "Keine Stupser für %@";
 "Nudge me again for %@" = "Wieder Stupser für %@";
 "No nudges for %@" = "Keine Stupser für %@";

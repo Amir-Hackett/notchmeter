@@ -532,6 +532,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Ещё один эндпоинт с тем же токеном: каждая организация, в которой вы состоите и которая отвечает (владельцы и менеджеры по оплате), добавляет скрытые по умолчанию окна «Кредиты орг.» и «Расходы орг.» за месяц.";
 "Only turns longer than" = "Только ходы длиннее";
 "Call a quiet Cursor turn a possible wait after" = "Считать тихий ход Cursor возможным ожиданием через";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "Ожидания Cursor читаются с его собственных карточек, поэтому о тихом ходе Cursor больше не гадаем";
 "Don't nudge me for %@" = "Не напоминать для %@";
 "Nudge me again for %@" = "Снова напоминать для %@";
 "No nudges for %@" = "Без напоминаний для %@";

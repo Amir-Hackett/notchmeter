@@ -515,6 +515,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "同一權杖上再多一個介面：你所屬的每個有回應的組織（擁有者和帳單管理員）會新增本月預設隱藏的「組織額度」和「組織支出」視窗。";
 "Only turns longer than" = "僅限時長超過";
 "Call a quiet Cursor turn a possible wait after" = "將安靜的 Cursor 回合視為可能在等待，時長";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "Cursor 的等待直接從它自己的卡片讀取，因此不再猜測安靜的 Cursor 回合";
 "Don't nudge me for %@" = "不再為 %@ 提醒我";
 "Nudge me again for %@" = "重新為 %@ 提醒我";
 "No nudges for %@" = "%@ 不提醒";

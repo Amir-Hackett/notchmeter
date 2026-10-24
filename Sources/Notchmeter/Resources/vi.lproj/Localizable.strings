@@ -515,6 +515,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Thêm một điểm cuối trên cùng token: mỗi tổ chức bạn thuộc về có trả lời (chủ sở hữu và quản lý thanh toán) thêm cửa sổ Tín dụng tổ chức và Chi tiêu tổ chức ẩn mặc định cho tháng.";
 "Only turns longer than" = "Chỉ các lượt dài hơn";
 "Call a quiet Cursor turn a possible wait after" = "Coi lượt Cursor im lặng là có thể đang chờ sau";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "Các lần chờ của Cursor được đọc từ chính thẻ của nó, nên không còn đoán khi một lượt Cursor im lặng";
 "Don't nudge me for %@" = "Không nhắc tôi cho %@";
 "Nudge me again for %@" = "Nhắc lại tôi cho %@";
 "No nudges for %@" = "Không nhắc cho %@";

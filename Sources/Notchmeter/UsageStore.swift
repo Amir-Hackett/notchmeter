@@ -1672,9 +1672,14 @@ final class UsageStore {
         Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
     }
 
+    /// Whether Cursor's waits are seen as its own cards, which makes the quiet-turn guess unnecessary
+    /// (SessionTracker.cursorCardsWatched).
+    private var cursorCardsWatched: Bool { prefs.cursorControl && cursorUI.trusted }
+
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
         expired.quietAfter = TimeInterval(prefs.quietNudgeSeconds)
+        expired.cursorCardsWatched = cursorCardsWatched
         let stuckBefore = sessions.stuck(now: now)
         let compactingBefore = sessions.compacting()
         let stopped = expired.expire(now: now)
@@ -1958,6 +1963,7 @@ final class UsageStore {
         signalRelease?.cancel()
         let quietAfter = TimeInterval(prefs.quietNudgeSeconds)
         if sessions.quietAfter != quietAfter { sessions.quietAfter = quietAfter }
+        if sessions.cursorCardsWatched != cursorCardsWatched { sessions.cursorCardsWatched = cursorCardsWatched }
         guard let due = sessions.nextRelease(now: now) else { return }
         let interval = max(0.25, due.timeIntervalSince(now))
         signalRelease = Task { [weak self] in

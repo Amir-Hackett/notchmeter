@@ -1036,6 +1036,12 @@ struct SettingsView: View {
             }
             Toggle(L("Notify when an assistant waits for you"), isOn: Binding(get: { prefs.notifyWaiting }, set: { prefs.notifyWaiting = $0; if $0 { notifier.requestAuthorization() } }))
                 .help(L("Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below."))
+            // With Cursor's own cards read from its window, its waits are seen as they happen and a quiet turn is
+            // no longer guessed at (SessionTracker.cursorCardsWatched), so the guess's timing has nothing to set.
+            if prefs.cursorControl && accessibilityTrusted {
+                Text(L("Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at"))
+                    .foregroundStyle(.secondary)
+            } else {
             Stepper(value: Binding(get: { prefs.quietNudgeSeconds }, set: { prefs.quietNudgeSeconds = $0 }), in: Preferences.quietNudgeRange, step: 15) {
                 HStack {
                     Text(L("Call a quiet Cursor turn a possible wait after"))
@@ -1044,6 +1050,7 @@ struct SettingsView: View {
                 }
             }
             .help(L("Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone."))
+            }
             if !prefs.mutedNudgeProjects.isEmpty {
                 HStack(alignment: .firstTextBaseline) {
                     Text(L("No nudges for %@", prefs.mutedNudgeProjects.sorted().joined(separator: ", ")))
