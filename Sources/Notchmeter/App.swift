@@ -970,8 +970,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A panel that was opened for the request closes with it; one the pointer had opened stays.
         guard store.panelOpenedForPrompt else { return }
         // Unless another chat has one of Cursor's cards waiting: a card that came while the request held the panel
-        // did not open it (cursorCardsChanged), so the panel moves onto that card instead of closing over it.
-        if let next = waitingCursorCardSession(excluding: []), let presenter = pointerPresenter, presenter.hover.state == .expanded {
+        // did not open it (cursorCardsChanged), so the panel moves onto that card instead of closing over it. The
+        // panel that is open, not the one under the pointer: with a display apiece, the pointer may have left.
+        if let next = waitingCursorCardSession(excluding: []), let presenter = presenters.first(where: { $0.hover.state == .expanded }) {
             store.attentionNotice = Self.cursorCardNotice(next)
             store.panelOpenedForPrompt = false
             cursorCardPresenter = presenter

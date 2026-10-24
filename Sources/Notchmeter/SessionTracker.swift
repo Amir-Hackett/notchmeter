@@ -850,7 +850,8 @@ struct SessionTracker: Equatable, Sendable {
     /// Whether Cursor's own cards are being read from its window (*Mirror Cursor's cards* with the Accessibility
     /// permission; the store keeps it in step). Then a Cursor wait is seen as the card itself (cursorCardShown), as
     /// Claude Code's is heard from its hook, and a quiet turn is no longer guessed at: the guess only ever stood in
-    /// for a card nobody could see, and seen it was a reminder that a turn might be quiet (2026-10-24).
+    /// for a card nobody could see, and seen it was a reminder that a turn might be quiet (2026-10-24). Only for a
+    /// chat on this Mac: the mirror reads no window of a Cursor on another host, so a remote chat keeps the guess.
     var cursorCardsWatched = false
 
     /// The longest a learned quiet spell grows to: the top of the setting's range.
@@ -866,7 +867,7 @@ struct SessionTracker: Equatable, Sendable {
     /// When `session` becomes a possible wait, if it can: a working turn of an assistant that sends heartbeats and
     /// no waits of its own, with nothing running and not already nudged this turn.
     func quietDue(_ session: AgentSession) -> Date? {
-        guard session.tool == .cursor, !cursorCardsWatched, session.heartbeats, session.commandsInFlight == 0, !session.quietNudge,
+        guard session.tool == .cursor, !(cursorCardsWatched && session.host == nil), session.heartbeats, session.commandsInFlight == 0, !session.quietNudge,
               session.turnStarted != nil, case .working = session.state else { return nil }
         return session.lastEvent.addingTimeInterval(quietSpell(session))
     }
