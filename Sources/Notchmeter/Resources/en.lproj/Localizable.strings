@@ -276,6 +276,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
 "Show the main figure beside the rings" = "Show the main figure beside the rings";
 "Show the whole panel" = "Show the whole panel";
+"Show the whole panel (%ld more waiting)" = "Show the whole panel (%ld more waiting)";
 "Show what a session is working on" = "Show what a session is working on";
 "Skip" = "Skip";
 "Stay quiet while a terminal or editor is in front" = "Stay quiet while a terminal or editor is in front";
@@ -304,6 +305,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it.";
 "Not updated since %1$@. %2$@" = "Not updated since %1$@. %2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code's login was refused. Run Claude Code once to refresh it";
 "Claude reported no usage windows" = "Claude reported no usage windows";
 "Claude since %1$@: %2$@" = "Claude since %1$@: %2$@";
@@ -474,6 +476,7 @@
 "local transcripts" = "local transcripts";
 "low power mode" = "low power mode";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "macOS needs your permission to read Cursor's login. Choose Always Allow when it asks";
 "Main display (the one with the menu bar)" = "Main display (the one with the menu bar)";
 "Match system" = "Match system";
 "MCP server" = "MCP server";

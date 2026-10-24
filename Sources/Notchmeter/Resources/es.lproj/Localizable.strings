@@ -276,6 +276,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Ambos necesitan el hook del asistente y siguen las mismas reglas que los avisos de arriba: el ajuste del terminal en primer plano y las horas de silencio. Esto elige qué hace el panel; el interruptor de arriba elige qué hacen los anillos, y cualquiera de los dos puede estar desactivado sin el otro. Un vistazo abre una tarjeta solo para esa sesión, con un salto de vuelta a ella, y se vuelve a cerrar salvo que entre el puntero; con Reducir movimiento se abre sin animación y se queda un poco más. Un aviso de «esperando» se retira cuando respondes. En una compilación sin firmar ningún aviso puede atravesar Concentración o No molestar; los urgentes (se agota, te está esperando) sí lo hacen en la versión firmada.";
 "Show the main figure beside the rings" = "Mostrar la cifra principal junto a los anillos";
 "Show the whole panel" = "Mostrar el panel completo";
+"Show the whole panel (%ld more waiting)" = "Mostrar el panel completo (%ld más en espera)";
 "Show what a session is working on" = "Mostrar en qué trabaja una sesión";
 "Skip" = "Omitir";
 "Stay quiet while a terminal or editor is in front" = "Silencio mientras haya un terminal o editor en primer plano";
@@ -304,6 +305,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code solo renueva su sesión en esta cuenta del Mac cuando claude se ejecuta aquí. Ejecuta claude una vez para renovarla.";
 "Not updated since %1$@. %2$@" = "Sin actualizar desde %1$@. %2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "El inicio de sesión de Claude Code necesita tu autorización: haz clic en el anillo de Claude o en Actualizar para permitir la lectura del llavero";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "El inicio de sesión de Cursor necesita tu autorización: haz clic en el anillo de Cursor o en Actualizar para permitir la lectura del llavero";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Se ha rechazado el inicio de sesión de Claude Code. Ejecuta Claude Code una vez para renovarlo";
 "Claude reported no usage windows" = "Claude no ha indicado ninguna ventana de uso";
 "Claude since %1$@: %2$@" = "Claude desde %1$@: %2$@";
@@ -474,6 +476,7 @@
 "local transcripts" = "transcripciones locales";
 "low power mode" = "modo de bajo consumo";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS necesita tu permiso para leer el inicio de sesión de Claude Code. Elige Permitir siempre cuando lo pida";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "macOS necesita tu permiso para leer el inicio de sesión de Cursor. Elige Permitir siempre cuando lo pida";
 "Main display (the one with the menu bar)" = "Pantalla principal (la de la barra de menús)";
 "Match system" = "Según el sistema";
 "MCP server" = "Servidor MCP";

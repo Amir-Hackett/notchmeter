@@ -276,6 +276,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Для обоих нужен хук ассистента, и они подчиняются тем же правилам, что и уведомления выше: настройке активного терминала и тихим часам. Здесь выбирается, что делает панель; переключатель выше выбирает, что делают кольца, и каждый можно выключить независимо. «Мельком» открывает карточку только этой сессии с переходом к ней и снова сворачивается, если указатель не заходит на неё; при «Уменьшении движения» она открывается без анимации и держится чуть дольше. Уведомление «ждёт» убирается, когда вы отвечаете. В неподписанной сборке ни одно уведомление не может пробиться через Фокусирование или «Не беспокоить»; срочные (лимит заканчивается, ожидание вас) пробиваются в подписанном выпуске.";
 "Show the main figure beside the rings" = "Показывать главную цифру рядом с кольцами";
 "Show the whole panel" = "Показывать панель целиком";
+"Show the whole panel (%ld more waiting)" = "Показывать панель целиком (ещё ждут: %ld)";
 "Show what a session is working on" = "Показывать, над чем работает сессия";
 "Skip" = "Пропустить";
 "Stay quiet while a terminal or editor is in front" = "Не беспокоить, пока активен терминал или редактор";
@@ -304,6 +305,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code обновляет вход в этой учётной записи Mac, только когда здесь запускается claude. Запустите claude один раз, чтобы обновить его.";
 "Not updated since %1$@. %2$@" = "Не обновлялось с %1$@. %2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Для учётных данных Claude Code нужно ваше разрешение: щёлкните кольцо Claude или «Обновить», чтобы разрешить чтение Связки ключей";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "Для учётных данных Cursor нужно ваше разрешение: щёлкните кольцо Cursor или «Обновить», чтобы разрешить чтение Связки ключей";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Вход в Claude Code отклонён. Запустите Claude Code, чтобы обновить его";
 "Claude reported no usage windows" = "Claude не сообщил ни одного окна использования";
 "Claude since %1$@: %2$@" = "Claude (начало: %1$@): %2$@";
@@ -474,6 +476,7 @@
 "local transcripts" = "локальные транскрипты";
 "low power mode" = "режим энергосбережения";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS нужно ваше разрешение на чтение учётных данных Claude Code. Выберите «Разрешать всегда», когда появится запрос";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "macOS нужно ваше разрешение на чтение учётных данных Cursor. Выберите «Разрешать всегда», когда появится запрос";
 "Main display (the one with the menu bar)" = "Основной дисплей (со строкой меню)";
 "Match system" = "Как в системе";
 "MCP server" = "Сервер MCP";

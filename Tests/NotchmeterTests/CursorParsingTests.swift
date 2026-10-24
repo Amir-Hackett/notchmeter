@@ -1,3 +1,4 @@
+import CommonCrypto
 import Foundation
 import SQLite3
 import Testing
@@ -15,6 +16,22 @@ import Testing
         let claims = try CursorProvider.jwtClaims("eyJhbGciOiJIUzI1NiJ9.\(encoded).signature")
         #expect(try CursorProvider.userID(fromClaims: claims) == "user_01ABC")
         #expect(claims["exp"] as? Double == 1_900_000_000)
+    }
+
+    @Test func unwrapsSafeStorageTokenAndPassesPlainOneThrough() throws {
+        let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhdXRoMHx1c2VyXzAxQUJDIn0.signature"
+        let password = Data("made-up-keychain-password".utf8)
+        let sealed = try #require(CursorSafeStorage.crypt(CCOperation(kCCEncrypt), Data(jwt.utf8), key: CursorSafeStorage.deriveKey(password: password)))
+        let wrapped = "cursor-safe-abcdefg:01:" + (Data("v10".utf8) + sealed).base64EncodedString()
+
+        #expect(try CursorProvider.unwrapToken(wrapped, mayPrompt: false, keychain: { _ in password }) == jwt)
+        #expect(try CursorProvider.userID(fromClaims: CursorProvider.jwtClaims(CursorProvider.unwrapToken(wrapped, mayPrompt: false, keychain: { _ in password }))) == "user_01ABC")
+        // A plain JWT never reaches the Keychain.
+        #expect(try CursorProvider.unwrapToken(jwt, mayPrompt: false, keychain: { _ in Issue.record("Keychain read"); return Data() }) == jwt)
+        // Locked and not asked for: a clear ask, not a decode error.
+        #expect(throws: ProviderError.self) {
+            try CursorProvider.unwrapToken(wrapped, mayPrompt: false, keychain: { _ in throw KeychainError.denied(errSecInteractionNotAllowed) })
+        }
     }
 
     @Test func parsesUsageSummaryIntoIncludedAndOnDemand() throws {

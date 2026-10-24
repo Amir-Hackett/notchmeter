@@ -1369,6 +1369,12 @@ struct NotchExpandedView: View {
         let noticeLeads = PanelLead.noticeLeads(notice: opening.notice?.session.id, pendingSessions: pendingSessions,
                                                 promptOnly: promptOnly, focus: opening.focus)
         let lead = noticeLeads ? nil : PanelLead.request(pendingSessions: pendingSessions, focus: opening.focus).map { pending[$0] }
+        // Every other chat waiting on the reader, a request or one of Cursor's cards, so a panel open on one card
+        // alone says the others are there (2026-10-24: a second chat's question sat unseen behind an approval).
+        let shown = noticeLeads ? opening.notice?.session.id : lead?.session.id
+        let othersWaiting = Set(pendingSessions).union(store.cursorCards.filter { !$0.value.isEmpty }.keys)
+            .subtracting([shown].compactMap { $0 }).count
+        let wholePanel = othersWaiting > 0 ? L("Show the whole panel (%ld more waiting)", othersWaiting) : L("Show the whole panel")
         let arrived = self.arrived
         let simple = self.simple
         let placed = simple ? placedAdvice : [:]
@@ -1380,12 +1386,13 @@ struct NotchExpandedView: View {
             // open takes the card under its header and above every other card (PanelLayout.parts).
             if promptOnly, let newest = lead {
                 PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
+                           title: prefs.sessionTitles ? newest.session.displayTitle : nil,
                            decide: { store.decide($0, $1) },
                            unfolded: store.unfoldedSuggestions.contains(newest.request.id),
                            setUnfolded: { store.unfoldSuggestions(newest.request.id, $0) })
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.panelOpenedForPrompt = false } label: {
-                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)
+                    Text(wholePanel).font(.caption).foregroundStyle(Ink.secondary)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, prefs.density.cardPadding)
@@ -1408,7 +1415,7 @@ struct NotchExpandedView: View {
                            cursorNote: opening.noticeNote)
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.attentionNotice = nil } label: {
-                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)
+                    Text(wholePanel).font(.caption).foregroundStyle(Ink.secondary)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, prefs.density.cardPadding)
@@ -1457,6 +1464,7 @@ struct NotchExpandedView: View {
         case .prompt:
             if let newest = lead {
                 PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
+                           title: prefs.sessionTitles ? newest.session.displayTitle : nil,
                            decide: { store.decide($0, $1) },
                            unfolded: store.unfoldedSuggestions.contains(newest.request.id),
                            setUnfolded: { store.unfoldSuggestions(newest.request.id, $0) })

@@ -259,6 +259,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、上の通知と同じ規則に従います。ターミナルが最前面のときの設定と、「おやすみ時間」です。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はそのセッションだけのカードを戻り先へのジャンプ付きで数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
 "Show the main figure beside the rings" = "リングの横にメインの数字を表示";
 "Show the whole panel" = "パネル全体を表示";
+"Show the whole panel (%ld more waiting)" = "パネル全体を表示（ほかに %ld 件待機中）";
 "Show what a session is working on" = "セッションの作業内容を表示する";
 "Skip" = "スキップ";
 "Stay quiet while a terminal or editor is in front" = "ターミナルやエディタが前面のときは通知しない";
@@ -287,6 +288,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code は、この Mac アカウントで claude を実行したときにだけログインを更新します。claude を一度実行すると更新されます。";
 "Not updated since %1$@. %2$@" = "%1$@ から更新されていません。%2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code のログインにはあなたの許可が必要です。Claude リングをクリックするか更新してキーチェーンの読み取りを許可してください";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "Cursor のログインにはあなたの許可が必要です。Cursor リングをクリックするか更新してキーチェーンの読み取りを許可してください";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code のログインが拒否されました。Claude Code を一度実行して更新してください";
 "Claude reported no usage windows" = "Claude は利用ウィンドウを報告しませんでした";
 "Claude since %1$@: %2$@" = "Claude %1$@以降: %2$@";
@@ -457,6 +459,7 @@
 "local transcripts" = "ローカルの記録";
 "low power mode" = "低電力モード";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "Claude Code のログインを読むには macOS の許可が必要です。確認時に「常に許可」を選んでください";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "Cursor のログインを読むには macOS の許可が必要です。確認時に「常に許可」を選んでください";
 "Main display (the one with the menu bar)" = "メインディスプレイ（メニューバーのある方）";
 "Match system" = "システムに合わせる";
 "MCP server" = "MCP サーバー";
