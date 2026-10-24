@@ -882,8 +882,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let showing = store.attentionNotice.flatMap { $0.forCursorCard ? $0.session.id : nil }
         if let session = started.last, !holds.isHeld, store.sessions.pending(now: Date()).isEmpty,
            let presenter = pointerPresenter, !presenter.hover.isOffScreen() {
-            var notice = AttentionNotice(session: session, event: .waiting(blocking: true))
-            notice.forCursorCard = true
+            let notice = Self.cursorCardNotice(session)
             if presenter.hover.state == .expanded {
                 // The panel this opened on a card that has just gone moves to the one that has just come: one
                 // change, where a close and an open would race.
@@ -907,6 +906,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             cursorCardPresenter = nil
             return
         }
+        // Another chat whose card is still waiting keeps the panel, moved onto that chat's card: closing here left
+        // the second chat's Run or question unreachable until the notch was clicked (2026-10-24, two chats at once).
+        if store.attentionNotice?.forCursorCard == true, let next = waitingCursorCardSession(excluding: Set(ended)),
+           presenters.contains(where: { $0.hover.state == .expanded }) {
+            store.attentionNotice = Self.cursorCardNotice(next)
+            return
+        }
         if let presenter = cursorCardPresenter, presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .cursorCard) }
         cursorCardPresenter = nil
         // A panel that stays open all the same (Always open, or one opened by hand on another display) goes back to
@@ -914,6 +920,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if store.attentionNotice?.forCursorCard == true, presenters.contains(where: { $0.hover.state == .expanded }) {
             store.attentionNotice = nil
         }
+    }
+
+    /// The notice a panel opened on one of Cursor's cards is open on.
+    private static func cursorCardNotice(_ session: AgentSession) -> AttentionNotice {
+        var notice = AttentionNotice(session: session, event: .waiting(blocking: true))
+        notice.forCursorCard = true
+        return notice
+    }
+
+    /// The most recently heard chat, other than those in `excluding`, that still has one of Cursor's cards waiting.
+    private func waitingCursorCardSession(excluding: Set<String>) -> AgentSession? {
+        store.sessions.all.first { !excluding.contains($0.id) && !(store.cursorCards[$0.id] ?? []).isEmpty }
     }
 
     /// Something on the panel sent the user to another app (a plan opened in Cursor, a row's jump to its terminal,
@@ -951,6 +969,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.prompt, false)
         // A panel that was opened for the request closes with it; one the pointer had opened stays.
         guard store.panelOpenedForPrompt else { return }
+        // Unless another chat has one of Cursor's cards waiting: a card that came while the request held the panel
+        // did not open it (cursorCardsChanged), so the panel moves onto that card instead of closing over it. The
+        // panel that is open, not the one under the pointer: with a display apiece, the pointer may have left.
+        if let next = waitingCursorCardSession(excluding: []), let presenter = presenters.first(where: { $0.hover.state == .expanded }) {
+            store.attentionNotice = Self.cursorCardNotice(next)
+            store.panelOpenedForPrompt = false
+            cursorCardPresenter = presenter
+            return
+        }
         // Asked to close before the flag goes, so a panel takes what it was open on with it (PanelLeaving): with the
         // flag cleared first, the panel was every part at once for the frames its close takes (0.9.17). The flag
         // still goes here, for a panel that stays open all the same (Always open).

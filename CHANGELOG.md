@@ -2,7 +2,24 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
-## [0.9.24](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.24) — 2026-10-18
+## [0.9.25](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.25) — 2026-10-24
+
+0.9.24 was tagged on 18 October, but its release run was stopped before anything was built and the tag was removed, so it was never offered as an update; these notes cover everything since 0.9.23.
+
+### Cursor
+
+- **The Cursor card reads your usage again.** Cursor now keeps its saved login encrypted (Cursor 3.27.12, seen 2026-10-24): the `cursorAuth/accessToken` row of its state database holds `cursor-safe-…` and Electron safeStorage's ciphertext where it held the token itself, and the card said *Cursor session token could not be decoded*. Notchmeter now unlocks it with the key Cursor keeps in your login Keychain, the "Cursor Safe Storage" item, under the rules Claude Code's login is read by: a timed refresh never raises the Keychain dialog, and the card says *click the Cursor ring or Refresh to allow the Keychain read*; that click asks once, and **Always Allow** keeps it quiet afterwards, where *Allow* asks again on the next read. *Ask for Keychain access*, on Claude Code's page, governs this dialog too. A plain token from an older Cursor is read as before and never touches the Keychain ([docs/privacy.md](docs/privacy.md)).
+- **Several chats answered from the notch.** With two chats waiting at once, answering one chat's Run card closed the notch over the other's, which then waited unseen until the notch was clicked; the panel now moves onto the next chat's card. A question that came while another chat's approval held the panel sat behind the approval until it was answered or *Show the whole panel* pressed; answering the approval now moves the panel onto the question. The approval card names its chat under the header (with *Show what a session is working on* on; withheld with the figures), so two chats of one project asking at once can be told apart, and *Show the whole panel* says how many more are waiting: *Show the whole panel (1 more waiting)*. In the whole panel, VoiceOver reads the chat's name with each question card while more than one chat has a card up, since two questions with the same choices read alike.
+- **No guessing at a quiet turn while Cursor's cards are read.** With *Mirror Cursor's cards* on and the Accessibility permission granted, a Cursor wait is the card itself, as Claude Code's is its hook, so a turn that goes quiet with nothing running is no longer shown as a possible wait and *Cursor may be waiting* is not sent for it. Settings says so in place of *Call a quiet Cursor turn a possible wait after*. Without the mirror or the permission, and for a chat on another machine, the guess stands in as before, with its muted projects and its longer spell after a false alarm.
+
+### Sessions
+
+- **Drop a file on the notch and it lands in a session's prompt.** Drag a screenshot, a log or a PDF onto the rings and the panel opens; let go and the file's path is typed into the prompt of the session that is waiting on you, or else the newest one with a terminal, with `@` in front for Claude Code so the file is read into the turn. Drop it on a row to pick the session. A tmux pane, iTerm2, kitty and WezTerm take the text directly, on the Automation grant the jump already holds; Terminal, Ghostty and an editor get it on the clipboard with the jump, and the panel says *paste it with ⌘V*. Off with *Drop a file on the notch to hand it to a session* under Settings › Assistants › Sessions. Notchmeter reads nothing from the file and sends nothing; the assistant treats it as any file you name in its prompt ([docs/features.md](docs/features.md#drop-a-file-on-the-notch)).
+- **A finished row's clock counts from the finish.** Cursor goes on sending in-turn events after a chat's stop (a background terminal's, among others), and each one moved the row's clock, so a *Done* row read *0s* for as long as they came and changed place on every one. The row now clocks the finish itself for the ninety seconds of the tick, and its quiet since it last did anything once it is idle.
+
+## 0.9.24 — 2026-10-18, tagged and never published
+
+Its release run was stopped before anything was built and the tag was removed, so no installed copy was ever offered it; both of its changes ship in 0.9.25.
 
 ### Sessions
 

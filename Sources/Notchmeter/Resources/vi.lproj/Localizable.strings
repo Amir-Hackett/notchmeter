@@ -259,6 +259,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook của trợ lý và theo cùng quy tắc với các thông báo ở trên: cài đặt về terminal ở phía trước, và giờ yên tĩnh. Mục này chọn điều bảng làm; nút bật ở trên chọn điều các vòng làm, và có thể tắt cái này mà không tắt cái kia. Liếc mở một thẻ riêng cho phiên đó, kèm nút nhảy về, rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
 "Show the main figure beside the rings" = "Hiện con số chính bên cạnh các vòng";
 "Show the whole panel" = "Hiện toàn bộ bảng";
+"Show the whole panel (%ld more waiting)" = "Hiện toàn bộ bảng (còn %ld đang chờ)";
 "Show what a session is working on" = "Hiện phiên đang làm gì";
 "Skip" = "Bỏ qua";
 "Stay quiet while a terminal or editor is in front" = "Im lặng khi terminal hay trình soạn thảo ở phía trước";
@@ -287,6 +288,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code chỉ làm mới đăng nhập trên tài khoản Mac này khi claude chạy ở đây. Hãy chạy claude một lần để làm mới.";
 "Not updated since %1$@. %2$@" = "Chưa cập nhật từ %1$@. %2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Đăng nhập Claude Code cần bạn đồng ý: nhấp vòng Claude hoặc Làm mới để cho phép đọc Keychain";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "Đăng nhập Cursor cần bạn đồng ý: nhấp vòng Cursor hoặc Làm mới để cho phép đọc Keychain";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Đăng nhập Claude Code bị từ chối. Hãy chạy Claude Code một lần để làm mới";
 "Claude reported no usage windows" = "Claude không báo cáo cửa sổ mức dùng nào";
 "Claude since %1$@: %2$@" = "Claude kể từ %1$@: %2$@";
@@ -457,6 +459,7 @@
 "local transcripts" = "bản ghi cục bộ";
 "low power mode" = "chế độ tiết kiệm pin";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS cần bạn cho phép đọc đăng nhập của Claude Code. Chọn Luôn cho phép khi được hỏi";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "macOS cần bạn cho phép đọc đăng nhập của Cursor. Chọn Luôn cho phép khi được hỏi";
 "Main display (the one with the menu bar)" = "Màn hình chính (màn hình có thanh menu)";
 "Match system" = "Theo hệ thống";
 "MCP server" = "Máy chủ MCP";
@@ -512,6 +515,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Thêm một điểm cuối trên cùng token: mỗi tổ chức bạn thuộc về có trả lời (chủ sở hữu và quản lý thanh toán) thêm cửa sổ Tín dụng tổ chức và Chi tiêu tổ chức ẩn mặc định cho tháng.";
 "Only turns longer than" = "Chỉ các lượt dài hơn";
 "Call a quiet Cursor turn a possible wait after" = "Coi lượt Cursor im lặng là có thể đang chờ sau";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "Các lần chờ của Cursor được đọc từ chính thẻ của nó, nên không còn đoán khi một lượt Cursor im lặng";
 "Don't nudge me for %@" = "Không nhắc tôi cho %@";
 "Nudge me again for %@" = "Nhắc lại tôi cho %@";
 "No nudges for %@" = "Không nhắc cho %@";
