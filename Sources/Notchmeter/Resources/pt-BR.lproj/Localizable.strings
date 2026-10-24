@@ -276,6 +276,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Ambos precisam do hook do assistente e seguem as mesmas regras dos avisos acima: o ajuste do terminal em primeiro plano e o horário de silêncio. Isto escolhe o que o painel faz; a opção acima escolhe o que os anéis fazem, e qualquer um pode estar desativado sem o outro. Uma espiada abre um cartão só daquela sessão, com um atalho de volta para ela, e se recolhe de novo a menos que o cursor entre; com Reduzir movimento ela abre sem animação e fica um pouco mais. Um aviso de \"esperando\" é retirado quando você responde. Numa build não assinada nenhum aviso atravessa o Foco ou o Não Perturbe; os sensíveis ao tempo (esgotando, esperando por você) atravessam na versão assinada.";
 "Show the main figure beside the rings" = "Mostrar o número principal ao lado dos anéis";
 "Show the whole panel" = "Mostrar o painel inteiro";
+"Show the whole panel (%ld more waiting)" = "Mostrar o painel inteiro (mais %ld aguardando)";
 "Show what a session is working on" = "Mostrar no que uma sessão está trabalhando";
 "Skip" = "Pular";
 "Stay quiet while a terminal or editor is in front" = "Ficar em silêncio enquanto um terminal ou editor estiver na frente";
@@ -304,6 +305,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "O Claude Code só renova o login nesta conta do Mac quando o claude roda aqui. Rode claude uma vez para renová-lo.";
 "Not updated since %1$@. %2$@" = "Sem atualização desde %1$@. %2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "O login do Claude Code precisa da sua autorização: clique no anel do Claude ou em Atualizar para permitir a leitura das Chaves";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "O login do Cursor precisa da sua autorização: clique no anel do Cursor ou em Atualizar para permitir a leitura das Chaves";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "O login do Claude Code foi recusado. Rode o Claude Code uma vez para renová-lo";
 "Claude reported no usage windows" = "O Claude não informou nenhuma janela de uso";
 "Claude since %1$@: %2$@" = "Claude desde %1$@: %2$@";
@@ -474,6 +476,7 @@
 "local transcripts" = "transcrições locais";
 "low power mode" = "modo de Pouca Energia";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "O macOS precisa da sua permissão para ler o login do Claude Code. Escolha Permitir Sempre quando ele perguntar";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "O macOS precisa da sua permissão para ler o login do Cursor. Escolha Permitir Sempre quando ele perguntar";
 "Main display (the one with the menu bar)" = "Tela principal (a que tem a barra de menus)";
 "Match system" = "Igual ao sistema";
 "MCP server" = "Servidor MCP";
@@ -529,6 +532,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Mais um endpoint com o mesmo token: cada organização da qual você faz parte que responder (proprietários e gerentes de faturamento) acrescenta janelas mensais de Créditos da org e Gasto da org, ocultas por padrão.";
 "Only turns longer than" = "Só turnos com mais de";
 "Call a quiet Cursor turn a possible wait after" = "Tratar um turno do Cursor em silêncio como possível espera após";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "As esperas do Cursor são lidas dos próprios cartões dele, então um turno silencioso do Cursor não é adivinhado";
 "Don't nudge me for %@" = "Não me avisar em %@";
 "Nudge me again for %@" = "Voltar a me avisar em %@";
 "No nudges for %@" = "Sem avisos em %@";

@@ -116,7 +116,7 @@ Notchmeter, with *Copy crash report* and *Show in Finder*. It needs no permissio
 
 ## Why the grants keep disappearing
 
-macOS ties an Accessibility grant — and the Keychain grant for Claude Code's login — to the identity a binary is
+macOS ties an Accessibility grant — and the Keychain grants for Claude Code's login and, since 0.9.25, Cursor's — to the identity a binary is
 signed with. An ad-hoc signature (`codesign --sign -`) has no identity: its code hash changes with every build, so
 every reinstall looks like a different application and both grants are dropped. That is why Auto could be chosen,
 approved, and still report `accessibility not granted` after the next install.

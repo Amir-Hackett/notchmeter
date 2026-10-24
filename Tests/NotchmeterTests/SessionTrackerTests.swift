@@ -609,6 +609,34 @@ import Testing
         #expect(early.nextRelease(now: due.addingTimeInterval(0.001)) == nil, "which is the turn nothing then retired")
     }
 
+    /// With Cursor's own cards read from its window, a wait is the card itself, so a quiet turn is not guessed at.
+    @Test func aQuietTurnIsNotGuessedAtWhileCursorsCardsAreWatched() {
+        var tracker = SessionTracker()
+        tracker.cursorCardsWatched = true
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(5))
+        let late = t0.addingTimeInterval(5 + SessionTracker.quietSpellCap + 1)
+        #expect(tracker.quietNudges(now: late).isEmpty)
+        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) == nil)
+        // A card on screen still makes the wait, as it always has.
+        #expect(tracker.cursorCardShown("cursor:c1", now: late) != nil)
+    }
+
+    /// The mirror reads no window of a Cursor on another host, so a remote chat's quiet turn is still guessed at.
+    @Test func aRemoteChatsQuietTurnIsStillGuessedAtWhileCardsAreWatched() {
+        var tracker = SessionTracker()
+        tracker.cursorCardsWatched = true
+        let remote = { (event: String) in
+            Hook.Message(event: event, needsInput: false, sessionID: "c1", project: "p", host: "devbox", tool: .cursor)
+        }
+        tracker.apply(remote("UserPromptSubmit"), now: t0)
+        tracker.apply(remote("afterAgentThought"), now: t0.addingTimeInterval(5))
+        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) != nil)
+        let late = t0.addingTimeInterval(5 + SessionTracker.quietSpellCap + 1)
+        let nudged = 1
+        #expect(tracker.quietNudges(now: late).count == nudged)
+    }
+
     @Test func aQuietTurnWithNothingRunningIsNudgedOnce() throws {
         var tracker = SessionTracker()
         tracker.apply(cursor("UserPromptSubmit"), now: t0)

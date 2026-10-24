@@ -188,5 +188,60 @@ wait_for "Continue, pressed on the notch, sends the answer" "$pressed" $((presse
 [ "$(cat "$CARDS")" = "[]" ] && echo "ok: and the card has left Cursor's window" || { echo "FAIL: the card is still there: $(cat "$CARDS")" >&2; exit 1; }
 wait_for "and the notch closes with it" "$closed" $((closed_before + 1)) 10
 
+# Several chats waiting at once (2026-10-24). Every press below is made without a click to open the notch first:
+# the panel has to still be open on the next chat's card by itself.
+chat() { # conversation, folder, event, extra JSON members
+  printf '{"conversation_id":"%s","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"],"cwd":"%s"%s}' \
+    "$1" "$3" "$2" "$2" "${4:-}" | "$BIN" --hook --tool cursor
+}
+mkdir -p "$WORK/multi-a" "$WORK/multi-b"
+chat e2e-multi-a "$WORK/multi-a" beforeSubmitPrompt ',"composer_mode":"agent","prompt":"multi a"' >/dev/null
+chat e2e-multi-b "$WORK/multi-b" beforeSubmitPrompt ',"composer_mode":"agent","prompt":"multi b"' >/dev/null
+multi_pressed() { count "o['event'] == 'decision' and o.get('source') == '$2' and o.get('session') == 'cursor:e2e-multi-$1' and o.get('behavior') == 'pressed'"; }
+
+# Two chats held for approval: each answer reaches its own chat's hook, the newest first.
+heldA="$WORK/multi-a.out"; heldB="$WORK/multi-b.out"
+before="$(count 'o["event"] == "hook" and o.get("request") == "permission"')"
+chat e2e-multi-a "$WORK/multi-a" beforeShellExecution ',"command":"echo alpha"' >"$heldA" & pidA=$!
+wait_for "two chats held: the first" 'o["event"] == "hook" and o.get("request") == "permission"' $((before + 1)) 10
+chat e2e-multi-b "$WORK/multi-b" beforeShellExecution ',"command":"echo beta"' >"$heldB" & pidB=$!
+wait_for "two chats held: the second" 'o["event"] == "hook" and o.get("request") == "permission"' $((before + 2)) 10
+sleep 1
+"$PRESS" --list | grep -q "(1 more waiting)" && echo "ok: the approval says another chat is waiting" || { echo "FAIL: no word of the other chat waiting" >&2; exit 1; }
+press "Allow (⌘Y)"; wait "$pidB" || true
+case "$(cat "$heldB")" in *'"permission":"allow"'*) echo "ok: Allow went to the newest chat" ;; *) echo "FAIL: chat b printed: $(cat "$heldB")" >&2; exit 1 ;; esac
+"$PRESS" "Deny (⌘N)" 6 || { echo "FAIL: the notch closed with the other chat still held" >&2; exit 1; }
+wait "$pidA" || true
+case "$(cat "$heldA")" in *'"permission":"deny"'*) echo "ok: Deny went to the other chat" ;; *) echo "FAIL: chat a printed: $(cat "$heldA")" >&2; exit 1 ;; esac
+
+# Two of Cursor's Run cards in two windows: after one is pressed, the notch moves onto the other.
+ra="$(multi_pressed a cursorCard)"; rb="$(multi_pressed b cursorCard)"; closed_before="$(count "$closed")"
+printf '[{"kind":"run","window":"multi-a","heading":"ls alpha","options":["Skip","Run"]},{"kind":"run","window":"multi-b","heading":"ls beta","options":["Skip","Run"]}]' >"$CARDS.new" && mv "$CARDS.new" "$CARDS"
+"$PRESS" Run 10 || { echo "FAIL: no Run button on the notch" >&2; exit 1; }
+sleep 2
+[ "$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$CARDS")" = 1 ] && echo "ok: one Run press, one card gone" \
+  || { echo "FAIL: cards after one press: $(cat "$CARDS")" >&2; exit 1; }
+"$PRESS" Run 6 || { echo "FAIL: the notch closed with the other chat's Run card still waiting" >&2; exit 1; }
+wait_for "and that one is pressed too" "o['event'] == 'decision' and o.get('source') == 'cursorCard' and o.get('session') in ('cursor:e2e-multi-a', 'cursor:e2e-multi-b')" $((ra + rb + 2)) 10
+[ "$(cat "$CARDS")" = "[]" ] && echo "ok: both cards have left Cursor's window" || { echo "FAIL: left: $(cat "$CARDS")" >&2; exit 1; }
+[ "$(multi_pressed a cursorCard)" -gt "$ra" ] && [ "$(multi_pressed b cursorCard)" -gt "$rb" ] && echo "ok: each press was recorded on its own chat" \
+  || { echo "FAIL: presses a=$(multi_pressed a cursorCard) b=$(multi_pressed b cursorCard)" >&2; exit 1; }
+wait_for "and the notch closes after the last" "$closed" $((closed_before + 1)) 10
+
+# A question in one chat while the other is held for approval: answering the approval moves the notch onto the
+# question rather than closing over it.
+before="$(count 'o["event"] == "hook" and o.get("request") == "permission"')"
+chat e2e-multi-b "$WORK/multi-b" beforeShellExecution ',"command":"echo gamma"' >"$heldB" & pidB=$!
+wait_for "an approval held in chat b" 'o["event"] == "hook" and o.get("request") == "permission"' $((before + 1)) 10
+qa="$(multi_pressed a cursorCard)"
+printf '[{"kind":"question","window":"multi-a","heading":"Which fruit?","options":["Skip","Continue"],"questions":[{"text":"Which fruit?","choices":[{"label":"A apple"},{"label":"B banana"}]}]}]' >"$CARDS.new" && mv "$CARDS.new" "$CARDS"
+sleep 2
+press "Allow (⌘Y)"; wait "$pidB" || true
+case "$(cat "$heldB")" in *'"permission":"allow"'*) echo "ok: the approval was answered" ;; *) echo "FAIL: chat b printed: $(cat "$heldB")" >&2; exit 1 ;; esac
+"$PRESS" "A. apple" 6 || { echo "FAIL: the notch closed with chat a's question still waiting" >&2; exit 1; }
+"$PRESS" Continue 6 || { echo "FAIL: no Continue on the notch" >&2; exit 1; }
+wait_for "the question in the other chat is answered from the notch" "o['event'] == 'decision' and o.get('source') == 'cursorCard' and o.get('session') == 'cursor:e2e-multi-a' and o.get('behavior') == 'pressed'" $((qa + 1)) 10
+[ "$(cat "$CARDS")" = "[]" ] && echo "ok: and its card has left Cursor's window" || { echo "FAIL: left: $(cat "$CARDS")" >&2; exit 1; }
+
 kill -0 "$APP_PID" 2>/dev/null || { echo "FAIL: the app exited during the run" >&2; exit 1; }
 echo "e2e-cursor: all checks passed"

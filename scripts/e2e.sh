@@ -164,17 +164,12 @@ cursor e2e-muted muted-proj afterAgentThought
 wait_for "four hook events heard" 'o["event"] == "hook"' 4 10
 
 nudged='o["event"] == "session" and o.get("action") == "nudged"'
-wait_for "a quiet turn is nudged" "$nudged and o.get(\"session\") == \"cursor:e2e-loud\" and o.get(\"muted\") is False" 1 $((QUIET + 20))
-wait_for "a muted project's quiet turn is nudged as muted" "$nudged and o.get(\"session\") == \"cursor:e2e-muted\" and o.get(\"muted\") is True" 1 10
-expect_none "the muted project is never nudged as unmuted" "$nudged and o.get(\"session\") == \"cursor:e2e-muted\" and o.get(\"muted\") is False"
-
-# The loud turn goes on by itself (no command started): a false alarm, so its next quiet spell is doubled.
-cursor e2e-loud loud-proj afterAgentResponse
-cursor e2e-loud loud-proj beforeSubmitPrompt
-cursor e2e-loud loud-proj afterAgentThought
+# *Mirror Cursor's cards* is on and the stand-in for Cursor's window can be read, so a Cursor wait is the card itself
+# (as Claude Code's is its hook) and a quiet turn is not guessed at (SessionTracker.cursorCardsWatched, 2026-10-24).
+# The guess that stands in where the cards cannot be read, its muted projects and its doubled spell after a false
+# alarm, is pinned by QuietTurnNudge in SessionTrackerTests.swift.
 sleep $((QUIET + 5))
-expect_none "the next nudge waits past the set spell" "$nudged and o.get(\"session\") == \"cursor:e2e-loud\" and o.get(\"quietFalseAlarms\") == 1"
-wait_for "and comes at the doubled one" "$nudged and o.get(\"session\") == \"cursor:e2e-loud\" and o.get(\"quietFalseAlarms\") == 1" 1 $((QUIET + 15))
+expect_none "a quiet Cursor turn is not guessed at while its cards are read" "$nudged"
 
 # Every assistant's task list (0.9.13), each through the hook command its installer writes.
 hook() { # tool, payload[, event]

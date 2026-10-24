@@ -276,6 +276,7 @@
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Les deux nécessitent le hook de l'assistant et suivent les mêmes règles que les avis ci-dessus : le réglage du terminal au premier plan et les heures de silence. Ceci choisit ce que fait le panneau ; l'option ci-dessus choisit ce que font les anneaux, et l'un peut être désactivé sans l'autre. Un aperçu ouvre une carte pour cette seule session, avec un lien pour y revenir, puis se referme sauf si le pointeur y entre ; avec Réduire les animations, elle s'ouvre sans animation et reste un peu plus longtemps. Un avis « en attente » est retiré quand vous répondez. Dans une version non signée, aucun avis ne peut passer outre Concentration ou Ne pas déranger ; les avis urgents (épuisement imminent, attente de votre part) le font dans la version signée.";
 "Show the main figure beside the rings" = "Afficher le chiffre principal à côté des anneaux";
 "Show the whole panel" = "Afficher tout le panneau";
+"Show the whole panel (%ld more waiting)" = "Afficher tout le panneau (%ld autres en attente)";
 "Show what a session is working on" = "Afficher le travail en cours d'une session";
 "Skip" = "Passer";
 "Stay quiet while a terminal or editor is in front" = "Rester discret quand un terminal ou un éditeur est au premier plan";
@@ -304,6 +305,7 @@
 "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code ne renouvelle sa connexion sur ce compte du Mac que lorsque claude y est lancé. Lancez claude une fois pour la renouveler.";
 "Not updated since %1$@. %2$@" = "Pas mis à jour depuis %1$@. %2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "La connexion de Claude Code attend votre accord : cliquez sur l'anneau Claude ou sur Actualiser pour autoriser la lecture du trousseau";
+"Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read" = "La connexion de Cursor attend votre accord : cliquez sur l'anneau Cursor ou sur Actualiser pour autoriser la lecture du trousseau";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "La connexion de Claude Code a été refusée. Lancez Claude Code une fois pour la renouveler";
 "Claude reported no usage windows" = "Claude n'a signalé aucune fenêtre d'utilisation";
 "Claude since %1$@: %2$@" = "Claude depuis %1$@ : %2$@";
@@ -474,6 +476,7 @@
 "local transcripts" = "transcriptions locales";
 "low power mode" = "mode économie d'énergie";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS a besoin de votre autorisation pour lire la connexion de Claude Code. Choisissez Toujours autoriser quand il vous le demande";
+"macOS needs your permission to read Cursor's login. Choose Always Allow when it asks" = "macOS a besoin de votre autorisation pour lire la connexion de Cursor. Choisissez Toujours autoriser quand il vous le demande";
 "Main display (the one with the menu bar)" = "Écran principal (celui avec la barre des menus)";
 "Match system" = "Comme le système";
 "MCP server" = "Serveur MCP";
@@ -529,6 +532,7 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Un point de terminaison de plus avec le même jeton : chaque organisation dont vous êtes membre et qui répond (propriétaires et gestionnaires de facturation) ajoute des fenêtres Crédits et Dépenses de l'organisation pour le mois, masquées par défaut.";
 "Only turns longer than" = "Seulement les tours de plus de";
 "Call a quiet Cursor turn a possible wait after" = "Traiter un tour Cursor silencieux comme une attente possible après";
+"Cursor's waits are read from its own cards, so a quiet Cursor turn is not guessed at" = "Les attentes de Cursor sont lues sur ses propres cartes : un tour silencieux de Cursor n'est donc plus deviné";
 "Don't nudge me for %@" = "Ne plus me relancer pour %@";
 "Nudge me again for %@" = "Me relancer à nouveau pour %@";
 "No nudges for %@" = "Pas de relance pour %@";

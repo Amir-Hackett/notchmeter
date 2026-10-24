@@ -58,11 +58,18 @@ actor CursorProvider: UsageProvider {
     }
 
     func fetch() async throws -> UsageReading {
-        guard let token = try Self.stateValue(forKey: "cursorAuth/accessToken", database: stateDatabase),
-              !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        try await fetch(interactive: false)
+    }
+
+    /// `interactive` matters only for a wrapped token (CursorSafeStorage): its key is in the Keychain, and the
+    /// access dialog may appear only for a read the user asked for, as with Claude Code's login.
+    func fetch(interactive: Bool) async throws -> UsageReading {
+        guard let stored = try Self.stateValue(forKey: "cursorAuth/accessToken", database: stateDatabase),
+              !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             throw ProviderError.notSignedIn(L("Sign in to Cursor in the editor to read your usage"))
         }
+        let token = try Self.unwrapToken(stored, mayPrompt: Keychain.mayPrompt(interactive: interactive))
         let claims = try Self.jwtClaims(token)
         if let expiry = claims["exp"] as? Double, Date(timeIntervalSince1970: expiry).timeIntervalSinceNow < 30 {
             throw ProviderError.tokenExpired(L("Cursor's login has expired. Open Cursor once so it signs back in"))
@@ -650,6 +657,26 @@ actor CursorProvider: UsageProvider {
     }
 
     // MARK: - Session token
+
+    /// The plain token, decrypting a wrapped one with the "Cursor Safe Storage" key. Quiet first; the dialog only
+    /// when `mayPrompt`. A token that still does not decrypt falls through to jwtClaims and its decode error.
+    static func unwrapToken(_ stored: String, mayPrompt: Bool,
+                            keychain: (_ prompt: Bool) throws -> Data = { try Keychain.genericPassword(service: CursorSafeStorage.keychainService, prompt: $0) })
+        throws -> String {
+        do {
+            return try CursorSafeStorage.unwrap(stored) {
+                do { return try keychain(false) } catch KeychainError.denied where mayPrompt { return try keychain(true) }
+            } ?? stored
+        } catch KeychainError.denied {
+            throw ProviderError.accessDenied(mayPrompt
+                ? L("macOS needs your permission to read Cursor's login. Choose Always Allow when it asks")
+                : L("Cursor's login needs your OK: click the Cursor ring or Refresh to allow the Keychain read"))
+        } catch KeychainError.notFound {
+            throw ProviderError.notSignedIn(L("Sign in to Cursor in the editor to read your usage"))
+        } catch KeychainError.other(let status) {
+            throw ProviderError.unavailable(L("Keychain read failed: %@", Keychain.describe(status)))
+        }
+    }
 
     static func jwtClaims(_ token: String) throws -> [String: Any] {
         guard let claims = JWT.claims(token) else { throw ProviderError.parse(L("Cursor session token could not be decoded")) }

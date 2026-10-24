@@ -25,6 +25,9 @@ struct PromptCard: View {
     /// since a diff of the user's own code is the one thing on the panel a viewer should not see over their
     /// shoulder. The summary and the buttons stay, because the request still has to be answerable.
     var hideFigures = false
+    /// The chat's title (Preferences.sessionTitles), so two chats of one project asking at once can be told apart:
+    /// the project chip alone reads the same on both. Withheld with the figures.
+    var title: String? = nil
     var decide: (String, Decision) -> Void = { _, _ in }
     /// Whether *Allow always* has its other suggestions unfolded, and how the chevron changes it. The store holds
     /// it (`UsageStore.unfoldedSuggestions`), not the card, so the edge layout's probe measures the card as drawn
@@ -114,6 +117,7 @@ struct PromptCard: View {
         [session.displayName].compactMap { $0 }
     }
 
+    @ViewBuilder
     private func header(symbol: String, title: String, chips: [String]) -> some View {
         HStack(spacing: 6) {
             Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(Palette.calm))
@@ -125,6 +129,13 @@ struct PromptCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Spoken.line(title, chips.joined(separator: ", ")))
+        if let chat = self.title, !chat.isEmpty, !hideFigures {
+            Text(verbatim: chat)
+                .font(.caption)
+                .foregroundStyle(Ink.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
     }
 
     private func buttonLabel(_ text: String, key: String) -> some View {
