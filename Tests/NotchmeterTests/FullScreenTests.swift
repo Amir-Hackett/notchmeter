@@ -5,7 +5,9 @@ import Testing
 /// The full-screen rule, over readings taken from a 14-inch MacBook Pro running a full-screen video in Chrome
 /// and then the same Chrome window zoomed on the desktop. The two look alike by size alone: both are 1512×949
 /// on a 1512×982 display under a menu bar the window list reports as on screen either way. What tells them
-/// apart is the company the window keeps and whether the Dock has a window.
+/// apart is the company the window keeps and whether the Dock has a window. A third reading, from the same Mac
+/// running VLC's own full-screen mode on 2026-11-07, added the one case where company does not count: the app
+/// has hidden the Dock and the menu bar itself, and both their windows are gone.
 @Suite struct FullScreenRule {
     /// A full-screen Space on the 14-inch: no Dock window, and the menu bar's window on screen all the same.
     let space = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
@@ -13,6 +15,10 @@ import Testing
     /// The desktop on the same Mac.
     let desktop = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
                                      dockOnScreen: true, menuBarShowing: true)
+    /// The same desktop under an app's own full-screen mode: the app has hidden the Dock and the menu bar, so
+    /// neither has a window, and the desktop's other windows are still on screen behind it.
+    let appFullScreen = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                           dockOnScreen: false, menuBarShowing: false)
     /// An external display, no camera housing.
     let plainSpace = FullScreen.Display(size: CGSize(width: 2560, height: 1440), safeAreaTop: 0,
                                         dockOnScreen: false, menuBarShowing: true)
@@ -47,6 +53,36 @@ import Testing
         #expect(!FullScreen.isActive(theVideo, on: desktop))
         #expect(!FullScreen.isActive(theDesktop, on: desktop))
         // Even with no Dock window, a covering window that shares the screen with other apps is not full-screen.
+        #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: space))
+    }
+
+    /// The reading from VLC 3.0.24 full-screen (its own mode, not the system's): a window the whole display's
+    /// size, the Dock and menu bar windows gone, and four other apps' windows still on screen behind it.
+    var vlc: [FullScreen.Candidate] {
+        [window(1512, 982, owner: "VLC"), window(650, 462, owner: "iTerm2"), window(650, 462, owner: "iTerm2"),
+         window(786, 551, owner: "Finder"), window(1106, 693, owner: "Claude"),
+         window(1337, 725, owner: "Google Chrome")]
+    }
+
+    @Test func anAppsOwnFullScreenCountsThoughTheDesktopKeepsItCompany() {
+        #expect(FullScreen.verdict(vlc, on: appFullScreen) == FullScreen.Verdict(apps: ["VLC"]))
+        // The pointer at the top edge brings the menu bar back: the readouts may come back with it, as they do
+        // in a Space, and the poll takes them away again once it has gone.
+        #expect(!FullScreen.isActive(vlc, on: space))
+        // Leaving that mode, read mid-transition: the Dock is back before the window has shrunk.
+        #expect(!FullScreen.isActive(vlc, on: desktop))
+        // A menu bar the user has set to hide takes nothing with it: the Dock still has its window on a desktop,
+        // so a zoomed window with company is still a desktop.
+        let hiddenBar = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                           dockOnScreen: true, menuBarShowing: false)
+        #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: hiddenBar))
+        // A second display whose Dock lives on the first, with the menu bar set to hide: the Dock still has a
+        // window elsewhere, so nothing hid it, and a zoomed window with company is a desktop (CodeRabbit, #155).
+        let secondDesktop = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                               dockOnScreen: false, dockElsewhere: true, menuBarShowing: false)
+        #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: secondDesktop))
+        // Company still rules out a covering window while the menu bar is up: Stage Manager, a zoomed window
+        // on a desktop the Dock has left for another display.
         #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: space))
     }
 
@@ -110,6 +146,10 @@ import Testing
         #expect(FullScreen.isSuspect(theVideo, on: space))
         #expect(!FullScreen.isSuspect(theDesktop, on: desktop))
         #expect(!FullScreen.isSuspect([], on: space))
+        // A player's window before the keystroke: the display's width, fitted to a 1080p video. Its own
+        // full-screen mode announces nothing, so this is the only moment to start looking.
+        #expect(FullScreen.isSuspect(theDesktop + [window(1512, 864, owner: "VLC")], on: desktop))
+        #expect(!FullScreen.isSuspect(theDesktop + [window(1500, 864, owner: "VLC")], on: desktop))
     }
 
     @Test func theLineNamesTheVerdictAndWhatItWasReadFrom() {
@@ -156,7 +196,7 @@ import Testing
         var watch: FullScreenWatch? = FullScreenWatch(read: { [suspect] in suspect }) { _ in }
         watch?.refresh(settling: true)
         let timers = watch?.settle ?? []
-        let expectedCount = 2
+        let expectedCount = 3
         #expect(timers.count == expectedCount)
         let armed = timers.filter(\.isValid).count
         #expect(armed == expectedCount)

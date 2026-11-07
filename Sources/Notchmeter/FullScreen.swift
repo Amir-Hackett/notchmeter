@@ -24,8 +24,13 @@ enum FullScreen {
         /// hide, and none in a full-screen Space, which is what separates a full-screen window from a zoomed
         /// one when the app is the only one open.
         var dockOnScreen: Bool
-        /// Whether the menu bar's own window is on screen. It is on screen in a full-screen Space too, which is
-        /// why the rule cannot read the bar; the diagnostics line still carries it.
+        /// Whether the Dock has a window on another display. There is one Dock per Mac, so it is on this display,
+        /// on another, or nowhere; nowhere is what an app hiding it through its presentation options leaves, and
+        /// another display is an ordinary desktop whose Dock happens to live elsewhere.
+        var dockElsewhere: Bool = false
+        /// Whether the menu bar's own window is on screen. It is on screen in a full-screen Space too, so the
+        /// bar cannot say whether a Space is full-screen; what it can say is that an app has hidden it, which is
+        /// how an app's own full-screen mode (VLC's, a game's) shows up on a desktop.
         var menuBarShowing: Bool
     }
 
@@ -66,10 +71,21 @@ enum FullScreen {
     /// a desktop where the covering app happens to be the only one open. The menu bar cannot do this job: its
     /// window stays on screen inside a full-screen Space, which is why an earlier version of this rule left the
     /// readouts over the video it was written to get out of the way of.
+    ///
+    /// One exception to the company test, read off the same 14-inch running VLC 3.0.24 on 2026-11-07. An app's
+    /// own full-screen mode (VLC with *Use the native fullscreen mode* off, which is its default; a game; mpv)
+    /// never leaves the desktop: it stretches a window over the display and hides the Dock and the menu bar
+    /// itself, through its presentation options, so every other window stays on screen behind it and the
+    /// company test would say no for as long as the film ran. What marks that mode is the menu bar's window
+    /// being gone along with the Dock's, the Dock's from every display. Nothing else takes both away on a desktop:
+    /// a Dock set to hide keeps a window, and a menu bar set to hide leaves the Dock's where it is, which on a
+    /// second display whose Dock lives on the first is "elsewhere", not gone. The pointer at the top edge brings the
+    /// bar back and the verdict flips with it, as it does for a Space; the poll puts it back once the bar goes.
     static func verdict(_ candidates: [Candidate], on display: Display) -> Verdict {
         let owners = covering(candidates, on: display)
-        guard !display.dockOnScreen, !owners.isEmpty, Set(candidates.map(\.owner)).isSubset(of: owners)
-        else { return Verdict() }
+        guard !display.dockOnScreen, !owners.isEmpty else { return Verdict() }
+        let alone = Set(candidates.map(\.owner)).isSubset(of: owners)
+        guard alone || (!display.menuBarShowing && !display.dockElsewhere) else { return Verdict() }
         return Verdict(apps: owners.sorted())
     }
 
@@ -79,8 +95,15 @@ enum FullScreen {
 
     /// Whether a window covers the display at all, whatever else is on screen: while that holds the verdict is
     /// worth re-reading, because entering or leaving a Space moves the rest of this one window at a time.
+    ///
+    /// A window the display's full width is suspect too, covering or not. An app's own full-screen mode posts
+    /// nothing the watch could listen for, neither a Space change nor an activation, so the only way to see it
+    /// begin is to be looking; and a player's window is the display's width before the keystroke, because it
+    /// fits the window to the video (VLC with a 1080p file on a 14-inch was 1512×864, read 2026-11-07). A
+    /// window that is neither wide nor covering before it goes full-screen is caught on the next app switch.
     static func isSuspect(_ candidates: [Candidate], on display: Display) -> Bool {
         !covering(candidates, on: display).isEmpty
+            || candidates.contains { abs($0.size.width - display.size.width) < 1 }
     }
 
     /// The apps whose windows cover the display; empty where none does. A covering window always has an owner,
@@ -119,6 +142,7 @@ enum FullScreen {
         var chrome: [String] = []
         var menuBarShowing = false
         var dockOnScreen = false
+        var dockElsewhere = false
         for info in infos {
             guard let layer = info[kCGWindowLayer as String] as? Int,
                   let owner = info[kCGWindowOwnerName as String] as? String,
@@ -134,7 +158,9 @@ enum FullScreen {
                 if owner != ownName, onThisDisplay { candidates.append(Candidate(owner: owner, size: bounds.size)) }
                 continue
             }
-            if owner == "Dock", layer == Int(CGWindowLevelForKey(.dockWindow)), onThisDisplay { dockOnScreen = true }
+            if owner == "Dock", layer == Int(CGWindowLevelForKey(.dockWindow)) {
+                if onThisDisplay { dockOnScreen = true } else { dockElsewhere = true }
+            }
             // The system's windows along this display's top edge, the menu bar's among them.
             guard onThisDisplay, bounds.minY >= top - 1, bounds.minY < top + 60 else { continue }
             chrome.append("\(owner) L\(layer) \(Int(bounds.width))×\(Int(bounds.height)) y=\(Int(bounds.minY - top))")
@@ -144,7 +170,7 @@ enum FullScreen {
             }
         }
         let display = Display(size: frame.size, safeAreaTop: screen.safeAreaInsets.top,
-                              dockOnScreen: dockOnScreen, menuBarShowing: menuBarShowing)
+                              dockOnScreen: dockOnScreen, dockElsewhere: dockElsewhere, menuBarShowing: menuBarShowing)
         return Scan(candidates: candidates, display: display, chrome: chrome)
     }
 
@@ -174,7 +200,7 @@ enum FullScreen {
         let apps = counts.prefix(12).map { "\($0.0)×\($0.1)" }.joined(separator: ", ")
         let now = verdict(reading.candidates, on: display)
         return "active=\(now.isActive)\(now.isActive ? " over=\(now.apps.joined(separator: "+"))" : "") display=\(Int(display.size.width))×\(Int(display.size.height)) "
-            + "safeAreaTop=\(Int(display.safeAreaTop)) dock=\(display.dockOnScreen ? "on screen" : "away") "
+            + "safeAreaTop=\(Int(display.safeAreaTop)) dock=\(display.dockOnScreen ? "on screen" : display.dockElsewhere ? "elsewhere" : "away") "
             + "menuBar=\(display.menuBarShowing ? "showing" : "away") "
             + "suspect=\(isSuspect(reading.candidates, on: display)) apps=\(counts.count)[\(apps)] "
             + "windows=[\(windows)] top=[\(reading.chrome.joined(separator: ", "))]"
@@ -231,6 +257,8 @@ final class FullScreenWatch {
 
     /// `settling` looks again shortly after: a Space change is reported while the window list and the menu bar
     /// are still moving, and a check made mid-transition would otherwise stand until the next app activation.
+    /// The last look is late enough for an app that comes up straight into its own full-screen mode, a game
+    /// launched from the Finder, whose window is not there yet when the activation is reported.
     ///
     /// Polling runs while a full-screen app is up, and also while the windows say one may be up behind a revealed
     /// menu bar: the pointer at the top edge of a full-screen Space brings the bar in, the verdict flips to
@@ -251,7 +279,7 @@ final class FullScreenWatch {
         }
         guard settling else { return }
         for timer in settle { timer.invalidate() }
-        settle = [0.5, 2.0].map { delay in
+        settle = [0.5, 2.0, 5.0].map { delay in
             Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
                 Task { @MainActor in self?.refresh() }
             }
