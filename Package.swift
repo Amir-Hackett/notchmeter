@@ -7,7 +7,7 @@ let package = Package(
     platforms: [.macOS(.v15)],
     dependencies: [
         // Binary xcframework; scripts/build.sh embeds it in Contents/Frameworks and Updater.swift decides whether to start it.
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.1"),
     ],
     targets: [
         // MrKai77/DynamicNotchKit 1.1.0 (MIT), vendored so it builds without Xcode's SwiftUI macro plugins.
