@@ -6,8 +6,10 @@
 # rate above zero and at most $1,000 per million, a cache read no dearer than the input, fast rates in pairs, no
 # two entries for one model on one day), and its newest entry per Anthropic model must agree with the snapshot,
 # so the two cannot drift apart. Then, unless --offline is given, the page is fetched and both documents' per-model
-# input/output rates are compared with it. Exits 1 with the differences when anything moved, so the weekly workflow
-# (.github/workflows/pricing.yml) fails loudly.
+# input/output rates are compared with it, and every model row on the page is looked up in the snapshot, so a model
+# that is new on the page fails the check as a changed rate does (Haiku 5.5 and Sonnet 5.5 sat on the page unpriced
+# for two weeks before this was added, 2026-11-07). Exits 1 with the differences when anything moved, so the weekly
+# workflow (.github/workflows/pricing.yml) fails loudly.
 #   scripts/pricing-check.sh              validate, then fetch the page and compare
 #   scripts/pricing-check.sh --offline    validate the catalog and its agreement with the snapshot; no network
 #   scripts/pricing-check.sh page.html    compare against a saved copy of the page
@@ -220,6 +222,25 @@ for prefix, rates in snapshot["models"].items():
 if not found_any:
     print("pricing-check: could not find any model row on the page; its layout may have changed", file=sys.stderr)
     sys.exit(1)
+
+# --- The page against the snapshot: a row the snapshot has never heard of ------------------------------------
+# Every "Claude <Family> <version>" followed by five figures is a priced row; its id is either shape the snapshot
+# uses ("claude-sonnet-5-5", or the older "claude-3-5-haiku"). A family the app does not price (Fable, Mythos,
+# Opus, Sonnet, Haiku are the ones it does) would be reported here too, which is the point.
+known = set(snapshot["models"])
+reported = set()
+for match in re.finditer(r"Claude (Fable|Mythos|Opus|Sonnet|Haiku) ([0-9](?:\.[0-9])?)(?![\d.])", text):
+    name = match.group(0)
+    if name in reported:
+        continue
+    hit = row(name, out)
+    if hit is None:
+        continue
+    reported.add(name)
+    family, version = match.group(1).lower(), match.group(2).replace(".", "-")
+    if f"claude-{family}-{version}" in known or f"claude-{version}-{family}" in known:
+        continue
+    failures.append(f"{name}: on the page (${hit[1]}/${hit[2]}) and in neither the snapshot nor the catalog")
 if failures:
     print("pricing-check: the pricing page differs from the snapshot dated " + snapshot["snapshotDate"] + " or the catalog published " + catalog["published"] + ":")
     for f in failures:

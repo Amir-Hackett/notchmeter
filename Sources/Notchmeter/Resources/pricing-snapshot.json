@@ -1,6 +1,6 @@
 {
   "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-  "snapshotDate": "2026-09-24",
+  "snapshotDate": "2026-11-07",
   "unit": "USD per million tokens",
   "models": {
     "claude-fable-5-1": {
@@ -63,6 +63,11 @@
       "input": 15,
       "output": 75
     },
+    "claude-sonnet-5-5": {
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1
+    },
     "claude-sonnet-5": {
       "input": 2,
       "output": 10
@@ -89,13 +94,18 @@
       "output": 15,
       "retired": true
     },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5
+    },
     "claude-haiku-4-5": {
       "input": 1,
       "output": 5
     },
     "claude-3-5-haiku": {
       "input": 0.8,
-      "output": 4
+      "output": 4,
+      "retired": true
     },
     "claude-3-haiku": {
       "input": 0.25,
@@ -110,5 +120,5 @@
     "usResidency": 1.1
   },
   "webSearchPerRequest": 0.01,
-  "notes": "retired: no longer on the pricing page; kept for old transcripts at the last published rate. Opus 5.5 reads its cache at 0.05x input, the page's own exception to the 0.1x rule, and its fast row stacks that multiplier on the fast input rate."
+  "notes": "retired: no longer on the pricing page; kept for old transcripts at the last published rate (Haiku 3.5 left the page between 2026-11-02 and 2026-11-07). Opus 5.5 and Sonnet 5.5 read their cache at 0.05x input, the page's own exceptions to the 0.1x rule, and Opus 5.5's fast row stacks that multiplier on the fast input rate. Haiku 5.5's higher rate for prompts over 100,000 tokens ($0.50/$2.50) is not modelled; every line is priced at the base rate."
 }
