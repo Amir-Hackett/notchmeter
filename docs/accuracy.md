@@ -73,7 +73,7 @@ Thinking tokens need no bucket of their own: `output_tokens` already includes th
 
 ## Per-model rates
 
-Dollars per million tokens, as coded in `ModelPricing.swift` from the table in [C] on 2026-09-24. Cache columns are derived from the base input rate with the multipliers above, except where the page states its own cache-read rate (the 2.5% and 5% rows below).
+Dollars per million tokens, as coded in `ModelPricing.swift` from the table in [C] on 2026-11-07. Cache columns are derived from the base input rate with the multipliers above, except where the page states its own cache-read rate (the 2.5% and 5% rows below).
 
 Two things the table deliberately has no column for, checked on 2026-09-20. The code-execution container fee (billed per container-hour on the API's code-execution tool) was checked against Claude Code's transcripts and is immaterial for Claude Code: its Bash runs locally, no transcript line carries a container id or a container-hours field, and nothing in the usage object prices one, so there is no fee to add and none is added. And Claude 4.6 and later bill the full 1M-token context window at the standard per-token rates: there is no long-context tier for Claude, so `ModelPricing` has no token threshold and a 900K-token request is priced the same per token as a 9K one; the `exceeds_200k_tokens` flag in the status line is decoded by nothing because it changes no rate. (The one long-context tier in the app is OpenAI's, for Codex, below.)
 
@@ -84,10 +84,12 @@ Two things the table deliberately has no column for, checked on 2026-09-20. The 
 | `claude-opus-5-5` (cache read at 0.05x, the page's own exception; added 2026-09-24) | 4 | 20 | 5 | 8 | 0.20 |
 | `claude-opus-5`, `claude-opus-4-8`, `-4-7`, `-4-6`, `-4-5` | 5 | 25 | 6.25 | 10 | 0.50 |
 | `claude-opus-4-1`, `claude-opus-4` | 15 | 75 | 18.75 | 30 | 1.50 |
+| `claude-sonnet-5-5` (cache read at 0.05x, the page's own exception; added 2026-11-07) | 2 | 10 | 2.50 | 4 | 0.10 |
 | `claude-sonnet-5` | 2 | 10 | 2.50 | 4 | 0.20 |
 | `claude-sonnet-4-6`, `-4-5`, `-4`, `claude-3-7-sonnet`, `claude-3-5-sonnet` | 3 | 15 | 3.75 | 6 | 0.30 |
+| `claude-haiku-5-5` (added 2026-11-07; the page's higher rate for prompts over 100,000 tokens, $0.50/$2.50, is not applied) | 0.10 | 0.50 | 0.125 | 0.20 | 0.01 |
 | `claude-haiku-4-5` | 1 | 5 | 1.25 | 2 | 0.10 |
-| `claude-3-5-haiku` | 0.80 | 4 | 1.00 | 1.60 | 0.08 |
+| `claude-3-5-haiku` (left the price page between 2026-11-02 and 2026-11-07; kept for old transcripts) | 0.80 | 4 | 1.00 | 1.60 | 0.08 |
 | `claude-3-haiku` (no longer on the price page; kept for old transcripts) | 0.25 | 1.25 | 0.3125 | 0.50 | 0.025 |
 
 Sonnet 5 is priced at $2/$10 because, per [C], *"The $2/$10 per million input/output token pricing for Claude Sonnet 5, announced at launch as introductory pricing through August 31, 2026, is now the standard price."*

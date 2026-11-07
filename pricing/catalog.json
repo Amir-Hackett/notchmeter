@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "published": "2026-09-24",
+  "published": "2026-11-07",
   "unit": "USD per million tokens",
   "sources": {
     "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
@@ -93,6 +93,13 @@
       "output": 75
     },
     {
+      "prefix": "claude-sonnet-5-5",
+      "effective": "2026-11-07",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1
+    },
+    {
       "prefix": "claude-sonnet-5",
       "effective": "2026-09-24",
       "input": 2,
@@ -127,6 +134,12 @@
       "effective": "2026-09-24",
       "input": 3,
       "output": 15
+    },
+    {
+      "prefix": "claude-haiku-5-5",
+      "effective": "2026-11-07",
+      "input": 0.1,
+      "output": 0.5
     },
     {
       "prefix": "claude-haiku-4-5",
