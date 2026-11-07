@@ -12,6 +12,10 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 - **Sonnet 5.5 and Haiku 5.5 are priced, and Haiku 3.5 is retired.** Both models reached Anthropic's pricing page after the 24 September snapshot, so a Sonnet 5.5 transcript line was priced as Sonnet 5 (right by chance on input and output, wrong on cache reads, which Sonnet 5.5 bills at 0.05x) and a Haiku 5.5 line at the family's newest row, Haiku 4.5, ten times too dear. Both have rows of their own now, in the build and in the catalog, and the snapshot is dated 7 November. Haiku 3.5 left the page the same week and is kept at its last published rate for old transcripts. The weekly pricing check now also reads every model row on the page and fails on one the snapshot does not know, which is how these two went unnoticed for two weeks.
 
+### Sessions
+
+- **Dropping a file on the notch works.** 0.9.25 said it did, and it never did: inside the menu bar's band, the top 33 points of the display, macOS offers a drag only to windows at the menu bar's own level, the way a status item takes a drop, and the notch panel sits above that level so it can draw over the bar. A file dragged onto the rings fell straight through to whatever window lay behind them. A clear window at the bar's level now lies under the collapsed notch and takes the drag: the panel opens as the file comes over the rings, and the drop lands whether you let go on the rings, on the notch or on the panel below.
+
 ## [0.9.25](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.25) — 2026-10-24
 
 0.9.24 was tagged on 18 October, but its release run was stopped before anything was built and the tag was removed, so it was never offered as an update; these notes cover everything since 0.9.23.

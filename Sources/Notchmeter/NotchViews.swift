@@ -1005,7 +1005,10 @@ struct NotchCompactView: View {
     /// (NotchPeek.windowRoom), or a 14-inch display's where there is no screen to ask.
     var peekRoom: NotchPeek.Room = NotchPeek.builtIn
     /// A file dragged over this half opens the panel; one dropped here goes to the session FileDrop.target picks
-    /// (NotchController.dragEntered / dropped). Nil on the probes and the renders, which take no drops.
+    /// (NotchController.dragEntered / dropped). Nil on the probes and the renders, which take no drops. Inside the
+    /// menu bar's band this is never reached, because the Window Server does not offer a drag to a window at the
+    /// panel's level there; DropCatcher, a window at the bar's own level under the strip, takes those. This stays
+    /// for a strip drawn below the band.
     var dragEntered: (() -> Void)? = nil
     var dropFiles: (([URL]) -> Void)? = nil
     @State private var dropTargeted = false
