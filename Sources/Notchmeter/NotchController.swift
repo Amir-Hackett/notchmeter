@@ -433,6 +433,9 @@ final class NotchController: NSObject, PanelPresenting {
     /// scroll moved a ring to, in a click-through window of its own like the glow.
     private let ringTargets = RingTargets()
     private let ringLabel = RingLabelPresenter()
+    /// The window a file dragged onto the collapsed notch lands on (DropCatcher): the notch panel's own level
+    /// puts it out of the Window Server's reach for a drag inside the menu bar's band.
+    private let dropCatcher = DropCatcherPresenter()
     /// The hover machine has decided to open and the transition has not yet adopted it (`act`, `expand`).
     private var expanding = false
     /// What the panel was open on when it began to close, for the view still on screen while it does (PanelLeaving).
@@ -478,6 +481,8 @@ final class NotchController: NSObject, PanelPresenting {
                              dragEntered: { drops.controller?.dragEntered() }, dropFiles: { drops.controller?.dropped($0) })
         }
         dropHook = drops
+        dropCatcher.entered = { drops.controller?.dragEntered() }
+        dropCatcher.dropped = { drops.controller?.dropped($0) }
         leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading, peekRoom: room))
         trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing, peekRoom: room))
         expandedProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
@@ -705,6 +710,7 @@ final class NotchController: NSObject, PanelPresenting {
         fullScreenWatch = nil
         glow.close()
         ringLabel.close()
+        dropCatcher.close()
         transitionSerial += 1
         await notch.hide()
     }
@@ -891,7 +897,11 @@ final class NotchController: NSObject, PanelPresenting {
         let waiting = !store.awaitingInput.filter(store.isShown).isEmpty
         let state = canShowPeek ? NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: Date()) : nil
         let compact = hover.regions.compact.insetBy(dx: Self.compactMargin, dy: 0)
-        glow.show(state, under: compact, behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen), screen: screen.localizedName)
+        let behavior = Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen)
+        glow.show(state, under: compact, behavior: behavior, screen: screen.localizedName)
+        // The drop catcher is framed from the same rectangle and goes away with the readouts, so it is kept here
+        // rather than at every call that re-places the glow.
+        dropCatcher.show(prefs.fileDrop && !suppressedForFullScreen, under: hover.regions.compact, behavior: behavior)
     }
 
     // MARK: - Scroll to retarget
@@ -972,7 +982,8 @@ final class NotchController: NSObject, PanelPresenting {
                  store.openSessionLists, store.planPreviews, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
                  prefs.notchNewsStyle, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
                  prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent, prefs.usageStyle, prefs.hourClock,
-                 prefs.closedWhileWorking, prefs.closedWhenQuiet, store.closedNotchPhase, prefs.sessionRows, prefs.sessionRowLead)
+                 prefs.closedWhileWorking, prefs.closedWhenQuiet, store.closedNotchPhase, prefs.sessionRows, prefs.sessionRowLead,
+                 prefs.fileDrop)
             refreshRegions()
             refreshGlow()
             hover.dwell = prefs.hoverDelay
