@@ -80,12 +80,20 @@ enum FullScreen {
     /// being gone along with the Dock's, the Dock's from every display. Nothing else takes both away on a desktop:
     /// a Dock set to hide keeps a window, and a menu bar set to hide leaves the Dock's where it is, which on a
     /// second display whose Dock lives on the first is "elsewhere", not gone. The pointer at the top edge brings the
-    /// bar back and the verdict flips with it, as it does for a Space; the poll puts it back once the bar goes.
+    /// bar back and, with other apps' windows behind the player, the verdict flips with it; the poll puts it back
+    /// once the bar goes.
+    ///
+    /// The exception is for one covering app. Two windows that share the display's width count as covering it
+    /// together, for Split View, and their sizes cannot say whether they sit side by side or one over the other
+    /// (`covering`); the company test is what rules the stacked pair out. So a pair still has to pass it: without
+    /// that, two tall windows of different apps stacked on a desktop whose Dock and menu bar an app had hidden
+    /// read as full-screen, and the readouts stayed away from a desktop in plain view.
     static func verdict(_ candidates: [Candidate], on display: Display) -> Verdict {
         let owners = covering(candidates, on: display)
         guard !display.dockOnScreen, !owners.isEmpty else { return Verdict() }
         let alone = Set(candidates.map(\.owner)).isSubset(of: owners)
-        guard alone || (!display.menuBarShowing && !display.dockElsewhere) else { return Verdict() }
+        let hidEverything = owners.count == 1 && !display.menuBarShowing && !display.dockElsewhere
+        guard alone || hidEverything else { return Verdict() }
         return Verdict(apps: owners.sorted())
     }
 
@@ -257,8 +265,10 @@ final class FullScreenWatch {
 
     /// `settling` looks again shortly after: a Space change is reported while the window list and the menu bar
     /// are still moving, and a check made mid-transition would otherwise stand until the next app activation.
-    /// The last look is late enough for an app that comes up straight into its own full-screen mode, a game
-    /// launched from the Finder, whose window is not there yet when the activation is reported.
+    /// The last look, five seconds after the activation, gives an app that comes up straight into its own
+    /// full-screen mode another chance: a game launched from the Finder, whose window is not there yet when the
+    /// activation is reported. It is a second chance and not a promise. A window that appears later than that is
+    /// seen at the next notification, since no poll is running while nothing on screen is suspect.
     ///
     /// Polling runs while a full-screen app is up, and also while the windows say one may be up behind a revealed
     /// menu bar: the pointer at the top edge of a full-screen Space brings the bar in, the verdict flips to

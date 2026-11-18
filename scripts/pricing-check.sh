@@ -186,9 +186,13 @@ def output_column():
 def row(name, out):
     for match in re.finditer(re.escape(name) + r"(?![\d.])", text):
         after = text[match.end() : match.end() + 400]
-        # The next row's name (or a footnote) ends this one; only the figures before it count. A name may lead with
-        # its version ("Claude 3.5 Haiku"), so a digit ends the row as a capital does.
-        stop = re.search(r"Claude [A-Z0-9]", after)
+        # The next row's name ends this one; only the figures before it count. A model's name is "Claude", a
+        # family and a version, in either order, and that is what ends the row: a description that names a Claude
+        # product ("for Claude Code", "on the Claude Platform") does not, or the row's figures would fall outside
+        # the cut and a new priced model with such a description would pass unreported. A description that names
+        # another model in full still ends its row early; the page has none, and the check then says the model is
+        # not on the page, which is loud and not silent.
+        stop = re.search(r"Claude (?:[A-Z][a-z]+ [0-9]|[0-9][0-9.]* [A-Z])", after)
         segment = after[: stop.start()] if stop else after
         figures = money.findall(segment)
         if len(figures) >= 5:
