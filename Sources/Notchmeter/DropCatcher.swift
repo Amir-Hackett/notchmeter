@@ -24,6 +24,31 @@ import UniformTypeIdentifiers
 final class DropCatcherPresenter {
     private var window: NSPanel?
     private let view = DropCatcherView()
+    /// Set by `close()`. hide() closes the catcher and then waits for the notch to go, and a refresh queued
+    /// before that (NotchController.observeContent) can still run inside the wait and ask for the catcher
+    /// again. Asked of a presenter with no window, that built a new panel which nothing would ever close, over
+    /// a controller that was being discarded, and a file dropped on it went nowhere. A closed presenter stays
+    /// closed; the controller that replaces this one brings its own.
+    private var closed = false
+    /// The frame last asked for, and the frame the window had when a file drag came over it. While a drag is
+    /// over the catcher its frame only grows: opening the panel for the drag clears the news peek, the collapsed
+    /// shape narrows with it, and a catcher that followed would slide out from under a pointer still holding the
+    /// file, whose drop then fell to the window beneath. The frame asked for is taken up once the drag has gone.
+    private var wantedFrame: CGRect?
+    private var dragFrame: CGRect?
+
+    init() {
+        view.dragOver = { [weak self] over in self?.dragOver(over) }
+    }
+
+    /// Whether the window is built: false before the first `show`, and for good after `close()`.
+    var hasWindow: Bool { window != nil }
+
+    /// The frame the window takes: the one asked for, or, while a drag that entered at `entry` is still over
+    /// it, the two together, so every point that accepted the drag still accepts the drop.
+    nonisolated static func frame(wanted: CGRect, heldSince entry: CGRect?) -> CGRect {
+        entry.map { $0.union(wanted) } ?? wanted
+    }
 
     /// A file drag has come over the collapsed notch.
     var entered: () -> Void {
@@ -44,20 +69,36 @@ final class DropCatcherPresenter {
     /// Places the window under `compact` (the collapsed shape, in screen coordinates) and shows it, or takes it
     /// off screen when `wanted` is false: the setting is off, or the readouts are making way for a full-screen app.
     func show(_ wanted: Bool, under compact: CGRect, behavior: NSWindow.CollectionBehavior) {
+        guard !closed else { return }
         guard wanted else {
             window?.orderOut(nil)
+            // A window taken off screen is told nothing more about a drag that was over it.
+            dragFrame = nil
             return
         }
         let window = self.window ?? makeWindow()
-        if window.frame != compact { window.setFrame(compact, display: false) }
+        wantedFrame = compact
+        let frame = Self.frame(wanted: compact, heldSince: dragFrame)
+        if window.frame != frame { window.setFrame(frame, display: false) }
         window.collectionBehavior = behavior
         if !window.isVisible { window.orderFrontRegardless() }
     }
 
     /// Takes the window away: the presenter is being discarded.
     func close() {
+        closed = true
         window?.orderOut(nil)
         window = nil
+    }
+
+    private func dragOver(_ over: Bool) {
+        guard let window else { return }
+        if over {
+            dragFrame = window.frame
+        } else {
+            dragFrame = nil
+            if let wantedFrame, window.frame != wantedFrame { window.setFrame(wantedFrame, display: false) }
+        }
     }
 
     private func makeWindow() -> NSPanel {
@@ -80,6 +121,11 @@ final class DropCatcherPresenter {
 final class DropCatcherView: NSView {
     var entered: () -> Void = {}
     var dropped: ([URL]) -> Void = { _ in }
+    /// A drag the catcher accepts has come over it (true), or has left, dropped or ended (false).
+    var dragOver: (Bool) -> Void = { _ in }
+    /// What the drag now over the view was found to carry when it entered, and whether it has been announced.
+    private var carriesFiles = false
+    private var announced = false
 
     init() {
         super.init(frame: .zero)
@@ -94,17 +140,48 @@ final class DropCatcherView: NSView {
         (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
     }
 
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard !Self.urls(on: sender.draggingPasteboard).isEmpty else { return [] }
-        entered()
-        return .copy
+    /// What a drag is answered with: a copy, when it carries a file and its source allows one; nothing otherwise.
+    /// A destination may only choose an operation the source permits, and a source can offer a file to be moved
+    /// and not copied.
+    nonisolated static func answer(carriesFiles: Bool, allowed: NSDragOperation) -> NSDragOperation {
+        carriesFiles && allowed.contains(.copy) ? .copy : []
     }
 
-    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }
+    /// The answer for the drag now over the view, announcing it the first time the answer is yes. AppKit goes on
+    /// sending updates after an entry that was refused, and what the source allows can change under a drag (a
+    /// modifier key), so the entry and every update are answered the same way and from what the entry found.
+    private func answer(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let operation = Self.answer(carriesFiles: carriesFiles, allowed: sender.draggingSourceOperationMask)
+        if operation == .copy, !announced {
+            announced = true
+            dragOver(true)
+            entered()
+        }
+        return operation
+    }
+
+    private func finish() {
+        carriesFiles = false
+        guard announced else { return }
+        announced = false
+        dragOver(false)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        carriesFiles = !Self.urls(on: sender.draggingPasteboard).isEmpty
+        announced = false
+        return answer(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { answer(sender) }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { finish() }
+
+    override func draggingEnded(_ sender: NSDraggingInfo) { finish() }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         let urls = Self.urls(on: sender.draggingPasteboard)
-        guard !urls.isEmpty else { return false }
+        guard Self.answer(carriesFiles: !urls.isEmpty, allowed: sender.draggingSourceOperationMask) == .copy else { return false }
         dropped(urls)
         return true
     }

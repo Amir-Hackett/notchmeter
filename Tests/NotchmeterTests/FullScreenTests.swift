@@ -84,6 +84,15 @@ import Testing
         // Company still rules out a covering window while the menu bar is up: Stage Manager, a zoomed window
         // on a desktop the Dock has left for another display.
         #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: space))
+        // The exception is one app's. Two tall windows of different apps whose widths add up to the display's are
+        // Split View by their sizes and may as well be stacked; with company behind them they are a desktop, Dock
+        // and menu bar hidden or not (CodeRabbit, #157). The same pair alone is still Split View.
+        let pair = [window(754, 949, owner: "Safari"), window(758, 949, owner: "Notes")]
+        #expect(!FullScreen.isActive(pair + [window(650, 462, owner: "iTerm2")], on: appFullScreen))
+        #expect(FullScreen.verdict(pair, on: appFullScreen) == FullScreen.Verdict(apps: ["Notes", "Safari"]))
+        // One app with two tall windows is still one covering app.
+        let twoOfOne = [window(754, 949, owner: "VLC"), window(758, 949, owner: "VLC"), window(650, 462, owner: "iTerm2")]
+        #expect(FullScreen.verdict(twoOfOne, on: appFullScreen) == FullScreen.Verdict(apps: ["VLC"]))
     }
 
     @Test func aWindowTheSizeOfTheWholeDisplayCounts() {
