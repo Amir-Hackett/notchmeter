@@ -153,22 +153,27 @@ enum PriceSource: Hashable, Sendable, Codable {
     }
 }
 
-/// Prices as published on platform.claude.com, snapshot 2026-09-24 (`ModelPricing.snapshotDate`; the committed copy
+/// Prices as published on platform.claude.com, snapshot 2026-11-07 (`ModelPricing.snapshotDate`; the committed copy
 /// is `Sources/Notchmeter/Resources/pricing-snapshot.json`, which `.github/workflows/pricing.yml` diffs against the
 /// live page, as it does `pricing/catalog.json`).
 /// Unknown versions fall back to their family's newest rate so a fresh model still prices roughly right until the
 /// table is updated. Overrides (Claude Code's `modelPricing`, or Notchmeter's own file) win over the table, and
 /// Notchmeter's catalog (PricingCatalog) adds rows to it and updates them from their effective dates.
 enum ModelPricing {
-    static let snapshotDate = "2026-09-24"
+    static let snapshotDate = "2026-11-07"
     static let fable51 = ModelRates(input: 10, output: 50, cacheRead: 0.25)
     static let fable5 = ModelRates(input: 10, output: 50, cacheRead: 1.0)
     /// Opus 5.5 reads its cache at 0.05x input ($0.20), the page's own exception to the 0.1x rule.
     static let opus55 = ModelRates(input: 4, output: 20, cacheRead: 0.2)
     static let opus5 = ModelRates(input: 5, output: 25)
     static let opusLegacy = ModelRates(input: 15, output: 75)
+    /// Sonnet 5.5 reads its cache at 0.05x input ($0.10), as Opus 5.5 does; Sonnet 5 stays at the 0.1x rule.
+    static let sonnet55 = ModelRates(input: 2, output: 10, cacheRead: 0.1)
     static let sonnet5 = ModelRates(input: 2, output: 10)
     static let sonnetLegacy = ModelRates(input: 3, output: 15)
+    /// Haiku 5.5's page row also carries a higher rate for prompts over 100,000 tokens ($0.50/$2.50); the table has
+    /// no tier for it and every line is priced at the base rate (docs/accuracy.md).
+    static let haiku55 = ModelRates(input: 0.1, output: 0.5)
     static let haiku45 = ModelRates(input: 1, output: 5)
     static let haiku35 = ModelRates(input: 0.8, output: 4)
     static let haiku3 = ModelRates(input: 0.25, output: 1.25)
@@ -184,7 +189,9 @@ enum ModelPricing {
     /// a row may be added anywhere without shadowing one already here. The order below is presentation only.
     ///
     /// `claude-opus-5-5` needs its own row for the same reason: without it the id is a prefix match for
-    /// `claude-opus-5`, and Opus 5.5 was priced as Opus 5, a quarter too high, under a "built-in" label.
+    /// `claude-opus-5`, and Opus 5.5 was priced as Opus 5, a quarter too high, under a "built-in" label. `claude-sonnet-5-5`
+    /// and `claude-haiku-5-5` are the same shape (2026-11-07): without rows of their own they read as Sonnet 5 and as
+    /// nothing the Haiku family's newest row could stand in for.
     static let table: [(prefix: String, rates: ModelRates)] = [
         ("claude-fable-5-1", fable51), ("claude-mythos-5-1", fable51),
         ("claude-fable-5", fable5), ("claude-mythos-5", fable5),
@@ -192,10 +199,10 @@ enum ModelPricing {
         ("claude-opus-5", opus5), ("claude-opus-4-8", opus5), ("claude-opus-4-7", opus5),
         ("claude-opus-4-6", opus5), ("claude-opus-4-5", opus5),
         ("claude-opus-4-1", opusLegacy), ("claude-opus-4", opusLegacy),
-        ("claude-sonnet-5", sonnet5),
+        ("claude-sonnet-5-5", sonnet55), ("claude-sonnet-5", sonnet5),
         ("claude-sonnet-4-6", sonnetLegacy), ("claude-sonnet-4-5", sonnetLegacy), ("claude-sonnet-4", sonnetLegacy),
         ("claude-3-7-sonnet", sonnetLegacy), ("claude-3-5-sonnet", sonnetLegacy),
-        ("claude-haiku-4-5", haiku45),
+        ("claude-haiku-5-5", haiku55), ("claude-haiku-4-5", haiku45),
         ("claude-3-5-haiku", haiku35),
         ("claude-3-haiku", haiku3),
     ]

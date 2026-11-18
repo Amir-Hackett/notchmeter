@@ -6,8 +6,11 @@
 # rate above zero and at most $1,000 per million, a cache read no dearer than the input, fast rates in pairs, no
 # two entries for one model on one day), and its newest entry per Anthropic model must agree with the snapshot,
 # so the two cannot drift apart. Then, unless --offline is given, the page is fetched and both documents' per-model
-# input/output rates are compared with it. Exits 1 with the differences when anything moved, so the weekly workflow
-# (.github/workflows/pricing.yml) fails loudly.
+# input/output rates are compared with it, and every priced model row on the page is looked up in the snapshot and
+# the catalog, so a model that is new on the page fails the check as a changed rate does (Sonnet 5.5 launched on
+# 2026-09-28 and Haiku 5.5 on 2026-10-07, and both sat on the page unpriced until this was added, 2026-11-07).
+# Exits 1 with the differences when anything moved, so the weekly
+# workflow (.github/workflows/pricing.yml) fails loudly.
 #   scripts/pricing-check.sh              validate, then fetch the page and compare
 #   scripts/pricing-check.sh --offline    validate the catalog and its agreement with the snapshot; no network
 #   scripts/pricing-check.sh page.html    compare against a saved copy of the page
@@ -183,8 +186,9 @@ def output_column():
 def row(name, out):
     for match in re.finditer(re.escape(name) + r"(?![\d.])", text):
         after = text[match.end() : match.end() + 400]
-        # The next row's name (or a footnote) ends this one; only the figures before it count.
-        stop = re.search(r"Claude [A-Z]", after)
+        # The next row's name (or a footnote) ends this one; only the figures before it count. A name may lead with
+        # its version ("Claude 3.5 Haiku"), so a digit ends the row as a capital does.
+        stop = re.search(r"Claude [A-Z0-9]", after)
         segment = after[: stop.start()] if stop else after
         figures = money.findall(segment)
         if len(figures) >= 5:
@@ -220,6 +224,33 @@ for prefix, rates in snapshot["models"].items():
 if not found_any:
     print("pricing-check: could not find any model row on the page; its layout may have changed", file=sys.stderr)
     sys.exit(1)
+
+# --- The page against both documents: a row neither has heard of ---------------------------------------------
+# Every "Claude <Family> <version>" or "Claude <version> <Family>" followed by five figures is a priced row; its id
+# is either shape the snapshot uses ("claude-sonnet-5-5", or the older "claude-3-5-haiku"). The family is any
+# capitalised word, not a list of the ones the app prices today, so a family that is new on the page ("Claude Nova
+# 5") is reported as a new model of a known one is; and a version is whole numbers joined by dots, so "5.10" is
+# read as 5.10 and not as 5.1 with a stray digit. A name with no figures after it (the navigation, a sentence, a
+# product such as "Claude Code 2") is not a row and is passed over by row().
+known = set(snapshot["models"])
+in_catalog = set(newest)
+reported = set()
+VERSION = r"[0-9]+(?:\.[0-9]+)*"
+for match in re.finditer(rf"Claude (?:([A-Z][a-z]+) ({VERSION})|({VERSION}) ([A-Z][a-z]+))(?![\d.])", text):
+    name = match.group(0)
+    if name in reported:
+        continue
+    hit = row(name, out)
+    if hit is None:
+        continue
+    reported.add(name)
+    family = (match.group(1) or match.group(4)).lower()
+    version = (match.group(2) or match.group(3)).replace(".", "-")
+    ids = {f"claude-{family}-{version}", f"claude-{version}-{family}"}
+    if ids & known:
+        continue
+    where = "in the catalog but not the snapshot" if ids & in_catalog else "in neither the snapshot nor the catalog"
+    failures.append(f"{name}: on the page (${hit[1]}/${hit[2]}) and {where}")
 if failures:
     print("pricing-check: the pricing page differs from the snapshot dated " + snapshot["snapshotDate"] + " or the catalog published " + catalog["published"] + ":")
     for f in failures:
