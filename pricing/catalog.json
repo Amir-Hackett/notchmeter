@@ -94,7 +94,7 @@
     },
     {
       "prefix": "claude-sonnet-5-5",
-      "effective": "2026-11-07",
+      "effective": "2026-09-28",
       "input": 2,
       "output": 10,
       "cacheRead": 0.1
@@ -137,7 +137,7 @@
     },
     {
       "prefix": "claude-haiku-5-5",
-      "effective": "2026-11-07",
+      "effective": "2026-10-07",
       "input": 0.1,
       "output": 0.5
     },
