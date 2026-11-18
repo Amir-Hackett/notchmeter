@@ -183,8 +183,9 @@ import Testing
     }
 
     /// The seat that reads 0 % on every meter, through the provider as the app builds it: the export gives it a
-    /// usual day, Today's spend leads the reading, and the two model meters behind it lose their 0 %. A ring
-    /// chosen for one of them shows it all the same, empty: a pick is what the rings show (0.9.27).
+    /// usual day, Today's spend leads the reading, and the two model meters behind it lose their 0 %. A meter the
+    /// export has dollars for is filled from them against its own usual day (0.9.28: Composer here); one it has
+    /// none for stays blank, and a ring chosen for it shows it all the same, empty (0.9.27).
     @Test func aSeatMeteredNowhereLeadsWithTodaysSpendAndItsZeroMetersYield() async throws {
         let enterprise = Data(#"""
         {"billingCycleStart":"2026-09-18T00:00:00.000Z","billingCycleEnd":"2026-10-18T00:00:00.000Z",
@@ -208,13 +209,21 @@ import Testing
             #expect(reading.windows.map(\.id) == ["spend_today", "included", "cursor_models", "other_models", "team_on_demand"])
             let spentToday = reading.windows[0].usedFraction ?? 0
             #expect(spentToday > 0)
-            #expect(reading.windows[2].usedFraction == nil && reading.windows[3].usedFraction == nil)
-            #expect(reading.windows[2].note == "Reads 0% on this seat however much it spends; Today's spend carries the reading")
+            // Composer is a Cursor model: $8.76 today against the one earlier day's $50.
+            let cursorModels = try #require(reading.windows[2].usedFraction)
+            let expected = 8.76 / 50
+            #expect(abs(cursorModels - expected) < 1e-9)
+            #expect(reading.windows[2].isComparison && reading.windows[2].source == .localEstimate)
+            #expect(reading.windows[2].note?.hasPrefix("$8.76 of a usual") == true)
+            // Nothing picked by name in the history, so Other models has no usual day and stays blank.
+            #expect(reading.windows[3].usedFraction == nil)
+            #expect(reading.windows[3].note == "Reads 0% on this seat however much it spends; Today's spend carries the reading")
             #expect(RingSelection.windows(of: reading, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["cursor_models", "spend_today"])
             #expect(RingSelection.windows(of: reading, chosen: [], hidden: []).map(\.id) == ["spend_today", "included"])
             // The picker says which choices draw an empty ring.
             #expect(Preferences.ringChoiceTitle(reading.windows[0]) == "Today's spend")
-            #expect(Preferences.ringChoiceTitle(reading.windows[2]) == "Cursor models — draws an empty ring")
+            #expect(Preferences.ringChoiceTitle(reading.windows[2]) == "Cursor models")
+            #expect(Preferences.ringChoiceTitle(reading.windows[3]) == "Other models — draws an empty ring")
         }
     }
 

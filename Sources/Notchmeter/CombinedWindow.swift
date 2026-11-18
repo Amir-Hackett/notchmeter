@@ -32,7 +32,9 @@ enum CombinedWindow {
     }
 
     static func of(windows: [LimitWindow]) -> LimitWindow? {
-        let reporting = windows.filter { $0.usedFraction != nil && $0.id != id }
+        // Not comparisons: Cursor's model meters filled against a usual day each (CursorProvider.withModelSpend)
+        // are not shares of one allowance, so "the highest of them" says nothing; Today's spend is their total.
+        let reporting = windows.filter { $0.usedFraction != nil && $0.id != id && !$0.isComparison }
         let models = reporting.filter { $0.model != nil }
         guard models.count >= 2, let highest = models.compactMap(\.usedFraction).max() else { return nil }
         let total = reporting.first { candidate in

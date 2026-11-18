@@ -220,6 +220,63 @@ import Testing
         #expect(kept[2].usedFraction == nil)
     }
 
+    /// The export's model names, as one Enterprise seat's history spelled them (2026-11-18), sorted onto Cursor's
+    /// two meters: Auto and Composer on one, a model picked by name on the other.
+    @Test func modelNamesSortOntoCursorsTwoMeters() {
+        for auto in ["default", "composer-2.5", "composer-2.5-fast", "Composer 2.5 Fast (Auto Balanced)", "Claude Opus 5 (Auto Balanced)",
+                     "grok-4.7-high (Auto Intelligence)", "GPT-5.6 Sol (Auto Balanced)"] {
+            #expect(CursorProvider.modelMeter(of: auto) == "cursor_models", "\(auto)")
+        }
+        for named in ["claude-opus-5-5", "claude-4.6-opus-high-thinking", "gpt-5.6-sol-medium", "cursor-grok-4.5-high", "grok-4.7-high"] {
+            #expect(CursorProvider.modelMeter(of: named) == "other_models", "\(named)")
+        }
+        #expect(CursorProvider.modelMeter(of: "usage-correction") == nil)
+    }
+
+    /// A dead model meter is filled from the export's dollars for its own models, against the median of the days
+    /// before that spent anything on them, and is a comparison like Today's spend; with no such day it stays blank.
+    @Test func aDeadModelMeterIsFilledFromTheExportsDollars() throws {
+        let json = """
+        {"billingCycleStart":"2026-09-18T00:00:00.000Z","billingCycleEnd":"2026-10-18T00:00:00.000Z",
+         "membershipType":"enterprise","limitType":"team","isUnlimited":false,
+         "autoModelSelectedDisplayMessage":"You've used 0% of your included total usage",
+         "namedModelSelectedDisplayMessage":"You've used 0% of your included API usage",
+         "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null,"remaining":null}}}
+        """
+        let reading = try CursorProvider.parseSummary(Data(json.utf8))
+        let calendar = Calendar(identifier: .gregorian)
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let today = calendar.startOfDay(for: now)
+        func day(_ offset: Int, _ byModel: [String: Double]) -> (Date, CostHistory.Record) {
+            (calendar.date(byAdding: .day, value: offset, to: today)!,
+             CostHistory.Record(cost: byModel.values.reduce(0, +), tokens: TokenBreakdown(), byModel: byModel, byProject: [:]))
+        }
+        let days = Dictionary(uniqueKeysWithValues: [
+            day(0, ["default": 30, "claude-opus-5-5": 56]),
+            day(-1, ["default": 60, "claude-opus-5-5": 40, "usage-correction": 500]),
+            day(-2, ["composer-2.5-fast": 20]),
+            day(-3, ["claude-opus-5-5": 20, "default": 40]),
+            day(-40, ["claude-opus-5-5": 9_000]),
+        ])
+        let filled = CursorProvider.withoutDeadSplits(reading.windows, days: days, now: now, calendar: calendar)
+        let auto = try #require(filled.first { $0.id == "cursor_models" })
+        let named = try #require(filled.first { $0.id == "other_models" })
+        // Cursor models: usual is the median of 60, 20, 40 = 40; today 30. Other models: median of 40, 20 = 30;
+        // today 56, past a usual day, so the ring is full and the overshoot is kept. The correction and the day
+        // outside the thirty count for neither.
+        let autoExpected = 30.0 / 40
+        #expect(auto.usedFraction == autoExpected && auto.isComparison && auto.amountUSD == 30)
+        #expect(named.usedFraction == 1 && named.isComparison && named.amountUSD == 56)
+        let overshoot = 56.0 / 30 * 100
+        #expect(abs((named.rawUsedPercent ?? 0) - overshoot) < 1e-9)
+        #expect(auto.model == "Cursor models" && auto.source == .localEstimate)
+        #expect(CombinedWindow.of(windows: filled) == nil, "comparisons against a usual day each are not combined")
+
+        // No history for a meter: it stays blank, as before.
+        let blank = CursorProvider.withoutDeadSplits(reading.windows, days: [:], now: now, calendar: calendar)
+        #expect(blank.first { $0.id == "other_models" }?.usedFraction == nil)
+    }
+
     @Test func parsesLegacyRequestUsage() throws {
         let json = #"{"gpt-4":{"numRequests":120,"numRequestsTotal":120,"numTokens":0,"maxRequestUsage":500,"maxTokenUsage":null},"startOfMonth":"2026-08-24T00:00:00.000Z"}"#
         let reading = try CursorProvider.parseLegacyUsage(Data(json.utf8))

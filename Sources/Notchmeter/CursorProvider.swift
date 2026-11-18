@@ -112,7 +112,7 @@ actor CursorProvider: UsageProvider {
             guard let spend = Self.spendToday(days) else { return reading }
             // The same seat's cycle line has dollars and no limit, so it fills against the cycle before it where
             // the history reaches that far back (`withCycleComparison`).
-            let behind = Self.withCycleComparison(Self.withoutDeadSplits(reading.windows), days: days, cycleStart: cycleStart)
+            let behind = Self.withCycleComparison(Self.withoutDeadSplits(reading.windows, days: days), days: days, cycleStart: cycleStart)
             return UsageReading(tool: .cursor, windows: [spend] + behind, plan: reading.plan,
                                 fetchedAt: reading.fetchedAt, observedAt: reading.observedAt)
         case 401, 403:
@@ -653,14 +653,57 @@ actor CursorProvider: UsageProvider {
     /// meter that starts counting comes straight back. A ring chosen for one draws empty, and the picker says so
     /// (Preferences.ringChoiceTitle); until 0.9.27 such a choice gave way to Today's spend, which left every pick
     /// on such a seat snapping back to it.
-    static func withoutDeadSplits(_ windows: [LimitWindow]) -> [LimitWindow] {
+    ///
+    /// Where the export has the dollars for the split, the split is filled from them instead (`withModelSpend`):
+    /// "draws an empty ring" beside a model meter the seat was plainly spending on read as broken, and was.
+    static func withoutDeadSplits(_ windows: [LimitWindow], days: [Date: CostHistory.Record] = [:], now: Date = Date(),
+                                  calendar: Calendar = .current) -> [LimitWindow] {
         windows.map { window in
             guard ["cursor_models", "other_models"].contains(window.id), window.usedFraction == 0 else { return window }
+            if let filled = withModelSpend(window, days: days, now: now, calendar: calendar) { return filled }
             return LimitWindow(id: window.id, label: window.name, usedFraction: nil, resetsAt: window.resetsAt,
                                note: L("Reads 0% on this seat however much it spends; Today's spend carries the reading"),
                                periodDuration: window.periodDuration, model: window.model, source: window.source,
                                hiddenByDefault: window.hiddenByDefault)
         }
+    }
+
+    /// Which of Cursor's two model meters a model's spend belongs to. Cursor splits usage into *Auto + Composer*
+    /// (`autoPercentUsed`, "Cursor models" here) and the models picked by name (`apiPercentUsed`, "Other models"),
+    /// and the export names the model per event. Auto's own requests come through as `default` or with an
+    /// "(Auto …)" suffix whatever model served them, and Composer is Cursor's own model. Everything else was picked
+    /// by name, `cursor-grok-…` included: that is Cursor's hosting of a named model, not Auto. Nil for lines that
+    /// are not a model's (`usage-correction`), which belong to neither meter.
+    static func modelMeter(of model: String) -> String? {
+        let name = model.lowercased()
+        if name == "usage-correction" { return nil }
+        if name == "default" || name == "auto" || name.hasPrefix("composer") || name.contains("(auto ") { return "cursor_models" }
+        return "other_models"
+    }
+
+    /// A model meter that reads a dead 0 %, filled from the export the way *Today's spend* is: the day's dollars
+    /// for that meter's models against the median of the days in the thirty before that spent anything on them.
+    /// A comparison, not a limit, worked out here and not published by Cursor. Nil when the history has no usual
+    /// day for that meter yet, which leaves the meter blank as before.
+    static func withModelSpend(_ window: LimitWindow, days: [Date: CostHistory.Record], now: Date = Date(),
+                               calendar: Calendar = .current) -> LimitWindow? {
+        let today = calendar.startOfDay(for: now)
+        guard let start = calendar.date(byAdding: .day, value: -30, to: today),
+              let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return nil }
+        func spent(_ record: CostHistory.Record) -> Double {
+            record.byModel.reduce(0) { modelMeter(of: $1.key) == window.id ? $0 + $1.value : $0 }
+        }
+        let active = days.filter { $0.key >= start && $0.key < today }.map { spent($0.value) }.filter { $0 > 0 }.sorted()
+        guard !active.isEmpty else { return nil }
+        let middle = active.count / 2
+        let usual = active.count % 2 == 1 ? active[middle] : (active[middle - 1] + active[middle]) / 2
+        let todaySpent = days[today].map(spent) ?? 0
+        let percent = todaySpent / usual * 100
+        return LimitWindow(id: window.id, label: window.name, usedFraction: min(max(todaySpent / usual, 0), 1), resetsAt: tomorrow,
+                           note: L("%1$@ of a usual %2$@ day", Money.dollars(todaySpent), Money.dollars(usual, cents: false)),
+                           periodDuration: tomorrow.timeIntervalSince(today), model: window.model, source: .localEstimate,
+                           hiddenByDefault: window.hiddenByDefault, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: todaySpent,
+                           comparison: true)
     }
 
     /// How much of a window is spent, 0...1: whichever of Cursor's two answers reads further along.
