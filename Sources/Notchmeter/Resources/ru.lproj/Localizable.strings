@@ -877,6 +877,9 @@
 "Today's spend" = "Расходы за сегодня";
 "%1$@ of a usual %2$@ day" = "%1$@ при обычных %2$@ в день";
 "Heading for ~%ld%% today" = "Прогноз на сегодня: ~%ld%%";
+"%1$@ so far, %2$@ last cycle" = "%1$@ на данный момент, %2$@ за прошлый цикл";
+"Heading for ~%ld%% of last cycle" = "Идёт к ~%ld%% от прошлого цикла";
+"%@ — draws an empty ring" = "%@ — рисует пустое кольцо";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (~%2$@)";

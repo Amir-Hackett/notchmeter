@@ -107,9 +107,13 @@ actor CursorProvider: UsageProvider {
             // A seat Cursor publishes no cycle figure for at all still has one in its export: the events since the
             // cycle began, at the cost Cursor gave each (`withCycleSpend`).
             reading = reading.with(windows: Self.withCycleSpend(reading.windows, events: export.events, from: export.start, cycleStart: cycleStart))
-            guard !Self.headlineMetered(reading.windows), let history, let spend = Self.spendToday(history.load(calendar: .current))
-            else { return reading }
-            return UsageReading(tool: .cursor, windows: [spend] + Self.withoutDeadSplits(reading.windows), plan: reading.plan,
+            guard !Self.headlineMetered(reading.windows), let history else { return reading }
+            let days = history.load(calendar: .current)
+            guard let spend = Self.spendToday(days) else { return reading }
+            // The same seat's cycle line has dollars and no limit, so it fills against the cycle before it where
+            // the history reaches that far back (`withCycleComparison`).
+            let behind = Self.withCycleComparison(Self.withoutDeadSplits(reading.windows), days: days, cycleStart: cycleStart)
+            return UsageReading(tool: .cursor, windows: [spend] + behind, plan: reading.plan,
                                 fetchedAt: reading.fetchedAt, observedAt: reading.observedAt)
         case 401, 403:
             throw ProviderError.notSignedIn(L("Cursor's login was refused. Sign in to Cursor in the editor again"))
@@ -603,13 +607,46 @@ actor CursorProvider: UsageProvider {
         )
     }
 
+    /// *Monthly usage* against the cycle before it, on a seat that has the cycle's dollars and no limit to set them
+    /// against. A spend with no limit has nothing to fill a ring with, so chosen for one it drew a dashed circle;
+    /// the cycle before is the one figure of the seat's own that this cycle can be read against, the way today is
+    /// read against a usual day. It is a comparison and not a limit (`comparison`), so it paces and never runs out,
+    /// warns or notifies, and it is marked as worked out here: Cursor publishes neither the fraction nor last
+    /// cycle's total.
+    ///
+    /// Last cycle's total is the history's days from the day that cycle began to the day this one did. Left alone:
+    /// a window that already has a figure or has no dollars, a history that does not reach back to the day the last
+    /// cycle began (its sum would be short, and a short sum makes this cycle read high), and a last cycle with
+    /// nothing spent in it. The days are local days and a cycle turns over at an instant, so the two totals can
+    /// differ by the part of a day at each end; the note gives both figures.
+    static func withCycleComparison(_ windows: [LimitWindow], days: [Date: CostHistory.Record], cycleStart: Date?, now: Date = Date(),
+                                    calendar: Calendar = .current) -> [LimitWindow] {
+        guard let cycleStart, cycleStart <= now else { return windows }
+        return windows.map { window in
+            guard window.id == "included", window.usedFraction == nil, let spent = window.amountUSD, spent > 0,
+                  let length = window.periodDuration, length > 0 else { return window }
+            let thisCycle = calendar.startOfDay(for: cycleStart)
+            let lastCycle = calendar.startOfDay(for: cycleStart.addingTimeInterval(-length))
+            guard let earliest = days.keys.min(), earliest <= lastCycle else { return window }
+            let before = days.reduce(0.0) { $1.key >= lastCycle && $1.key < thisCycle ? $0 + $1.value.cost : $0 }
+            guard before > 0 else { return window }
+            let percent = spent / before * 100
+            return LimitWindow(id: window.id, label: window.name, usedFraction: min(max(spent / before, 0), 1), resetsAt: window.resetsAt,
+                               note: L("%1$@ so far, %2$@ last cycle", Money.dollars(spent), Money.dollars(before, cents: false)),
+                               periodDuration: window.periodDuration, model: window.model, source: .localEstimate,
+                               hiddenByDefault: window.hiddenByDefault, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: spent,
+                               comparison: true)
+        }
+    }
+
     /// The two model meters on a seat whose summary meters nothing. Cursor keeps answering them for such a seat,
     /// and they read 0 % all cycle however much the export shows it spending (an Enterprise seat on 2026-09-20:
     /// $8.76 of export that day against "Cursor models 0 %"). A 0 that money is flowing past is not a figure, so
     /// once the spend window exists (thirty days of export dollars with nothing metered) a split that still reads
     /// exactly 0 loses its fraction and says why. One that reads anything above 0 is alive and is left alone, so a
-    /// meter that starts counting comes straight back. The choice in Settings is never rewritten to follow this:
-    /// RingSelection yields a choice with no figure to the windows that have one and returns to it by itself.
+    /// meter that starts counting comes straight back. A ring chosen for one draws empty, and the picker says so
+    /// (Preferences.ringChoiceTitle); until 0.9.27 such a choice gave way to Today's spend, which left every pick
+    /// on such a seat snapping back to it.
     static func withoutDeadSplits(_ windows: [LimitWindow]) -> [LimitWindow] {
         windows.map { window in
             guard ["cursor_models", "other_models"].contains(window.id), window.usedFraction == 0 else { return window }

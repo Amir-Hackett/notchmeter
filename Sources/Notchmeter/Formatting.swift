@@ -81,7 +81,9 @@ enum Pace {
             guard let used = window.usedFraction, used > 0, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
             let percent = window.rawUsedPercent.map { $0 / 100 } ?? used
             let projected = evaluate(usedFraction: percent, resetsAt: resetsAt, period: period, now: now)?.projectedFraction ?? percent
-            return (L("Heading for ~%ld%% today", Int((projected * 100).rounded())), .ahead)
+            // Against a usual day it is today that is heading somewhere; against the cycle before, this cycle.
+            let heading = Int((projected * 100).rounded())
+            return (period > Period.day * 1.5 ? L("Heading for ~%ld%% of last cycle", heading) : L("Heading for ~%ld%% today", heading), .ahead)
         }
         // A spent window has nothing left to project: "~93% over at reset" beside 100% describes usage a hard limit
         // cannot reach, and the meter already reads full.

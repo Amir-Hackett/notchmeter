@@ -877,6 +877,9 @@
 "Today's spend" = "Gasto de hoje";
 "%1$@ of a usual %2$@ day" = "%1$@ de um dia típico de %2$@";
 "Heading for ~%ld%% today" = "Rumo a ~%ld%% hoje";
+"%1$@ so far, %2$@ last cycle" = "%1$@ até agora, %2$@ no ciclo anterior";
+"Heading for ~%ld%% of last cycle" = "A caminho de ~%ld%% do ciclo anterior";
+"%@ — draws an empty ring" = "%@ — desenha um anel vazio";
 
 /* O cache de prompt da linha de status do Claude Code: a legenda do cartão Custo, a linha de dica, a opção nos Ajustes (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (~%2$@)";

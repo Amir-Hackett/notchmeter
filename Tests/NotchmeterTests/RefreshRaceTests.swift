@@ -29,7 +29,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let timer = Task { await store.refresh(.claude, force: true) }
-        #expect(await provider.fetchesBegun(1))
+        #expect(await provider.fetchesBegun(1, within: 10))
         // A second timer read finds the first in flight and leaves it to finish.
         await store.refresh(.claude, force: true)
         #expect(await provider.interactives == [false])
@@ -40,7 +40,7 @@ import Testing
         #expect(await provider.interactives == [false])
         await provider.release()
         await timer.value
-        #expect(await provider.fetchesBegun(2))
+        #expect(await provider.fetchesBegun(2, within: 10))
         await provider.release()
         await pressed.value
 
@@ -60,7 +60,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let read = Task { await store.refresh(.cursor, force: true) }
-        #expect(await provider.fetchesBegun(1))
+        #expect(await provider.fetchesBegun(1, within: 10))
         store.setEnabled(.cursor, false)
         #expect(store.status(.cursor) == .off)
         await provider.release()
@@ -82,7 +82,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let timer = Task { await store.refresh(.cursor, force: true) }
-        #expect(await provider.fetchesBegun(1))
+        #expect(await provider.fetchesBegun(1, within: 10))
         let pressed = Task { await store.refresh(.cursor, force: true, interactive: true) }
         await Task.yield()
         store.setEnabled(.cursor, false)
@@ -135,14 +135,25 @@ actor ParkedProvider: UsageProvider {
     private var abandoned = false
 
     /// Returns once `count` reads have started, so the test can act while one is on the wire, and says whether they
-    /// did. Bounded: a read that never comes returns false after a thousand yields instead of hanging the run, and
-    /// from then on any late read passes straight through `fetch` rather than parking where no `release` will reach
-    /// it. The one test that expects a read *not* to start asserts the false; the others assert the true, so a store
-    /// that dropped a read fails at the line that waited for it rather than at some later one.
+    /// did. Bounded: a read that never comes returns false instead of hanging the run, and from then on any late read
+    /// passes straight through `fetch` rather than parking where no `release` will reach it. The one test that
+    /// expects a read *not* to start asserts the false; the others assert the true, so a store that dropped a read
+    /// fails at the line that waited for it rather than at some later one.
+    ///
+    /// The wait is a thousand yields, and then for as long as `seconds` allows. Yields alone were the whole of it
+    /// until 0.9.27, and a read that is on its way can take longer than a thousand of them on a runner with other
+    /// work: `aWaitingRefreshDoesNotStartForAToolSwitchedOffMeanwhile` failed at its first wait on 0.9.26's version
+    /// pull request (2026-11-18) and passed when the same commit was run again. A read that is expected is now
+    /// given real time, and returns the moment it starts; the read that is expected not to come keeps the short
+    /// wait, since waiting longer for nothing only makes the suite slower.
     @discardableResult
-    func fetchesBegun(_ count: Int) async -> Bool {
+    func fetchesBegun(_ count: Int, within seconds: TimeInterval = 0) async -> Bool {
         for _ in 0..<1000 where interactives.count < count {
             await Task.yield()
+        }
+        let deadline = Date().addingTimeInterval(seconds)
+        while interactives.count < count, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 2_000_000)
         }
         let begun = interactives.count >= count
         if !begun { abandoned = true }

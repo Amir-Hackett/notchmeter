@@ -877,6 +877,9 @@
 "Today's spend" = "Dépenses du jour";
 "%1$@ of a usual %2$@ day" = "%1$@ sur une journée habituelle de %2$@";
 "Heading for ~%ld%% today" = "Projection : ~%ld %% aujourd'hui";
+"%1$@ so far, %2$@ last cycle" = "%1$@ jusqu’ici, %2$@ au cycle précédent";
+"Heading for ~%ld%% of last cycle" = "En route vers ~%ld%% du cycle précédent";
+"%@ — draws an empty ring" = "%@ — dessine un anneau vide";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (~%2$@)";

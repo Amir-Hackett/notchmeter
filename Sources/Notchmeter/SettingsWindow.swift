@@ -2222,17 +2222,17 @@ private struct WindowChoices: View {
         let ring = prefs.ringWindows(of: reading)
         let choices = prefs.ringChoices(of: reading)
         Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0) })) {
-            ForEach(choices) { window in Text(window.label).tag(window.id) }
+            ForEach(choices) { window in Text(Preferences.ringChoiceTitle(window)).tag(window.id) }
         }
         .disabled(choices.isEmpty)
         Picker(L("Inner ring"), selection: Binding(get: { id(of: ring, at: 1) }, set: { set(at: 1, $0) })) {
             Text(L("None")).tag("")
-            ForEach(choices) { window in Text(window.label).tag(window.id) }
+            ForEach(choices) { window in Text(Preferences.ringChoiceTitle(window)).tag(window.id) }
         }
         .disabled(choices.isEmpty)
         Picker(L("Third ring"), selection: Binding(get: { id(of: ring, at: 2) }, set: { set(at: 2, $0) })) {
             Text(L("None")).tag("")
-            ForEach(choices) { window in Text(window.label).tag(window.id) }
+            ForEach(choices) { window in Text(Preferences.ringChoiceTitle(window)).tag(window.id) }
         }
         .disabled(choices.isEmpty)
         // The checkboxes read from the shown set rather than the raw preference, so a window the floor is showing

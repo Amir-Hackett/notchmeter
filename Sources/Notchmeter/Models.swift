@@ -245,10 +245,15 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     /// The name in this run's language.
     var label: String { name.text }
 
-    /// A figure measured against a usual amount rather than a limit (Cursor's "Today's spend" against a usual day):
-    /// it fills a ring and paces, but nothing runs out, so it never earns a run-out warning, an alert, or the advice
-    /// to switch tools. A budget the user set is a limit of their own and is not one of these.
-    var isComparison: Bool { id == "spend_today" }
+    /// A figure measured against a usual amount rather than a limit (Cursor's "Today's spend" against a usual day,
+    /// its "Monthly usage" against the cycle before): it fills a ring and paces, but nothing runs out, so it never
+    /// earns a run-out warning, an alert, or the advice to switch tools. A budget the user set is a limit of their
+    /// own and is not one of these.
+    ///
+    /// Stored since 0.9.27. Until then it was read off the id, `spend_today` being the only one, which could not say
+    /// it of a window that is a real limit on one seat and a comparison on another ("Monthly usage" is the
+    /// `included` window). A window built or cached without the flag is still one by that id.
+    let isComparison: Bool
     /// Share of the window already consumed, 0...1. nil when the tool publishes no limit.
     let usedFraction: Double?
     let resetsAt: Date?
@@ -271,9 +276,10 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
 
     init(id: String, label: WindowLabel, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil,
          source: WindowSource = .vendorEndpoint, hiddenByDefault: Bool = false, rawUsedPercent: Double? = nil, amountUSD: Double? = nil,
-         recentRate: Double? = nil) {
+         recentRate: Double? = nil, comparison: Bool? = nil) {
         self.id = id
         self.name = label
+        self.isComparison = comparison ?? (id == Self.todaysSpendID)
         self.usedFraction = usedFraction
         self.resetsAt = resetsAt
         self.note = note
@@ -291,21 +297,28 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     /// reset's instant, so a window that is kept for the life of a period keeps the instant it arrived with.
     func pinningReset(to resetsAt: Date) -> LimitWindow {
         LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note, periodDuration: periodDuration, model: model,
-                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate)
+                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate,
+                    comparison: isComparison)
     }
+
+    /// The id of Cursor's "Today's spend", a comparison by its id from before the flag was stored.
+    static let todaysSpendID = "spend_today"
 
     /// The same window projected at `recentRate` (RecentPace.apply).
     func pacing(at recentRate: Double?) -> LimitWindow {
         LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note, periodDuration: periodDuration, model: model,
-                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate)
+                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate,
+                    comparison: isComparison)
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, usedFraction, resetsAt, note, periodDuration, model, source, hiddenByDefault, rawUsedPercent, amountUSD
         case name = "label"
+        case isComparison = "comparison"
     }
 
-    /// Readings cached by an earlier version carry no source; they were endpoint reads.
+    /// Readings cached by an earlier version carry no source; they were endpoint reads. Nor do they say which
+    /// window is a comparison; the one there was is known by its id.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -319,6 +332,7 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
         hiddenByDefault = try container.decodeIfPresent(Bool.self, forKey: .hiddenByDefault) ?? false
         rawUsedPercent = try container.decodeIfPresent(Double.self, forKey: .rawUsedPercent)
         amountUSD = try container.decodeIfPresent(Double.self, forKey: .amountUSD)
+        isComparison = try container.decodeIfPresent(Bool.self, forKey: .isComparison) ?? (id == Self.todaysSpendID)
         recentRate = nil
     }
 
@@ -326,7 +340,8 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     func with(source: WindowSource, note: String? = nil, periodDuration: TimeInterval?? = nil) -> LimitWindow {
         LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note ?? self.note,
                     periodDuration: periodDuration.map { $0 } ?? self.periodDuration, model: model, source: source,
-                    hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate)
+                    hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate,
+                    comparison: isComparison)
     }
 }
 

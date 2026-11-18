@@ -72,11 +72,10 @@ import Testing
         #expect(RingSelection.windows(of: reading, chosen: ["seven_day", "seven_day"], hidden: []).map(\.id) == ["seven_day", "five_hour"])
     }
 
-    /// A choice that would draw only empty rings yields to the data while a comparison window (Today's spend) is
-    /// on show, and is not rewritten. The case that found it: Cursor's model meters chosen for both rings on a seat
-    /// where they lost their 0 % (CursorProvider.withoutDeadSplits); the rings read "0% · 0%" all day while the
-    /// export showed $8.76 spent. Without a comparison window the explicit choice wins as it always has.
-    @Test func ringSelectionYieldsAChoiceWithNoFigureToTheDataAndKeepsIt() {
+    /// A choice is what the rings show, empty rings and all, with a comparison window (Today's spend) on show or
+    /// not. Until 0.9.27 a choice that would draw only empty rings gave way to the data while Today's spend was on
+    /// show; on a seat where that is the only window with a figure, every pick in Settings snapped back to it.
+    @Test func ringSelectionHonoursAChoiceWithNoFigureBesideTodaysSpend() {
         let now = Date()
         func reading(_ cursorModels: Double?, _ otherModels: Double?) -> UsageReading {
             UsageReading(tool: .cursor, windows: [
@@ -87,9 +86,20 @@ import Testing
             ], plan: nil, fetchedAt: now, observedAt: nil)
         }
         let dead = reading(nil, nil)
-        #expect(RingSelection.windows(of: dead, chosen: ["cursor_models", "other_models"], hidden: []).map(\.id) == ["spend_today", "included"])
-        #expect(RingSelection.windows(of: dead, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["spend_today", "included"])
-        #expect(RingSelection.windows(of: dead, chosen: ["included"], hidden: []).map(\.id) == ["spend_today", "included"])
+        #expect(RingSelection.windows(of: dead, chosen: ["cursor_models", "other_models"], hidden: []).map(\.id) == ["cursor_models", "other_models"])
+        #expect(RingSelection.windows(of: dead, chosen: ["included"], hidden: []).map(\.id) == ["included"])
+        #expect(RingSelection.windows(of: dead, chosen: ["included", "spend_today"], hidden: []).map(\.id) == ["included", "spend_today"])
+        // "All models" has nothing to combine on this seat, so that half of the choice is filled from the data.
+        #expect(RingSelection.windows(of: dead, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["cursor_models", "spend_today"])
+        // With nothing chosen Today's spend still leads: the windows with a figure come first.
+        #expect(RingSelection.windows(of: dead, chosen: [], hidden: []).map(\.id) == ["spend_today", "included"])
+        // The old rule's own test of a pick, kept for the one-time clearing of picks saved under it.
+        #expect(RingSelection.wasSetAside(chosen: ["cursor_models", "other_models"], shown: dead.windows))
+        #expect(RingSelection.wasSetAside(chosen: ["included"], shown: dead.windows))
+        #expect(!RingSelection.wasSetAside(chosen: ["included", "spend_today"], shown: dead.windows))
+        #expect(!RingSelection.wasSetAside(chosen: [], shown: dead.windows))
+        #expect(!RingSelection.wasSetAside(chosen: ["cursor_models"], shown: reading(0.12, nil).windows))
+        #expect(!RingSelection.wasSetAside(chosen: ["cursor_models"], shown: Array(dead.windows.dropFirst())))
         // The day a meter counts, the same stored choice is honoured again, the other ring filled as before.
         let alive = reading(0.12, nil)
         #expect(RingSelection.windows(of: alive, chosen: ["cursor_models", "other_models"], hidden: []).map(\.id) == ["cursor_models", "other_models"])
