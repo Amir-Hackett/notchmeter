@@ -17,14 +17,21 @@ SWIFT_BUILD=(swift build -c release --disable-keychain)
 
 mkdir -p build
 if [ -n "${ARCHS:-}" ]; then
+  # Each slice is copied out as soon as it is built. SwiftPM used to give every triple a directory of its own
+  # (.build/arm64-apple-macosx/release), and the slices were read from there once both existed. From Swift 6.4 its
+  # build system puts every triple's products in one (.build/out/Products/Release), so the second build wrote over
+  # the first and lipo was handed the same x86_64 file twice (a dry run on 2026-11-18). A copy is right for both.
   SLICES=()
+  BIN_DIR=""
   for ARCH in $ARCHS; do
     "${SWIFT_BUILD[@]}" --triple "$ARCH-apple-macosx"
-    SLICES+=("$("${SWIFT_BUILD[@]}" --triple "$ARCH-apple-macosx" --show-bin-path)/Notchmeter")
+    ARCH_DIR="$("${SWIFT_BUILD[@]}" --triple "$ARCH-apple-macosx" --show-bin-path)"
+    cp "$ARCH_DIR/Notchmeter" "build/Notchmeter-$ARCH"
+    SLICES+=("build/Notchmeter-$ARCH")
+    [ -n "$BIN_DIR" ] || BIN_DIR="$ARCH_DIR"
   done
   lipo -create "${SLICES[@]}" -output build/Notchmeter-universal
   BIN=build/Notchmeter-universal
-  BIN_DIR="$(dirname "${SLICES[0]}")"
 else
   "${SWIFT_BUILD[@]}"
   BIN_DIR="$("${SWIFT_BUILD[@]}" --show-bin-path)"
