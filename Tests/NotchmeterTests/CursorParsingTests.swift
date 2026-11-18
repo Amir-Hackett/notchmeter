@@ -136,7 +136,7 @@ import Testing
     }
 
     /// With no included allowance every summary figure stays at 0 %, so the export's dollars carry the ring:
-    /// today against the average day of the history before it, filling at a usual day and counting on past it.
+    /// today against a usual day of the history before it, filling at a usual day and counting on past it.
     @Test func anUnmeteredSeatGetsTodaysSpendAgainstAUsualDay() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -145,14 +145,28 @@ import Testing
         func day(_ offset: Int, _ cost: Double) -> (Date, CostHistory.Record) {
             (calendar.date(byAdding: .day, value: offset, to: today)!, CostHistory.Record(cost: cost, tokens: TokenBreakdown(), byModel: [:], byProject: [:]))
         }
-        // Ten days of history at $1,000 in all: a usual day is $100.
-        var days = Dictionary(uniqueKeysWithValues: [day(-10, 400), day(-5, 600), day(0, 60)])
+        // Three days that spent anything, at $80, $100 and $120: a usual day is the middle one, $100.
+        var days = Dictionary(uniqueKeysWithValues: [day(-10, 80), day(-7, 120), day(-5, 100), day(0, 60)])
         let window = try #require(CursorProvider.spendToday(days, now: now, calendar: calendar))
         #expect(window.id == "spend_today")
         #expect(window.label == "Today's spend")
         #expect(abs((window.usedFraction ?? 0) - 0.6) < 1e-9)
         #expect(window.note == "$60.00 of a usual $100 day")
         #expect(window.resetsAt == calendar.date(byAdding: .day, value: 1, to: today))
+        // The days nobody worked are not days of work: a weekend at $0, recorded or not, moves nothing. Averaged over
+        // the ten calendar days, as it was until 0.9.26, these three came to a usual day of $30 and today read 200 %.
+        days[calendar.date(byAdding: .day, value: -3, to: today)!] = CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+        days[calendar.date(byAdding: .day, value: -2, to: today)!] = CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+        #expect(CursorProvider.spendToday(days, now: now, calendar: calendar)?.note == "$60.00 of a usual $100 day")
+        // Nor does one heavy day drag a month's usual day up with it: $80, $100, $120 and $5,000 are a usual $110,
+        // the midpoint of the two in the middle, where the mean of the four is $1,325.
+        var heavy = days
+        heavy[calendar.date(byAdding: .day, value: -1, to: today)!] = CostHistory.Record(cost: 5000, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+        #expect(CursorProvider.spendToday(heavy, now: now, calendar: calendar)?.note == "$60.00 of a usual $110 day")
+        // A day older than thirty days is outside the comparison.
+        var old = days
+        old[calendar.date(byAdding: .day, value: -31, to: today)!] = CostHistory.Record(cost: 9000, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+        #expect(CursorProvider.spendToday(old, now: now, calendar: calendar)?.note == "$60.00 of a usual $100 day")
         days[today] = CostHistory.Record(cost: 250, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
         let over = try #require(CursorProvider.spendToday(days, now: now, calendar: calendar))
         #expect(over.usedFraction == 1)
@@ -169,8 +183,10 @@ import Testing
         #expect(Advisor.mainWindow(of: reading) == nil)
         #expect(Pace.status(for: window, now: midday) == .ahead)
         #expect(WatchedReset.watch(.cursor, window, now: midday) == nil)
-        // Nothing before today, nothing to call usual.
+        // Nothing before today, nothing to call usual; and a history of days that spent nothing is no history.
         #expect(CursorProvider.spendToday([today: days[today]!], now: now, calendar: calendar) == nil)
+        let idle = Dictionary(uniqueKeysWithValues: [day(-4, 0), day(-2, 0), day(0, 60)])
+        #expect(CursorProvider.spendToday(idle, now: now, calendar: calendar) == nil)
     }
 
     /// The seat above two days on: both model meters at 0 % with $8.76 of export behind them that day. A 0 that
