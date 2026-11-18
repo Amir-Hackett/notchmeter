@@ -65,7 +65,7 @@ Each entry contributes five counts, taken from these fields of `message.usage`:
 | Output | `output_tokens` | output rate |
 | 5-minute cache write | `cache_creation.ephemeral_5m_input_tokens`, else the flat `cache_creation_input_tokens` | 1.25 × base input |
 | 1-hour cache write | `cache_creation.ephemeral_1h_input_tokens` | 2 × base input |
-| Cache read | `cache_read_input_tokens` | 0.1 × base input (0.025 × on Fable 5.1 and Mythos 5.1) |
+| Cache read | `cache_read_input_tokens` | 0.1 × base input (0.025 × on Fable and Mythos 5.1 and 5.2) |
 
 The cache multipliers are Anthropic's, from the prompt-caching table in [C]: a 5-minute cache write is *"1.25x base input price"*, a 1-hour cache write *"2x base input price"*, a cache read *"0.1x base input price (0.025x on Claude Fable 5.1 and Claude Mythos 5.1)"*, and *"These multipliers stack with other pricing modifiers, including the Batch API discount and data residency."* The two tiers matter on a subscription because, per [A], *"On a Claude subscription within your plan's included usage, you get the 1-hour TTL on your own turns, and on some of the helper requests Claude Code makes beside them, without setting this variable, and Claude Code drops those turns to the 5-minute TTL once you're drawing on usage credits."* When a transcript has only the flat `cache_creation_input_tokens` (older Claude Code versions), it is priced as a 5-minute write.
 
@@ -73,12 +73,13 @@ Thinking tokens need no bucket of their own: `output_tokens` already includes th
 
 ## Per-model rates
 
-Dollars per million tokens, as coded in `ModelPricing.swift` from the table in [C] on 2026-11-07. Cache columns are derived from the base input rate with the multipliers above, except where the page states its own cache-read rate (the 2.5% and 5% rows below).
+Dollars per million tokens, as coded in `ModelPricing.swift` from the table in [C] on 2026-11-18. Cache columns are derived from the base input rate with the multipliers above, except where the page states its own cache-read rate (the 2.5% and 5% rows below).
 
 Two things the table deliberately has no column for, checked on 2026-09-20. The code-execution container fee (billed per container-hour on the API's code-execution tool) was checked against Claude Code's transcripts and is immaterial for Claude Code: its Bash runs locally, no transcript line carries a container id or a container-hours field, and nothing in the usage object prices one, so there is no fee to add and none is added. And Claude 4.6 and later bill the full 1M-token context window at the standard per-token rates: there is no long-context tier for Claude, so `ModelPricing` has no token threshold and a 900K-token request is priced the same per token as a 9K one; the `exceeds_200k_tokens` flag in the status line is decoded by nothing because it changes no rate. The page's one exception, as read on 2026-11-07, is Haiku 5.5, which names a higher rate for prompts over 100,000 tokens ($0.50/$2.50); the app does not apply it, so a Haiku 5.5 request over that size is priced at the standard rate and reads low. (The one long-context tier in the app is OpenAI's, for Codex, below.)
 
 | Model id prefix | Input | Output | 5m write | 1h write | Cache read |
 |---|---|---|---|---|---|
+| `claude-fable-5-2`, `claude-mythos-5-2` (cache read at 0.025x, as 5.1; added 2026-11-18, nine days after they launched) | 8 | 40 | 10 | 16 | 0.20 |
 | `claude-fable-5-1`, `claude-mythos-5-1` | 10 | 50 | 12.50 | 20 | 0.25 |
 | `claude-fable-5`, `claude-mythos-5` | 10 | 50 | 12.50 | 20 | 1.00 |
 | `claude-opus-5-5` (cache read at 0.05x, the page's own exception; added 2026-09-24) | 4 | 20 | 5 | 8 | 0.20 |

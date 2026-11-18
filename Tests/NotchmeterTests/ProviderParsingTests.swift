@@ -283,6 +283,12 @@ import Testing
     @Test func normalizesModelIds() {
         #expect(ModelPricing.rates(for: "anthropic.claude-opus-4-5-20251101") == ModelPricing.opus5)
         #expect(ModelPricing.rates(for: "claude-fable-5-1") == ModelPricing.fable51)
+        // 5.2 has a row of its own: without one the id is a prefix match for `claude-fable-5`, a quarter too dear.
+        #expect(ModelPricing.rates(for: "claude-fable-5-2") == ModelPricing.fable52)
+        #expect(ModelPricing.rates(for: "claude-mythos-5-2-20261109") == ModelPricing.fable52)
+        #expect(ModelPricing.rates(for: "claude-fable-5") == ModelPricing.fable5)
+        // A Fable the table has never heard of takes the family's newest row.
+        #expect(ModelPricing.rates(for: "claude-fable-9") == ModelPricing.fable52)
         #expect(ModelPricing.rates(for: "claude-sonnet-4-5@20250929") == ModelPricing.sonnetLegacy)
         #expect(ModelPricing.rates(for: "claude-haiku-9") == ModelPricing.haiku45)
         #expect(ModelPricing.rates(for: "gpt-5") == nil)
