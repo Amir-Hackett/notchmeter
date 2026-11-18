@@ -33,10 +33,24 @@
 # too loose: it caught the expression that had already gone over, but not the 2^17 one sitting a single careless
 # edit behind it, which is the case worth catching. This leaves 4x room above today's worst expression: if it starts
 # firing on honest code rather than on literals that want a name, raise it, and only worry past 2^20.
+#
+# The SDK: Command Line Tools from 27 on ship a macOS SDK whose SwiftUI they cannot build against by themselves, so
+# scripts/sdk.sh picks one that builds when the default does not, and says so when it has.
+#
+# -plugin-path: Swift Testing's macros (@Test, #expect) are a compiler plugin, and Command Line Tools keep it in a
+# "testing" directory beside the toolchain's other plugins. SwiftPM used to add that directory by itself. With the
+# tools at Swift 6.4 it no longer does, and the test target stopped at its first line with "plugin for module
+# 'TestingMacros' not found" (2026-11-18), so the directory is passed when the selected tools have it. Xcode keeps
+# the plugin elsewhere and finds it without help, so nothing is added there.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/sdk.sh
+pick_sdk
 DEVELOPER="$(xcode-select -p)"
 SOLVER=(-Xswiftc -Xfrontend -Xswiftc -solver-scope-threshold=131072)
+if [ -d "$DEVELOPER/usr/lib/swift/host/plugins/testing" ]; then
+  SOLVER+=(-Xswiftc -plugin-path -Xswiftc "$DEVELOPER/usr/lib/swift/host/plugins/testing")
+fi
 for FW in "$DEVELOPER/Library/Developer/Frameworks" "$DEVELOPER/Platforms/MacOSX.platform/Developer/Library/Frameworks"; do
   if [ -d "$FW/Testing.framework" ]; then
     exec swift test --no-parallel "${SOLVER[@]}" \
