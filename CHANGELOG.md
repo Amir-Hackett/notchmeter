@@ -2,6 +2,12 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.26](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.26) — 2026-11-07
+
+### Full-screen apps
+
+- **The readouts step aside for VLC.** VLC's full screen (⌘F, with *Use the native fullscreen mode* off, which is how VLC 3.0 ships) is not a macOS full-screen Space: it stretches a window over the desktop and hides the Dock and the menu bar itself, and every other window stays on screen behind it. Notchmeter's rule asked that the covering app be the only one on screen, which that never is, so the rings stayed over the film with *Show over full-screen apps* off. The rule now also calls a display full-screen when a window covers it and the app has taken both the Dock's and the menu bar's windows away, which is what that mode and most games look like. Moving the pointer to the top edge brings the menu bar and the readouts back together, as it does in a full-screen Space, and both go again once the bar has. Because that mode announces nothing to other apps, Notchmeter now also keeps looking while a window the display's width is on screen, which a player's is once it has fitted itself to the video; a player whose window is narrower than that is caught at the next app switch.
+
 ## [0.9.25](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.25) — 2026-10-24
 
 0.9.24 was tagged on 18 October, but its release run was stopped before anything was built and the tag was removed, so it was never offered as an update; these notes cover everything since 0.9.23.
