@@ -76,6 +76,11 @@ import Testing
         let hiddenBar = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
                                            dockOnScreen: true, menuBarShowing: false)
         #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: hiddenBar))
+        // A second display whose Dock lives on the first, with the menu bar set to hide: the Dock still has a
+        // window elsewhere, so nothing hid it, and a zoomed window with company is a desktop (CodeRabbit, #155).
+        let secondDesktop = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                               dockOnScreen: false, dockElsewhere: true, menuBarShowing: false)
+        #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: secondDesktop))
         // Company still rules out a covering window while the menu bar is up: Stage Manager, a zoomed window
         // on a desktop the Dock has left for another display.
         #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: space))
