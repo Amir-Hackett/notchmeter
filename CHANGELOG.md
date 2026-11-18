@@ -16,6 +16,10 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 - **Dropping a file on the notch works.** 0.9.25 said it did, and it never did: inside the menu bar's band, the top 33 points of the display, macOS offers a drag only to windows at the menu bar's own level, the way a status item takes a drop, and the notch panel sits above that level so it can draw over the bar. A file dragged onto the rings fell straight through to whatever window lay behind them. A clear window at the bar's level now lies under the collapsed notch and takes the drag: the panel opens as the file comes over the rings, and the drop lands whether you let go on the rings, on the notch or on the panel below.
 
+### Under the hood
+
+- **Sparkle 2.10.1.** The updater framework moves from 2.9.6 to 2.10.1 (released 2026-10-25), which fixes delta updates re-applying file system compression on macOS 27 and an update installing early from a path in NFC-normalised Unicode. It requires macOS 12; Notchmeter requires 15.
+
 ## [0.9.25](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.25) — 2026-10-24
 
 0.9.24 was tagged on 18 October, but its release run was stopped before anything was built and the tag was removed, so it was never offered as an update; these notes cover everything since 0.9.23.
