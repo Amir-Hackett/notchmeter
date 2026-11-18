@@ -183,8 +183,8 @@ import Testing
     }
 
     /// The seat that reads 0 % on every meter, through the provider as the app builds it: the export gives it a
-    /// usual day, Today's spend leads the reading, and the two model meters behind it lose their 0 % so rings
-    /// chosen for them move to the spend window without the choice being touched.
+    /// usual day, Today's spend leads the reading, and the two model meters behind it lose their 0 %. A ring
+    /// chosen for one of them shows it all the same, empty: a pick is what the rings show (0.9.27).
     @Test func aSeatMeteredNowhereLeadsWithTodaysSpendAndItsZeroMetersYield() async throws {
         let enterprise = Data(#"""
         {"billingCycleStart":"2026-09-18T00:00:00.000Z","billingCycleEnd":"2026-10-18T00:00:00.000Z",
@@ -210,7 +210,11 @@ import Testing
             #expect(spentToday > 0)
             #expect(reading.windows[2].usedFraction == nil && reading.windows[3].usedFraction == nil)
             #expect(reading.windows[2].note == "Reads 0% on this seat however much it spends; Today's spend carries the reading")
-            #expect(RingSelection.windows(of: reading, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["spend_today", "included"])
+            #expect(RingSelection.windows(of: reading, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["cursor_models", "spend_today"])
+            #expect(RingSelection.windows(of: reading, chosen: [], hidden: []).map(\.id) == ["spend_today", "included"])
+            // The picker says which choices draw an empty ring.
+            #expect(Preferences.ringChoiceTitle(reading.windows[0]) == "Today's spend")
+            #expect(Preferences.ringChoiceTitle(reading.windows[2]) == "Cursor models — draws an empty ring")
         }
     }
 

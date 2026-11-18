@@ -1122,6 +1122,7 @@ final class UsageStore {
             reading = CodeAssistStaleness.unverified(reading, runs: runs, activeSince: lastActivity[tool])
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
+        prefs.settleLegacyRingPicks(with: reading)
         statuses[reading.tool] = .ready(reading)
         backoff[reading.tool] = 0
         cache.store(reading)

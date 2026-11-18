@@ -860,6 +860,9 @@
 "Today's spend" = "Chi tiêu hôm nay";
 "%1$@ of a usual %2$@ day" = "%1$@ so với mức %2$@ của một ngày thường";
 "Heading for ~%ld%% today" = "Hôm nay đang hướng tới ~%ld%%";
+"%1$@ so far, %2$@ last cycle" = "%1$@ đến nay, %2$@ ở chu kỳ trước";
+"Heading for ~%ld%% of last cycle" = "Đang hướng tới ~%ld%% của chu kỳ trước";
+"%@ — draws an empty ring" = "%@ — vẽ một vòng trống";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (~%2$@)";

@@ -232,6 +232,15 @@ Skip to step 4 or 5, whichever matches. Never re-tag an existing version.
 
 ## Failure modes worth recognising
 
+- **`HTTP status code: 403. A required agreement is missing or has expired`** at "Import the signing identity and
+  notarisation credentials" — Apple has an agreement waiting for the account holder, and `notarytool` refuses the
+  key until it is accepted at developer.apple.com (0.9.26, first tag). Nothing in the pipeline or in the secrets is
+  wrong and nothing was published: the owner accepts it, and the run is started again.
+- **A job that ends `cancelled` or `startup_failure` with no steps** — GitHub did not hand it a macOS runner ("The
+  job was not acquired by Runner of type hosted"). `gh api repos/Amir-Hackett/notchmeter/check-runs/<job id>/annotations`
+  says so. Not a failure of the build: `gh run rerun <run>` on the same tag, the whole run and not `--failed`,
+  which is documented for failed jobs and may leave a cancelled one and the job waiting on it where they are; and
+  only as long as `gh release view` finds no release for the tag.
 - **`exit 137` / "Killed: 9" at launch** — AMFI. An entitlement with no profile to grant it. `release.sh` gates
   this now, so seeing it means the gate was bypassed or the profile is wrong.
 - **App opens but the updater is off** — `--smoke | grep updater` says why. The gate is in `Updater.swift`: https

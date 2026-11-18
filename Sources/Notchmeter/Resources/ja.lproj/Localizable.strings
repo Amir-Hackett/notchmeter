@@ -860,6 +860,9 @@
 "Today's spend" = "今日の支出";
 "%1$@ of a usual %2$@ day" = "通常の1日 %2$@ のうち %1$@";
 "Heading for ~%ld%% today" = "今日は約%ld%%のペース";
+"%1$@ so far, %2$@ last cycle" = "これまで %1$@、前のサイクルは %2$@";
+"Heading for ~%ld%% of last cycle" = "前のサイクルの約%ld%%に達する見込み";
+"%@ — draws an empty ring" = "%@ — リングは空で表示されます";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@（約 %2$@）";

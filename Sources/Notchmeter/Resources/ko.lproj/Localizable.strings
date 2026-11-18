@@ -860,6 +860,9 @@
 "Today's spend" = "오늘 지출";
 "%1$@ of a usual %2$@ day" = "평소 하루 %2$@ 중 %1$@";
 "Heading for ~%ld%% today" = "오늘 약 %ld%% 페이스";
+"%1$@ so far, %2$@ last cycle" = "지금까지 %1$@, 지난 주기 %2$@";
+"Heading for ~%ld%% of last cycle" = "지난 주기의 약 %ld%%에 이를 전망";
+"%@ — draws an empty ring" = "%@ — 빈 링으로 표시됨";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (약 %2$@)";

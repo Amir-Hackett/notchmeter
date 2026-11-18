@@ -1202,6 +1202,10 @@ final class Preferences {
     var jumpToTerminal: Bool {
         didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
     }
+    /// The tools whose ring picks saved before 0.9.27 have been looked at (settleLegacyRingPicks). Not a setting.
+    var legacyRingPicksSettled: Set<ToolID> {
+        didSet { defaults.set(legacyRingPicksSettled.map(\.rawValue).sorted(), forKey: Keys.legacyRingPicksSettled) }
+    }
     /// A file dropped on the notch, the panel or a row is typed into a session's prompt (FileDrop, 0.9.24).
     var fileDrop: Bool {
         didSet { defaults.set(fileDrop, forKey: Keys.fileDrop); report(Keys.fileDrop, fileDrop, changed: fileDrop != oldValue) }
@@ -1515,6 +1519,7 @@ final class Preferences {
         static let feedbackDiagnostics = "feedbackDiagnostics"
         static let jumpToTerminal = "jumpToTerminal"
         static let fileDrop = "fileDrop"
+        static let legacyRingPicksSettled = "legacyRingPicksSettled"
         static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
         static let debugLogging = "debugLogging"
@@ -1683,6 +1688,7 @@ final class Preferences {
         feedbackDiagnostics = defaults.object(forKey: Keys.feedbackDiagnostics) as? Bool ?? true
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
         fileDrop = defaults.object(forKey: Keys.fileDrop) as? Bool ?? true
+        legacyRingPicksSettled = Set((defaults.array(forKey: Keys.legacyRingPicksSettled) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
         debugLogging = defaults.bool(forKey: Keys.debugLogging)
@@ -1873,10 +1879,32 @@ final class Preferences {
                 setHidden(false, window: window, in: reading)
             }
         }
-        let ring = ringWindows(of: reading)
-        var ids = (0..<RingSelection.maximum).map { ring.indices.contains($0) ? ring[$0].id : "" }
-        ids[index] = id
-        ringWindows[reading.tool] = ids.filter { !$0.isEmpty }
+        ringWindows[reading.tool] = RingSelection.picking(id, at: index, drawn: ringWindows(of: reading).map(\.id))
+        // A pick made from here on is one the rings honour, so it is never mistaken for one saved under the old rule.
+        // Said of this tool alone: a ring picked for Claude says nothing about the picks saved for Cursor.
+        legacyRingPicksSettled.insert(reading.tool)
+    }
+
+    /// What a ring picker calls a choice: its name, and for a window with nothing to fill a ring with, that it
+    /// draws an empty one. On a seat Cursor meters nothing for that is most of the list (the model meters that read
+    /// 0 % all cycle, a spend with no limit set), and a pick should not be a surprise.
+    nonisolated static func ringChoiceTitle(_ window: LimitWindow) -> String {
+        window.usedFraction == nil ? L("%@ — draws an empty ring", window.label) : window.label
+    }
+
+    /// Clears, once, a ring pick saved before 0.9.27 that the rule of the time was setting aside (RingSelection
+    /// .wasSetAside): rings chosen for Cursor's model meters on a seat where they read nothing drew Today's spend
+    /// all the same, and from 0.9.27 would draw empty. With the pick cleared the rings go on showing what they
+    /// showed. Asked, tool by tool, of the first reading of that tool with a comparison window on show; a pick made
+    /// for the tool since (setRingWindow) is deliberate and is never cleared.
+    func settleLegacyRingPicks(with reading: UsageReading) {
+        guard !legacyRingPicksSettled.contains(reading.tool) else { return }
+        let shown = shownWindows(of: reading)
+        guard shown.contains(where: { $0.isComparison && $0.usedFraction != nil }) else { return }
+        if RingSelection.wasSetAside(chosen: ringWindows[reading.tool] ?? [], shown: shown) {
+            ringWindows[reading.tool] = nil
+        }
+        legacyRingPicksSettled.insert(reading.tool)
     }
 
     func resetLine(for window: LimitWindow, stale: Bool = false, now: Date = Date()) -> String {
@@ -2087,6 +2115,32 @@ enum RingSelection {
     /// How many the rings fall back to when nothing was chosen.
     static let fallback = 2
 
+    /// The ring ids after a picker puts `id` on the ring at `index` (outermost first; "" for none), from the ids
+    /// the rings draw now. A window already on another ring changes places with the one it replaces, the way a
+    /// scroll on the ring does it (RingCycle.next): written as it was picked, [A, A], the rings dropped the
+    /// duplicate and filled the gap with some third window, so the picker that was just set jumped to a window
+    /// nobody chose. Emptying a ring closes the gap, since the rings are drawn outermost first.
+    static func picking(_ id: String, at index: Int, drawn: [String]) -> [String] {
+        var ids = (0..<maximum).map { drawn.indices.contains($0) ? drawn[$0] : "" }
+        guard ids.indices.contains(index) else { return drawn }
+        if !id.isEmpty, let other = ids.firstIndex(of: id), other != index {
+            ids.swapAt(index, other)
+        } else {
+            ids[index] = id
+        }
+        return ids.filter { !$0.isEmpty }
+    }
+
+    /// Whether a saved pick is one the rule before 0.9.27 would have set aside: every chosen window that could be
+    /// drawn has no figure, while a comparison window with one is on show. The chosen ids are looked up where
+    /// `windows` looks them up, the shown windows and the "All models" combined from them, so a pick that the rule
+    /// honoured for its combined ring is not taken for one it set aside.
+    static func wasSetAside(chosen: [String], shown: [LimitWindow]) -> Bool {
+        let selectable = shown + [CombinedWindow.of(windows: shown)].compactMap { $0 }
+        let picked = chosen.compactMap { id in selectable.first { $0.id == id } }
+        return !picked.isEmpty && picked.allSatisfy { $0.usedFraction == nil } && shown.contains { $0.isComparison && $0.usedFraction != nil }
+    }
+
     static func windows(of reading: UsageReading, chosen: [String], hidden: Set<String>) -> [LimitWindow] {
         let shown = reading.windows.filter { !hidden.contains($0.id) }
         let selectable = shown + [CombinedWindow.of(windows: shown)].compactMap { $0 }
@@ -2102,15 +2156,12 @@ enum RingSelection {
         // one id, this put a second window back, and the Inner ring picker snapped from None to that window. The
         // fallback applies only when nothing chosen survives (nothing chosen, or every chosen id gone or hidden),
         // and a choice whose ids are partly gone or repeated is still filled to the count that was asked for.
-        // An explicit choice wins even where it draws an empty ring (RingsPreferWindowsWithFigures), with one
-        // exception: a choice that would draw only empty rings while a comparison window is on show yields to
-        // the data. A comparison window exists only because the vendor meters nothing on the seat, so the choice
-        // is of meters that have stopped: Cursor's model meters lose their 0 % behind Today's spend
-        // (CursorProvider.withoutDeadSplits) and the rings move to it. The choice is not rewritten; the day a
-        // meter counts again it is honoured as before.
-        if !result.isEmpty, result.allSatisfy({ $0.usedFraction == nil }), shown.contains(where: { $0.isComparison && $0.usedFraction != nil }) {
-            result = []
-        }
+        // An explicit choice wins even where it draws an empty ring (RingsPreferWindowsWithFigures). Until 0.9.27 one
+        // choice did not: rings chosen for windows with no figure gave way to the data while a comparison window
+        // (Cursor's Today's spend) was on show. On an Enterprise seat that is every window but Today's spend, so
+        // every pick in Settings snapped back to it and the pickers, which read what the rings draw, could not be
+        // moved. A pick is now what the rings show; a window that will draw an empty ring says so in the picker
+        // (Preferences.ringChoiceTitle), and a pick saved under the old rule is cleared once (settleLegacyRingPicks).
         let target = result.isEmpty ? fallback : chosen.count
         let byData = shown.filter { $0.usedFraction != nil } + shown.filter { $0.usedFraction == nil }
         for window in byData where result.count < target && !result.contains(where: { $0.id == window.id }) {
