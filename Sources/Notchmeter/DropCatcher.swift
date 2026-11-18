@@ -30,12 +30,8 @@ final class DropCatcherPresenter {
     /// a controller that was being discarded, and a file dropped on it went nowhere. A closed presenter stays
     /// closed; the controller that replaces this one brings its own.
     private var closed = false
-    /// The frame last asked for, and the frame the window had when a file drag came over it. While a drag is
-    /// over the catcher its frame only grows: opening the panel for the drag clears the news peek, the collapsed
-    /// shape narrows with it, and a catcher that followed would slide out from under a pointer still holding the
-    /// file, whose drop then fell to the window beneath. The frame asked for is taken up once the drag has gone.
-    private var wantedFrame: CGRect?
-    private var dragFrame: CGRect?
+    /// Where the window goes, which under a drag is not simply where it was last asked to go (DropCatcherFrame).
+    private var placement = DropCatcherFrame()
 
     init() {
         view.dragOver = { [weak self] over in self?.dragOver(over) }
@@ -44,11 +40,6 @@ final class DropCatcherPresenter {
     /// Whether the window is built: false before the first `show`, and for good after `close()`.
     var hasWindow: Bool { window != nil }
 
-    /// The frame the window takes: the one asked for, or, while a drag that entered at `entry` is still over
-    /// it, the two together, so every point that accepted the drag still accepts the drop.
-    nonisolated static func frame(wanted: CGRect, heldSince entry: CGRect?) -> CGRect {
-        entry.map { $0.union(wanted) } ?? wanted
-    }
 
     /// A file drag has come over the collapsed notch.
     var entered: () -> Void {
@@ -73,12 +64,11 @@ final class DropCatcherPresenter {
         guard wanted else {
             window?.orderOut(nil)
             // A window taken off screen is told nothing more about a drag that was over it.
-            dragFrame = nil
+            _ = placement.dragEnded()
             return
         }
         let window = self.window ?? makeWindow()
-        wantedFrame = compact
-        let frame = Self.frame(wanted: compact, heldSince: dragFrame)
+        let frame = placement.ask(for: compact)
         if window.frame != frame { window.setFrame(frame, display: false) }
         window.collectionBehavior = behavior
         if !window.isVisible { window.orderFrontRegardless() }
@@ -94,10 +84,9 @@ final class DropCatcherPresenter {
     private func dragOver(_ over: Bool) {
         guard let window else { return }
         if over {
-            dragFrame = window.frame
-        } else {
-            dragFrame = nil
-            if let wantedFrame, window.frame != wantedFrame { window.setFrame(wantedFrame, display: false) }
+            placement.dragBegan(at: window.frame)
+        } else if let wanted = placement.dragEnded(), window.frame != wanted {
+            window.setFrame(wanted, display: false)
         }
     }
 
@@ -114,6 +103,39 @@ final class DropCatcherPresenter {
         panel.contentView = view
         window = panel
         return panel
+    }
+}
+
+/// Where the catcher's window goes across a drag.
+///
+/// With no drag over it, where it was last asked to go. While a drag is over it, its frame only grows: opening
+/// the panel for the drag clears the news peek, the collapsed shape narrows with it, and a catcher that followed
+/// would slide out from under a pointer still holding the file, whose drop then fell to the window beneath. Every
+/// frame it has had since the drag came over it is kept, not only the first: a shape that widens and then narrows
+/// again under the same drag would otherwise take back the part it had just offered. The frame last asked for is
+/// taken up once the drag has left, dropped or ended.
+struct DropCatcherFrame: Equatable {
+    /// The frame last asked for.
+    private(set) var wanted: CGRect?
+    /// Everything the window has covered since a drag came over it; nil with no drag.
+    private(set) var held: CGRect?
+
+    /// The frame to take now that `frame` is asked for.
+    mutating func ask(for frame: CGRect) -> CGRect {
+        wanted = frame
+        guard let held else { return frame }
+        let grown = held.union(frame)
+        self.held = grown
+        return grown
+    }
+
+    /// A drag has come over the window, which is at `frame`.
+    mutating func dragBegan(at frame: CGRect) { held = frame }
+
+    /// The drag has gone; the frame to return to, when one was asked for.
+    mutating func dragEnded() -> CGRect? {
+        held = nil
+        return wanted
     }
 }
 

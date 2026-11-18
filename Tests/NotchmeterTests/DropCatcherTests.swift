@@ -98,11 +98,39 @@ import Testing
     @Test func theFrameDoesNotShrinkUnderADrag() {
         let peek = CGRect(x: 500, y: 949, width: 520, height: 33)
         let compact = CGRect(x: 620, y: 949, width: 280, height: 33)
-        #expect(DropCatcherPresenter.frame(wanted: compact, heldSince: nil) == compact)
-        #expect(DropCatcherPresenter.frame(wanted: compact, heldSince: peek) == peek)
-        // A shape that grows or moves under the drag is taken up as well as the one it entered at.
-        let wider = CGRect(x: 480, y: 949, width: 300, height: 33)
-        #expect(DropCatcherPresenter.frame(wanted: wider, heldSince: peek) == CGRect(x: 480, y: 949, width: 540, height: 33))
+        var frame = DropCatcherFrame()
+        // No drag: the frame asked for is the frame, wider or narrower.
+        #expect(frame.ask(for: peek) == peek)
+        #expect(frame.ask(for: compact) == compact)
+        #expect(frame.ask(for: peek) == peek)
+        // A drag comes over the peek's width and the panel opens, which clears the peek.
+        frame.dragBegan(at: peek)
+        #expect(frame.ask(for: compact) == peek)
+        // Once the drag has gone the catcher takes the frame it was last asked for.
+        #expect(frame.dragEnded() == compact)
+        #expect(frame.ask(for: compact) == compact)
+        // Nothing asked for, nothing to return to.
+        var fresh = DropCatcherFrame()
+        fresh.dragBegan(at: peek)
+        #expect(fresh.dragEnded() == nil)
+    }
+
+    /// Grown and then asked to shrink again under the same drag, it keeps everything it has covered: a pointer in
+    /// the part it grew into is as much over the catcher as one where the drag came in (CodeRabbit, #157).
+    @Test func theFrameKeepsWhatItGrewIntoUntilTheDragEnds() {
+        let entry = CGRect(x: 620, y: 949, width: 280, height: 33)
+        let wider = CGRect(x: 480, y: 949, width: 540, height: 33)
+        var frame = DropCatcherFrame()
+        #expect(frame.ask(for: entry) == entry)
+        frame.dragBegan(at: entry)
+        #expect(frame.ask(for: wider) == wider)
+        #expect(frame.ask(for: entry) == wider)
+        #expect(wider.contains(CGPoint(x: 500, y: 960)))
+        // A shape that moves is added to what is held, not swapped for it.
+        let moved = CGRect(x: 900, y: 949, width: 200, height: 33)
+        #expect(frame.ask(for: moved) == CGRect(x: 480, y: 949, width: 620, height: 33))
+        #expect(frame.dragEnded() == moved)
+        #expect(frame.ask(for: entry) == entry)
     }
 
     /// hide() closes the catcher and then waits for the notch; a refresh queued before it can still ask for the
