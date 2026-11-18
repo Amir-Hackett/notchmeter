@@ -43,6 +43,33 @@ import Testing
         #expect(left == [CompactLabel.Segment(text: "81%", pace: .onTrack)])
     }
 
+    /// Cursor's "Today's spend" is measured against a usual day, not a limit, so its figure is the money: no
+    /// percentage to mistake for quota used, no countdown to a midnight at which nothing resets, and no dash for the
+    /// empty window behind it.
+    @Test func aComparisonReadsInDollarsWithNoCountdownAndNoEmptySlot() {
+        let midnight = now.addingTimeInterval(12 * 3600)
+        let spend = LimitWindow(id: "spend_today", label: .key("Today's spend"), usedFraction: 0.22, resetsAt: midnight,
+                                periodDuration: Period.day, source: .localEstimate, amountUSD: 15.19)
+        let included = LimitWindow(id: "included", label: "Included usage", usedFraction: nil, resetsAt: nil, note: "No limit")
+        // What the notch drew for this seat before: "22% 12h · –".
+        #expect(CompactLabel.text(for: [spend, included], display: .used, countdown: true, now: now) == "$15")
+        // Used or Left is a question about a limit; money spent is the same figure in either sense.
+        #expect(CompactLabel.text(for: [spend, included], display: .left, countdown: true, now: now) == "$15")
+        #expect(CompactLabel.segments(for: [spend, included], display: .used, now: now) == [CompactLabel.Segment(text: "$15", pace: .ahead)])
+        #expect(CompactLabel.text(for: [spend], display: .used, figures: .outer, countdown: true, now: now) == "$15")
+        // A window behind it that has a figure keeps it, and its own sense.
+        let metered = session("included", used: 0.12)
+        #expect(CompactLabel.text(for: [spend, metered], display: .used, countdown: true, now: now) == "$15 · 12%")
+        #expect(CompactLabel.text(for: [spend, metered], display: .left, now: now) == "$15 · 88%")
+        // Under a dollar the cents stay, so money that is flowing never reads as "$0".
+        let little = LimitWindow(id: "spend_today", label: .key("Today's spend"), usedFraction: 0.01, resetsAt: midnight,
+                                 periodDuration: Period.day, source: .localEstimate, amountUSD: 0.42)
+        #expect(CompactLabel.text(for: [little], display: .used, now: now) == "$0.42")
+        // The dash is dropped only behind a comparison: everywhere else it still says "no limit here".
+        #expect(CompactLabel.text(for: [metered, included], display: .used, now: now) == "12% · –")
+        #expect(CompactLabel.text(for: [included, spend], display: .used, now: now) == "– · $15")
+    }
+
     /// Auto's outer-figure rung: the first window's figure alone — no dot, no second figure, and no countdown,
     /// which is most of the width the second figure was.
     @Test func theOuterFigureStandsAlone() {

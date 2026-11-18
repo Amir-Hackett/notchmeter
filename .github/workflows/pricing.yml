@@ -24,7 +24,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate the catalog against the snapshot
         run: scripts/pricing-check.sh --offline
       - name: Compare both with the pricing page

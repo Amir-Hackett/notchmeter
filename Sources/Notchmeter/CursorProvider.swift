@@ -578,18 +578,22 @@ actor CursorProvider: UsageProvider {
         return days
     }
 
-    /// Today's spend from the usage export against the average day of the thirty before it (or of as many as the
+    /// Today's spend from the usage export against a usual day of the thirty before it (or of as many as the
     /// history reaches back), for a seat whose summary meters nothing. Nil until there is a usual day to compare
     /// with. The ring fills at a usual day's spend; the digits keep counting past it.
+    ///
+    /// A usual day is the median of the days that spent anything. It was the total over every calendar day in the
+    /// span until 0.9.26, which counts the days nobody worked: weekends at $0 pulled the figure down, so an
+    /// ordinary workday read high against it, and one heavy day pulled it up for a month. The median of the
+    /// active days answers the question the ring asks, "is today a normal day of work?", and is moved by neither.
     static func spendToday(_ days: [Date: CostHistory.Record], now: Date = Date(), calendar: Calendar = .current) -> LimitWindow? {
         let today = calendar.startOfDay(for: now)
         guard let start = calendar.date(byAdding: .day, value: -30, to: today),
               let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return nil }
-        let prior = days.filter { $0.key >= start && $0.key < today }
-        guard let earliest = prior.keys.min() else { return nil }
-        let span = max(1, calendar.dateComponents([.day], from: earliest, to: today).day ?? 1)
-        let usual = prior.values.reduce(0) { $0 + $1.cost } / Double(span)
-        guard usual > 0 else { return nil }
+        let active = days.filter { $0.key >= start && $0.key < today && $0.value.cost > 0 }.map(\.value.cost).sorted()
+        guard !active.isEmpty else { return nil }
+        let middle = active.count / 2
+        let usual = active.count % 2 == 1 ? active[middle] : (active[middle - 1] + active[middle]) / 2
         let spent = days[today]?.cost ?? 0
         let percent = spent / usual * 100
         return LimitWindow(

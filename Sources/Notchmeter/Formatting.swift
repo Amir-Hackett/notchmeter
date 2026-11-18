@@ -113,6 +113,13 @@ enum UsageDisplay: String, CaseIterable, Codable {
 /// The digits beside a ring (CompactStyle): the main window's percentage and, after a thin dot, the second
 /// window's — or, at Auto's outer-figure rung, the main window's alone — in the Used or Left sense the user
 /// chose; "–" for a window without a limit, or no reading at all.
+///
+/// A comparison window (LimitWindow.isComparison, Cursor's "Today's spend") is drawn in the money it measures,
+/// "$15", and not as a percentage. Its ring fills against a usual day, and "21%" beside a ring that sits next to
+/// Claude's real quota read as 21 % of a limit used, which no limit stands behind. Dollars cannot be read that
+/// way. It carries no countdown either: the time left is the time to midnight, when nothing resets but the day.
+/// And a window after it that has no figure is left out, where anywhere else it is the "–": beside a percentage
+/// the dash says "this one has no limit", beside a sum of money it is an empty slot ("$15 · –").
 enum CompactLabel {
     struct Segment: Equatable {
         let text: String
@@ -135,8 +142,14 @@ enum CompactLabel {
                          countdown: Bool = false, now: Date = Date()) -> [Segment] {
         let shown = figures == .outer ? Array(windows.prefix(1)) : windows
         guard !shown.isEmpty else { return [Segment(text: noLimit, pace: nil)] }
-        return shown.enumerated().map { index, window in
-            guard let used = window.usedFraction else { return Segment(text: noLimit, pace: nil) }
+        let comparisonLeads = shown.first.map { $0.isComparison && $0.usedFraction != nil } ?? false
+        return shown.enumerated().compactMap { index, window in
+            guard let used = window.usedFraction else {
+                return comparisonLeads && index > 0 ? nil : Segment(text: noLimit, pace: nil)
+            }
+            if window.isComparison, let spent = window.amountUSD {
+                return Segment(text: Money.dollars(spent, cents: false), pace: Pace.status(for: window, now: now))
+            }
             let value = display == .used ? used : 1 - used
             var text = "\(Int((value * 100).rounded()))%"
             if countdown, figures == .all, index == 0, let resetsAt = window.resetsAt, resetsAt > now {
