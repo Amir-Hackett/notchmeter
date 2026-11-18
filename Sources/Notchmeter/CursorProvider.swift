@@ -614,7 +614,11 @@ actor CursorProvider: UsageProvider {
     /// warns or notifies, and it is marked as worked out here: Cursor publishes neither the fraction nor last
     /// cycle's total.
     ///
-    /// Last cycle's total is the history's days from the day that cycle began to the day this one did. Left alone:
+    /// Last cycle's total is the history's days from the day that cycle began to the day this one did. A monthly
+    /// cycle turns over on the same day of each month, so the cycle before began one calendar month earlier, which
+    /// is not this cycle's length earlier: the cycle from 18 September is thirty days long and the one before it
+    /// began on 18 August, thirty-one days back. Taking the length off left that first day out of the sum and read
+    /// this cycle high. A cycle that is not a month long has only its length to go by. Left alone:
     /// a window that already has a figure or has no dollars, a history that does not reach back to the day the last
     /// cycle began (its sum would be short, and a short sum makes this cycle read high), and a last cycle with
     /// nothing spent in it. The days are local days and a cycle turns over at an instant, so the two totals can
@@ -626,7 +630,9 @@ actor CursorProvider: UsageProvider {
             guard window.id == "included", window.usedFraction == nil, let spent = window.amountUSD, spent > 0,
                   let length = window.periodDuration, length > 0 else { return window }
             let thisCycle = calendar.startOfDay(for: cycleStart)
-            let lastCycle = calendar.startOfDay(for: cycleStart.addingTimeInterval(-length))
+            let monthly = length >= 27 * Period.day && length <= 32 * Period.day
+            let began = (monthly ? calendar.date(byAdding: .month, value: -1, to: cycleStart) : nil) ?? cycleStart.addingTimeInterval(-length)
+            let lastCycle = calendar.startOfDay(for: began)
             guard let earliest = days.keys.min(), earliest <= lastCycle else { return window }
             let before = days.reduce(0.0) { $1.key >= lastCycle && $1.key < thisCycle ? $0 + $1.value.cost : $0 }
             guard before > 0 else { return window }

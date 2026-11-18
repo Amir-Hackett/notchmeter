@@ -115,17 +115,17 @@ import Testing
         withSuite("legacy") { defaults in
             defaults.set(["cursor": ["cursor_models", "other_models"]], forKey: "ringWindows")
             let prefs = Preferences(defaults: defaults)
-            #expect(!prefs.legacyRingPicksSettled)
+            #expect(prefs.legacyRingPicksSettled.isEmpty)
             prefs.settleLegacyRingPicks(with: Self.seat)
             #expect(prefs.ringWindows[.cursor] == nil)
             #expect(prefs.ringWindows(of: Self.seat).map(\.id) == ["spend_today", "included"])
-            #expect(prefs.legacyRingPicksSettled)
+            #expect(prefs.legacyRingPicksSettled == [.cursor])
             // Picked again after the upgrade it is deliberate, and a later reading does not clear it.
             prefs.setRingWindow(at: 0, to: "other_models", in: Self.seat)
             prefs.settleLegacyRingPicks(with: Self.seat)
             #expect(prefs.ringWindows(of: Self.seat).first?.id == "other_models")
             // And the answer survives a relaunch.
-            #expect(Preferences(defaults: defaults).legacyRingPicksSettled)
+            #expect(Preferences(defaults: defaults).legacyRingPicksSettled == [.cursor])
         }
     }
 
@@ -136,7 +136,7 @@ import Testing
             prefs.settleLegacyRingPicks(with: Self.seat)
             #expect(prefs.ringWindows[.cursor] == ["included", "spend_today"])
             #expect(prefs.ringWindows[.claude] == ["weekly"])
-            #expect(prefs.legacyRingPicksSettled)
+            #expect(prefs.legacyRingPicksSettled == [.cursor])
         }
     }
 
@@ -149,11 +149,42 @@ import Testing
             let metered = UsageReading(tool: .cursor, windows: [Self.monthly, Self.cursorModels, Self.otherModels], plan: nil, fetchedAt: Self.now, observedAt: nil)
             prefs.settleLegacyRingPicks(with: metered)
             #expect(prefs.ringWindows[.cursor] == ["cursor_models", "other_models"])
-            #expect(!prefs.legacyRingPicksSettled)
-            // A pick made in Settings closes the question without a reading.
+            #expect(prefs.legacyRingPicksSettled.isEmpty)
+            // A pick made in Settings closes the question for its tool without a reading.
             prefs.setRingWindow(at: 0, to: "included", in: metered)
-            #expect(prefs.legacyRingPicksSettled)
+            #expect(prefs.legacyRingPicksSettled == [.cursor])
         }
+    }
+
+    /// A ring picked for another assistant settles nothing for Cursor: its saved picks are still looked at when its
+    /// own reading comes (CodeRabbit, #165). One flag for every tool had a Claude pick close Cursor's question.
+    @Test func aPickForAnotherAssistantLeavesCursorsQuestionOpen() {
+        withSuite("other-tool") { defaults in
+            defaults.set(["cursor": ["cursor_models", "other_models"]], forKey: "ringWindows")
+            let prefs = Preferences(defaults: defaults)
+            let session = LimitWindow(id: "session", label: "Session", usedFraction: 0.3, resetsAt: Self.cycleEnd, periodDuration: Period.fiveHours)
+            let weekly = LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.1, resetsAt: Self.cycleEnd, periodDuration: Period.week)
+            let claude = UsageReading(tool: .claude, windows: [session, weekly], plan: nil, fetchedAt: Self.now, observedAt: nil)
+            prefs.setRingWindow(at: 0, to: "weekly", in: claude)
+            #expect(prefs.legacyRingPicksSettled == [.claude])
+            prefs.settleLegacyRingPicks(with: Self.seat)
+            #expect(prefs.ringWindows[.cursor] == nil)
+            #expect(prefs.ringWindows[.claude] == ["weekly", "session"])
+            #expect(prefs.legacyRingPicksSettled == [.claude, .cursor])
+        }
+    }
+
+    /// A saved pick with "All models" in it was honoured by the old rule wherever the combined ring had a figure,
+    /// so it is not one that rule set aside, whatever else was picked beside it (CodeRabbit, #165).
+    @Test func aPickWithACombinedRingThatHadAFigureWasNotSetAside() {
+        let counting = [Self.spend, Self.monthly,
+                        LimitWindow(id: "cursor_models", label: "Cursor models", usedFraction: 0.1, resetsAt: Self.cycleEnd, model: "Cursor models"),
+                        LimitWindow(id: "other_models", label: "Other models", usedFraction: 0.2, resetsAt: Self.cycleEnd, model: "Other models")]
+        #expect(CombinedWindow.of(windows: counting)?.usedFraction != nil)
+        #expect(!RingSelection.wasSetAside(chosen: [CombinedWindow.id, "included"], shown: counting))
+        #expect(RingSelection.wasSetAside(chosen: ["included"], shown: counting))
+        // With the meters dead there is nothing to combine, and the same pick is one the rule set aside.
+        #expect(RingSelection.wasSetAside(chosen: [CombinedWindow.id, "included"], shown: Self.seat.windows))
     }
 
     // MARK: - Monthly usage against the cycle before
@@ -174,9 +205,9 @@ import Testing
     /// comparison worked out here: it paces, reads in dollars beside its ring, and never runs out or warns.
     @Test func monthlyUsageFillsAgainstTheCycleBefore() throws {
         let cycleStart = DateParsing.iso8601("2026-11-01T00:00:00Z")!
-        // Last cycle, 2 October to 1 November: $1,000 over three days. One day before it and this cycle's own days
+        // Last cycle, 1 October to 1 November: $1,000 over three days. One day before it and this cycle's own days
         // are outside the sum.
-        let history = days([("2026-09-30", 500), ("2026-10-02", 400), ("2026-10-15", 350), ("2026-10-31", 250), ("2026-11-03", 300), ("2026-11-17", 112)])
+        let history = days([("2026-09-30", 500), ("2026-10-01", 400), ("2026-10-15", 350), ("2026-10-31", 250), ("2026-11-03", 300), ("2026-11-17", 112)])
         let windows = CursorProvider.withCycleComparison(Self.seat.windows, days: history, cycleStart: cycleStart, now: Self.now, calendar: calendar)
         #expect(windows.map(\.id) == Self.seat.windows.map(\.id))
         let monthly = try #require(windows.first { $0.id == "included" })
@@ -210,6 +241,26 @@ import Testing
         #expect(over.rawUsedPercent == 150)
     }
 
+    /// A monthly cycle turns over on the same day of each month, so the cycle before the one from 18 September
+    /// began on 18 August, thirty-one days back, though the cycle from 18 September is thirty days long. Its first
+    /// day is in the sum (CodeRabbit, #165). A cycle that is not a month long goes back by its own length.
+    @Test func theCycleBeforeBeganACalendarMonthEarlier() throws {
+        let cycleStart = DateParsing.iso8601("2026-09-18T00:00:00Z")!
+        let september = LimitWindow(id: "included", label: .key("Monthly usage"), usedFraction: nil, resetsAt: DateParsing.iso8601("2026-10-18T00:00:00Z")!,
+                                    periodDuration: 30 * Period.day, amountUSD: 100)
+        let history = days([("2026-08-17", 900), ("2026-08-18", 300), ("2026-09-17", 200), ("2026-09-20", 100)])
+        let now = DateParsing.iso8601("2026-09-25T12:00:00Z")!
+        let compared = try #require(CursorProvider.withCycleComparison([september], days: history, cycleStart: cycleStart, now: now, calendar: calendar).first)
+        #expect(compared.note == "$100.00 so far, $500 last cycle")
+        #expect(compared.usedFraction == 0.2)
+        // A fortnightly cycle: fourteen days back, 4 to 18 September.
+        let fortnight = LimitWindow(id: "included", label: .key("Monthly usage"), usedFraction: nil, resetsAt: DateParsing.iso8601("2026-10-02T00:00:00Z")!,
+                                    periodDuration: 14 * Period.day, amountUSD: 100)
+        let short = days([("2026-09-03", 900), ("2026-09-04", 150), ("2026-09-17", 250), ("2026-09-20", 100)])
+        let two = try #require(CursorProvider.withCycleComparison([fortnight], days: short, cycleStart: cycleStart, now: now, calendar: calendar).first)
+        #expect(two.note == "$100.00 so far, $400 last cycle")
+    }
+
     /// Left as it was wherever last cycle's total is not known in full, or there is nothing to compare.
     @Test func monthlyUsageIsLeftAloneWithoutAWholeCycleBehindIt() {
         let cycleStart = DateParsing.iso8601("2026-11-01T00:00:00Z")!
@@ -218,8 +269,10 @@ import Testing
         }
         // The history begins inside last cycle: its sum would be short, and a short sum reads this cycle high.
         #expect(compared(days([("2026-10-15", 350), ("2026-10-31", 250)])) == Self.monthly)
-        // It begins on the day last cycle began: whole.
-        #expect(compared(days([("2026-10-02", 400), ("2026-10-31", 250)]))?.usedFraction != nil)
+        // It begins on the day last cycle began: whole. That day is a calendar month back, 1 October, and not this
+        // cycle's thirty days back, 2 October: a history that begins on the 2nd is a day short.
+        #expect(compared(days([("2026-10-01", 400), ("2026-10-31", 250)]))?.usedFraction != nil)
+        #expect(compared(days([("2026-10-02", 400), ("2026-10-31", 250)])) == Self.monthly)
         // Nothing was spent last cycle.
         #expect(compared(days([("2026-09-30", 500), ("2026-11-03", 300)])) == Self.monthly)
         // No history at all, and no cycle start.

@@ -1202,9 +1202,9 @@ final class Preferences {
     var jumpToTerminal: Bool {
         didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
     }
-    /// Whether the ring picks saved before 0.9.27 have been looked at (settleLegacyRingPicks). Not a setting.
-    var legacyRingPicksSettled: Bool {
-        didSet { defaults.set(legacyRingPicksSettled, forKey: Keys.legacyRingPicksSettled) }
+    /// The tools whose ring picks saved before 0.9.27 have been looked at (settleLegacyRingPicks). Not a setting.
+    var legacyRingPicksSettled: Set<ToolID> {
+        didSet { defaults.set(legacyRingPicksSettled.map(\.rawValue).sorted(), forKey: Keys.legacyRingPicksSettled) }
     }
     /// A file dropped on the notch, the panel or a row is typed into a session's prompt (FileDrop, 0.9.24).
     var fileDrop: Bool {
@@ -1688,7 +1688,7 @@ final class Preferences {
         feedbackDiagnostics = defaults.object(forKey: Keys.feedbackDiagnostics) as? Bool ?? true
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
         fileDrop = defaults.object(forKey: Keys.fileDrop) as? Bool ?? true
-        legacyRingPicksSettled = defaults.bool(forKey: Keys.legacyRingPicksSettled)
+        legacyRingPicksSettled = Set((defaults.array(forKey: Keys.legacyRingPicksSettled) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
         debugLogging = defaults.bool(forKey: Keys.debugLogging)
@@ -1881,7 +1881,8 @@ final class Preferences {
         }
         ringWindows[reading.tool] = RingSelection.picking(id, at: index, drawn: ringWindows(of: reading).map(\.id))
         // A pick made from here on is one the rings honour, so it is never mistaken for one saved under the old rule.
-        legacyRingPicksSettled = true
+        // Said of this tool alone: a ring picked for Claude says nothing about the picks saved for Cursor.
+        legacyRingPicksSettled.insert(reading.tool)
     }
 
     /// What a ring picker calls a choice: its name, and for a window with nothing to fill a ring with, that it
@@ -1894,16 +1895,16 @@ final class Preferences {
     /// Clears, once, a ring pick saved before 0.9.27 that the rule of the time was setting aside (RingSelection
     /// .wasSetAside): rings chosen for Cursor's model meters on a seat where they read nothing drew Today's spend
     /// all the same, and from 0.9.27 would draw empty. With the pick cleared the rings go on showing what they
-    /// showed. Asked of the first reading that has a comparison window on show; a pick made since (setRingWindow)
-    /// is deliberate and is never cleared.
+    /// showed. Asked, tool by tool, of the first reading of that tool with a comparison window on show; a pick made
+    /// for the tool since (setRingWindow) is deliberate and is never cleared.
     func settleLegacyRingPicks(with reading: UsageReading) {
-        guard !legacyRingPicksSettled else { return }
+        guard !legacyRingPicksSettled.contains(reading.tool) else { return }
         let shown = shownWindows(of: reading)
         guard shown.contains(where: { $0.isComparison && $0.usedFraction != nil }) else { return }
         if RingSelection.wasSetAside(chosen: ringWindows[reading.tool] ?? [], shown: shown) {
             ringWindows[reading.tool] = nil
         }
-        legacyRingPicksSettled = true
+        legacyRingPicksSettled.insert(reading.tool)
     }
 
     func resetLine(for window: LimitWindow, stale: Bool = false, now: Date = Date()) -> String {
@@ -2130,10 +2131,13 @@ enum RingSelection {
         return ids.filter { !$0.isEmpty }
     }
 
-    /// Whether a saved pick is one the rule before 0.9.27 would have set aside: every chosen window that is on
-    /// show has no figure, while a comparison window with one is.
+    /// Whether a saved pick is one the rule before 0.9.27 would have set aside: every chosen window that could be
+    /// drawn has no figure, while a comparison window with one is on show. The chosen ids are looked up where
+    /// `windows` looks them up, the shown windows and the "All models" combined from them, so a pick that the rule
+    /// honoured for its combined ring is not taken for one it set aside.
     static func wasSetAside(chosen: [String], shown: [LimitWindow]) -> Bool {
-        let picked = chosen.compactMap { id in shown.first { $0.id == id } }
+        let selectable = shown + [CombinedWindow.of(windows: shown)].compactMap { $0 }
+        let picked = chosen.compactMap { id in selectable.first { $0.id == id } }
         return !picked.isEmpty && picked.allSatisfy { $0.usedFraction == nil } && shown.contains { $0.isComparison && $0.usedFraction != nil }
     }
 
