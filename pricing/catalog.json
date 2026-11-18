@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "published": "2026-11-07",
+  "published": "2026-11-18",
   "unit": "USD per million tokens",
   "sources": {
     "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
@@ -8,6 +8,26 @@
   },
   "notes": "docs/accuracy.md, The pricing catalog: an entry applies from its effective day; an entry that repeats the build's own row changes nothing; a catalog that fails one check is refused whole. Anthropic rows are matched by longest id prefix, OpenAI rows by exact id; a missing cache rate derives from the input rate with the standard multipliers.",
   "anthropic": [
+    {
+      "prefix": "claude-fable-5-2",
+      "effective": "2026-11-09",
+      "input": 8,
+      "output": 40,
+      "cacheRead": 0.2,
+      "fastInput": 16,
+      "fastOutput": 80,
+      "fastCacheRead": 0.4
+    },
+    {
+      "prefix": "claude-mythos-5-2",
+      "effective": "2026-11-09",
+      "input": 8,
+      "output": 40,
+      "cacheRead": 0.2,
+      "fastInput": 16,
+      "fastOutput": 80,
+      "fastCacheRead": 0.4
+    },
     {
       "prefix": "claude-fable-5-1",
       "effective": "2026-09-24",

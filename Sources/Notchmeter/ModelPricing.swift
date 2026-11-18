@@ -153,14 +153,16 @@ enum PriceSource: Hashable, Sendable, Codable {
     }
 }
 
-/// Prices as published on platform.claude.com, snapshot 2026-11-07 (`ModelPricing.snapshotDate`; the committed copy
+/// Prices as published on platform.claude.com, snapshot 2026-11-18 (`ModelPricing.snapshotDate`; the committed copy
 /// is `Sources/Notchmeter/Resources/pricing-snapshot.json`, which `.github/workflows/pricing.yml` diffs against the
 /// live page, as it does `pricing/catalog.json`).
 /// Unknown versions fall back to their family's newest rate so a fresh model still prices roughly right until the
 /// table is updated. Overrides (Claude Code's `modelPricing`, or Notchmeter's own file) win over the table, and
 /// Notchmeter's catalog (PricingCatalog) adds rows to it and updates them from their effective dates.
 enum ModelPricing {
-    static let snapshotDate = "2026-11-07"
+    static let snapshotDate = "2026-11-18"
+    /// Fable 5.2 and Mythos 5.2 (2026-11-09) are a fifth cheaper than 5.1 and keep its 0.025x cache read ($0.20).
+    static let fable52 = ModelRates(input: 8, output: 40, cacheRead: 0.2)
     static let fable51 = ModelRates(input: 10, output: 50, cacheRead: 0.25)
     static let fable5 = ModelRates(input: 10, output: 50, cacheRead: 1.0)
     /// Opus 5.5 reads its cache at 0.05x input ($0.20), the page's own exception to the 0.1x rule.
@@ -182,6 +184,9 @@ enum ModelPricing {
     /// Fast mode on Opus 5.5 is its own row ($8/$40), and the page stacks the caching multipliers on it, the
     /// model's 0.05x cache read included.
     static let opus55Fast = ModelRates(input: 8, output: 40, cacheRead: 0.4)
+    /// Fast mode on Fable 5.2 and Mythos 5.2 is twice their standard row ($16/$80), the first fast row the family
+    /// has, with the same stacking: the 0.025x cache read on the fast input rate.
+    static let fable52Fast = ModelRates(input: 16, output: 80, cacheRead: 0.4)
     /// Web search: $10 per 1,000 requests, never multiplied by residency.
     static let webSearchRequest = 0.01
 
@@ -191,8 +196,11 @@ enum ModelPricing {
     /// `claude-opus-5-5` needs its own row for the same reason: without it the id is a prefix match for
     /// `claude-opus-5`, and Opus 5.5 was priced as Opus 5, a quarter too high, under a "built-in" label. `claude-sonnet-5-5`
     /// and `claude-haiku-5-5` are the same shape (2026-11-07): without rows of their own they read as Sonnet 5 and as
-    /// nothing the Haiku family's newest row could stand in for.
+    /// nothing the Haiku family's newest row could stand in for. So are `claude-fable-5-2` and `claude-mythos-5-2`
+    /// (2026-11-18), which matched `claude-fable-5` and `claude-mythos-5`: a quarter too high on input and output, and
+    /// five times too high on every cache read.
     static let table: [(prefix: String, rates: ModelRates)] = [
+        ("claude-fable-5-2", fable52), ("claude-mythos-5-2", fable52),
         ("claude-fable-5-1", fable51), ("claude-mythos-5-1", fable51),
         ("claude-fable-5", fable5), ("claude-mythos-5", fable5),
         ("claude-opus-5-5", opus55),
@@ -210,6 +218,7 @@ enum ModelPricing {
     /// The fast-mode rate of a row in `table`, under the same prefix. A row with none ignores the marker, which is
     /// what the page says of Opus 4.6 ("billed at standard rates").
     static let fastTable: [(prefix: String, rates: ModelRates)] = [
+        ("claude-fable-5-2", fable52Fast), ("claude-mythos-5-2", fable52Fast),
         ("claude-opus-5-5", opus55Fast), ("claude-opus-5", opusFast), ("claude-opus-4-8", opusFast),
     ]
 
@@ -326,7 +335,7 @@ enum ModelPricing {
             }
         }
         let family: ModelRates? =
-            if name.contains("fable") || name.contains("mythos") { fable51 }
+            if name.contains("fable") || name.contains("mythos") { fast ? fable52Fast : fable52 }
             else if name.contains("opus") { fast ? opus55Fast : opus55 }
             else if name.contains("sonnet") { sonnet5 }
             else if name.contains("haiku") { haiku45 }
