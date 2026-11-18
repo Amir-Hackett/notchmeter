@@ -671,13 +671,18 @@ actor CursorProvider: UsageProvider {
     /// Which of Cursor's two model meters a model's spend belongs to. Cursor splits usage into *Auto + Composer*
     /// (`autoPercentUsed`, "Cursor models" here) and the models picked by name (`apiPercentUsed`, "Other models"),
     /// and the export names the model per event. Auto's own requests come through as `default` or with an
-    /// "(Auto …)" suffix whatever model served them, and Composer is Cursor's own model. Everything else was picked
-    /// by name, `cursor-grok-…` included: that is Cursor's hosting of a named model, not Auto. Nil for lines that
-    /// are not a model's (`usage-correction`), which belong to neither meter.
+    /// "(Auto …)" suffix whatever model served them, and Composer is Cursor's own model, as is the `cursor-…` family
+    /// (`cursor-grok-4.5-high`). In one seat's export (97 days to 2026-11-18) that family appeared on 19 days, under
+    /// $1 each, and only ever beside Auto and Composer, including a day nothing was picked by name: Cursor's own
+    /// background model, not a pick, and on Other models it would have given that meter a reading on a day the seat
+    /// picked nothing. Everything else was picked by name. Nil for lines that are not a model's
+    /// (`usage-correction`), which belong to neither meter.
     static func modelMeter(of model: String) -> String? {
         let name = model.lowercased()
         if name == "usage-correction" { return nil }
-        if name == "default" || name == "auto" || name.hasPrefix("composer") || name.contains("(auto ") { return "cursor_models" }
+        if name == "default" || name == "auto" || name.hasPrefix("composer") || name.hasPrefix("cursor-") || name.contains("(auto ") {
+            return "cursor_models"
+        }
         return "other_models"
     }
 

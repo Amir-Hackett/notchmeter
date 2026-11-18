@@ -224,10 +224,10 @@ import Testing
     /// two meters: Auto and Composer on one, a model picked by name on the other.
     @Test func modelNamesSortOntoCursorsTwoMeters() {
         for auto in ["default", "composer-2.5", "composer-2.5-fast", "Composer 2.5 Fast (Auto Balanced)", "Claude Opus 5 (Auto Balanced)",
-                     "grok-4.7-high (Auto Intelligence)", "GPT-5.6 Sol (Auto Balanced)"] {
+                     "grok-4.7-high (Auto Intelligence)", "GPT-5.6 Sol (Auto Balanced)", "cursor-grok-4.5-high", "cursor-grok-4.6-high-fast"] {
             #expect(CursorProvider.modelMeter(of: auto) == "cursor_models", "\(auto)")
         }
-        for named in ["claude-opus-5-5", "claude-4.6-opus-high-thinking", "gpt-5.6-sol-medium", "cursor-grok-4.5-high", "grok-4.7-high"] {
+        for named in ["claude-opus-5-5", "claude-4.6-opus-high-thinking", "gpt-5.6-sol-medium", "grok-4.7-high", "claude-sonnet-5-5-high"] {
             #expect(CursorProvider.modelMeter(of: named) == "other_models", "\(named)")
         }
         #expect(CursorProvider.modelMeter(of: "usage-correction") == nil)
