@@ -2,7 +2,7 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
-## [0.9.26](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.26) — 2026-11-07
+## [0.9.26](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.26) — 2026-11-18
 
 ### Full-screen apps
 
@@ -12,6 +12,10 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 - **Sonnet 5.5 and Haiku 5.5 are priced, and Haiku 3.5 is retired.** Both models reached Anthropic's pricing page after the 24 September snapshot, so a Sonnet 5.5 transcript line was priced as Sonnet 5 (right by chance on input and output, wrong on cache reads, which Sonnet 5.5 bills at 0.05x) and a Haiku 5.5 line at the family's newest row, Haiku 4.5, ten times its base rate. That base rate is the only one applied: Haiku 5.5's higher rate for prompts over 100,000 tokens is not modelled, so a request that large reads low. Both have rows of their own now, in the build and in the catalog. Haiku 3.5 left the page the same week and is kept at its last published rate for old transcripts. The weekly pricing check now also reads every priced model row on the page and fails on one the snapshot does not know, which is how these two went unnoticed from their launches on 28 September and 7 October.
 - **Fable 5.2 and Mythos 5.2 are priced.** Both launched on 9 November at $8 and $40 per million tokens with a $0.20 cache read, and had no rows of their own, so their transcript lines were priced as Fable 5 and Mythos 5: a quarter too high on input and output, and five times too high on every cache read. Both have rows now, fast mode's $16 and $80 included, in the build and in the catalog, and the snapshot is dated 18 November. An unknown Fable or Mythos version falls back to this row, the family's newest.
+
+### Cursor
+
+- **Today's spend reads in dollars, against a usual working day.** On a Cursor seat that meters nothing, the ring is today's spend against a usual day. That usual day was the last thirty days' total divided by every calendar day in them, so the days nobody worked pulled it down and one heavy day pulled it up for a month; it is now the median of the days that spent anything. Beside the ring the figure is the money, *$15*, where it was a percentage that read as quota used next to a real limit. The countdown beside it, which only counted to midnight, and the dash for the empty window behind it are gone.
 
 ### Sessions
 
