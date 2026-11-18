@@ -219,7 +219,8 @@ import Testing
             #expect(reading.windows[3].usedFraction == nil)
             #expect(reading.windows[3].note == "Reads 0% on this seat however much it spends; Today's spend carries the reading")
             #expect(RingSelection.windows(of: reading, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["cursor_models", "spend_today"])
-            #expect(RingSelection.windows(of: reading, chosen: [], hidden: []).map(\.id) == ["spend_today", "included"])
+            // With nothing picked, the windows that have a figure come first: Cursor models now has one.
+            #expect(RingSelection.windows(of: reading, chosen: [], hidden: []).map(\.id) == ["spend_today", "cursor_models"])
             // The picker says which choices draw an empty ring.
             #expect(Preferences.ringChoiceTitle(reading.windows[0]) == "Today's spend")
             #expect(Preferences.ringChoiceTitle(reading.windows[2]) == "Cursor models")
