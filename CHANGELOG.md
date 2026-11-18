@@ -2,6 +2,18 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.28](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.28) — 2026-11-18
+
+0.9.27 was not sent out as an update, so its changes come with this one.
+
+### Cursor
+
+- **Cursor models and Other models fill a ring.** On a seat that meters nothing, Cursor reports both model meters at 0 % however much you spend, so they had no reading and a ring picked for them was empty. They are now read from Cursor's usage export, which names the model behind every request: Auto, Composer and Cursor's own models count toward *Cursor models*, and any model you pick by name (Claude, GPT, Grok and the rest) toward *Other models*. Each fills against a usual day of its own, the way *Today's spend* does, and the note gives both figures. Like *Today's spend* it is worked out on this Mac, not a limit of Cursor's, so it never warns that it is running out. A meter you have not used in the last thirty days still has nothing to compare against and stays empty.
+- **A ring pick sticks.** On a Cursor seat that meters nothing (an Enterprise seat billed on-demand), every choice in *Rings and windows* but *Today's spend* snapped back to it: a pick whose windows had no figure gave way to the one window that had, and on such a seat that is every pick. Whatever you pick is now what the ring shows. A choice with nothing to fill a ring is marked *draws an empty ring* in the menu, so an empty ring is one you asked for.
+- **Monthly usage fills a ring.** The cycle's dollars had no limit to be measured against. Behind *Today's spend* they now fill against what the cycle before came to, once Notchmeter's history reaches back to that cycle's first day; the note gives both figures. Like *Today's spend* it is a comparison worked out on this Mac and not a limit of Cursor's, so it reads in dollars beside its ring and never warns that it is running out. *Team on-demand* is the team's spend, which this seat's history says nothing about, and keeps its dollars and no figure.
+- **Two rings picked for one window swap.** Picking for the inner ring the window the outer ring shows used to drop the duplicate and put some third window in its place. The two rings now change places, as they do when you scroll on a ring.
+- **Rings saved for the model meters are honoured.** If your rings were set to *Cursor models* or *Other models* on such a seat, they were showing *Today's spend* instead. A meter that now has a reading (above) shows it; a saved choice of meters with no reading yet is cleared once, so the ring keeps showing *Today's spend*.
+
 ## [0.9.27](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.27) — 2026-11-18
 
 ### Cursor
