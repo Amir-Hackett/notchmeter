@@ -28,7 +28,7 @@ jobs:
     name: macos-15
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Toolchain
         # The package is developed on the current Command Line Tools; use the newest stable Xcode the image has.
