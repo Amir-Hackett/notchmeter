@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-26
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Compile it
         run: |
           [ -d packaging/AppIcon.icon ] || { echo "no icon document in this tree"; exit 0; }
@@ -63,7 +63,7 @@ jobs:
       # a skipped or failed icon job leaves the release carrying the hand-drawn .icns alone.
       ICON_ASSETS_CAR: ${{ github.workspace }}/build/icon-prebuilt/Assets.car
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # BUILD_NUMBER is the commit count, which needs the whole history.
           fetch-depth: 0
