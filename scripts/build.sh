@@ -6,8 +6,11 @@
 #   ARCHS="arm64 x86_64" scripts/build.sh   one slice per architecture, lipo'd into a universal binary (scripts/release.sh)
 # --disable-keychain: the Sparkle artifact is public, but without it SwiftPM first asks the login Keychain for GitHub
 # credentials, and a shell with nobody to answer that dialog hangs before the download starts.
+# scripts/sdk.sh picks a macOS SDK the selected tools can build SwiftUI against when their default one is not.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/sdk.sh
+pick_sdk
 
 APP=build/Notchmeter.app
 SWIFT_BUILD=(swift build -c release --disable-keychain)
