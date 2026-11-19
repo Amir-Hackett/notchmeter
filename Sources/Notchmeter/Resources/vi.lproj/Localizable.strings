@@ -157,6 +157,8 @@
 "Deny (⌘N)" = "Từ chối (⌘N)";
 "Detail" = "Chi tiết";
 "Diagnostics" = "Chẩn đoán";
+"Dollars" = "Đô la";
+"Dollars and percent" = "Đô la và phần trăm";
 "Done — click to jump" = "Xong — bấm để nhảy tới";
 "Expanded" = "Đã mở rộng";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI đọc settings.json khi khởi động: hook có hiệu lực từ phiên kế tiếp.";
@@ -170,6 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Trả yêu cầu về Cursor, nơi hiện lời nhắc của chính nó; Escape cũng làm vậy.";
 "Hide assistants with nothing to show" = "Ẩn trợ lý chưa có gì để hiển thị";
 "Hooks" = "Hook";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Cách một đồng hồ so sánh chi tiêu ghi con số bên cạnh vòng: số đô la hôm nay so với một ngày thông thường, hoặc của chu kỳ này so với chu kỳ trước. Phần trăm là của phép so sánh đó, không phải so với hạn mức, và luôn là phần đã dùng, bất kể lựa chọn trong Hiện mức dùng dưới dạng.";
 "Idle" = "Rảnh";
 "Install the hook and status line…" = "Cài hook và dòng trạng thái…";
 "Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";
@@ -192,6 +195,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Chỉ khi bạn chọn Số liệu › Tự động, để dời số liệu tránh tiêu đề menu của ứng dụng đang ở trước. Nó chỉ đọc hình học của thanh menu, không gì khác.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Chỉ để nhảy tới cửa sổ terminal của một phiên, lần đầu bạn làm vậy. Không phần nào khác của ứng dụng điều khiển ứng dụng khác.";
 "Open Automation settings…" = "Mở cài đặt Tự động hoá…";
+"Percent" = "Phần trăm";
 "Permission request" = "Yêu cầu cấp quyền";
 "Question %1$ld of %2$ld" = "Câu hỏi %1$ld trên %2$ld";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "Mọi mô hình đọc là chưa dùng; máy chủ này cũng trả lời vậy khi không phải nơi đo bạn";
@@ -257,6 +261,7 @@
 "Beta updates" = "Cập nhật beta";
 "billing export" = "bản xuất hóa đơn";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook của trợ lý và theo cùng quy tắc với các thông báo ở trên: cài đặt về terminal ở phía trước, và giờ yên tĩnh. Mục này chọn điều bảng làm; nút bật ở trên chọn điều các vòng làm, và có thể tắt cái này mà không tắt cái kia. Liếc mở một thẻ riêng cho phiên đó, kèm nút nhảy về, rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
+"Show spend as" = "Hiện chi tiêu dưới dạng";
 "Show the main figure beside the rings" = "Hiện con số chính bên cạnh các vòng";
 "Show the whole panel" = "Hiện toàn bộ bảng";
 "Show the whole panel (%ld more waiting)" = "Hiện toàn bộ bảng (còn %ld đang chờ)";

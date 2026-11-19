@@ -96,8 +96,9 @@ final class MenuBarItem {
     }
 
     /// "14% · 4% | 61% · 12%": each pinned tool's two figures, tools separated by a bar.
-    nonisolated static func label(readings: [(windows: [LimitWindow], display: UsageDisplay)], countdown: Bool, now: Date = Date()) -> String {
-        readings.map { CompactLabel.text(for: $0.windows, display: $0.display, countdown: countdown, now: now) }.joined(separator: " | ")
+    nonisolated static func label(readings: [(windows: [LimitWindow], display: UsageDisplay)], spend: SpendFigure = .dollars, countdown: Bool,
+                                  now: Date = Date()) -> String {
+        readings.map { CompactLabel.text(for: $0.windows, display: $0.display, spend: spend, countdown: countdown, now: now) }.joined(separator: " | ")
     }
 
     /// The pin: hidden while the screen is shared, and so is the signal. The privacy setting's whole promise is
@@ -154,14 +155,14 @@ final class MenuBarItem {
             // on: the raised hand while an assistant waits. No gauge beside the numbers, and no tick after a finish.
             let image = Self.textIcon(signal: signalled?.signal)
             button.image = image
-            button.title = (image == nil ? "" : " ") + Self.label(readings: readings, countdown: prefs.showResetCountdown)
+            button.title = (image == nil ? "" : " ") + Self.label(readings: readings, spend: prefs.spendFigure, countdown: prefs.showResetCountdown)
             button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize(for: .small), weight: .medium)
         case .bars, .rings, .dots:
             button.title = ""
             button.image = Self.glyph(windows: Array(readings.flatMap(\.windows).prefix(4)), style: prefs.menuBarStyle,
                                       tint: prefs.menuBarTint, custom: HexColour.colour(prefs.menuBarTintHex), signal: signalled?.signal)
         }
-        button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: readings, countdown: prefs.showResetCountdown)]
+        button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: readings, spend: prefs.spendFigure, countdown: prefs.showResetCountdown)]
             .compactMap { $0 }.joined(separator: ", "))
         button.toolTip = [signalLine, Self.tooltip(readings: readings, prefs: prefs)].compactMap { $0 }.joined(separator: "\n")
     }
@@ -185,7 +186,7 @@ final class MenuBarItem {
             // item's glyph carries the state whatever it says, so tracking it bought a repaint and a rebuilt NSMenu
             // every time the toggle moved and changed nothing here.
             _ = (store.statuses, store.sessions, store.attendedAt, prefs.menuBarPin, prefs.menuBarPinnedTools, prefs.menuBarStyle, prefs.menuBarTint, prefs.menuBarTintHex,
-                 prefs.usageDisplay, prefs.toolOrder,
+                 prefs.usageDisplay, prefs.spendFigure, prefs.toolOrder,
                  prefs.ringWindows, prefs.showResetCountdown, prefs.hiddenWindows, prefs.revealedWindows)
         } onChange: { [weak self] in
             Task { @MainActor in

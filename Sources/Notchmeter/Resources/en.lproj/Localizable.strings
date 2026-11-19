@@ -174,6 +174,8 @@
 "Deny (⌘N)" = "Deny (⌘N)";
 "Detail" = "Detail";
 "Diagnostics" = "Diagnostics";
+"Dollars" = "Dollars";
+"Dollars and percent" = "Dollars and percent";
 "Done — click to jump" = "Done — click to jump";
 "Expanded" = "Expanded";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI reads settings.json when it starts: the hook works from the next session.";
@@ -187,6 +189,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same.";
 "Hide assistants with nothing to show" = "Hide assistants with nothing to show";
 "Hooks" = "Hooks";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as.";
 "Idle" = "Idle";
 "Install the hook and status line…" = "Install the hook and status line…";
 "Installed, but an entry is out of date: Repair updates it" = "Installed, but an entry is out of date: Repair updates it";
@@ -209,6 +212,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app.";
 "Open Automation settings…" = "Open Automation settings…";
+"Percent" = "Percent";
 "Permission request" = "Permission request";
 "Question %1$ld of %2$ld" = "Question %1$ld of %2$ld";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "Reads untouched on every model, which this host also answers when it is not the one metering you";
@@ -274,6 +278,7 @@
 "Beta updates" = "Beta updates";
 "billing export" = "billing export";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
+"Show spend as" = "Show spend as";
 "Show the main figure beside the rings" = "Show the main figure beside the rings";
 "Show the whole panel" = "Show the whole panel";
 "Show the whole panel (%ld more waiting)" = "Show the whole panel (%ld more waiting)";

@@ -174,6 +174,8 @@
 "Deny (⌘N)" = "Denegar (⌘N)";
 "Detail" = "Detalle";
 "Diagnostics" = "Diagnóstico";
+"Dollars" = "Dólares";
+"Dollars and percent" = "Dólares y porcentaje";
 "Done — click to jump" = "Terminado: haz clic para ir";
 "Expanded" = "Expandido";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI lee settings.json al arrancar: el hook funciona a partir de la siguiente sesión.";
@@ -187,6 +189,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Devuelve la solicitud a Cursor, que muestra su propio aviso; Escape hace lo mismo.";
 "Hide assistants with nothing to show" = "Ocultar asistentes sin nada que mostrar";
 "Hooks" = "Hooks";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Cómo escribe su cifra junto a un anillo un medidor que compara gastos: los dólares de hoy frente a un día habitual, o los de este ciclo frente al ciclo anterior. El porcentaje es de esa comparación, no de un límite, y siempre es lo usado, se elija lo que se elija en Mostrar uso como.";
 "Idle" = "Inactivo";
 "Install the hook and status line…" = "Instalar el hook y la línea de estado…";
 "Installed, but an entry is out of date: Repair updates it" = "Instalado, pero una entrada está desactualizada: Reparar la actualiza";
@@ -209,6 +212,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Solo si eliges Indicadores › Automático, que aparta los indicadores de los títulos de menú de la app en primer plano. Lee la geometría de la barra de menús y nada más.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Solo para ir a la ventana del terminal de una sesión, la primera vez que lo haces. Ninguna otra parte de la app controla otra app.";
 "Open Automation settings…" = "Abrir ajustes de Automatización…";
+"Percent" = "Porcentaje";
 "Permission request" = "Solicitud de permiso";
 "Question %1$ld of %2$ld" = "Pregunta %1$ld de %2$ld";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "Aparece sin usar en todos los modelos, que es lo que este host responde también cuando no es el que te mide";
@@ -274,6 +278,7 @@
 "Beta updates" = "Actualizaciones beta";
 "billing export" = "exportación de facturación";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Ambos necesitan el hook del asistente y siguen las mismas reglas que los avisos de arriba: el ajuste del terminal en primer plano y las horas de silencio. Esto elige qué hace el panel; el interruptor de arriba elige qué hacen los anillos, y cualquiera de los dos puede estar desactivado sin el otro. Un vistazo abre una tarjeta solo para esa sesión, con un salto de vuelta a ella, y se vuelve a cerrar salvo que entre el puntero; con Reducir movimiento se abre sin animación y se queda un poco más. Un aviso de «esperando» se retira cuando respondes. En una compilación sin firmar ningún aviso puede atravesar Concentración o No molestar; los urgentes (se agota, te está esperando) sí lo hacen en la versión firmada.";
+"Show spend as" = "Mostrar gasto como";
 "Show the main figure beside the rings" = "Mostrar la cifra principal junto a los anillos";
 "Show the whole panel" = "Mostrar el panel completo";
 "Show the whole panel (%ld more waiting)" = "Mostrar el panel completo (%ld más en espera)";

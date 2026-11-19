@@ -2,9 +2,13 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
-## [0.9.28](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.28) — 2026-11-18
+## [0.9.29](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.29) — 2026-11-19
 
-0.9.27 was not sent out as an update, so its changes come with this one.
+### Rings
+
+- **Show spend as dollars, a percentage, or both.** *Today's spend*, *Monthly usage* and Cursor's two model meters write their figure beside a ring in dollars ("$6"), because a percentage there can be read as a share of a limit and no limit stands behind it. That is still how they start, and it is now a choice: *Settings › Appearance › Usage display › Show spend as* offers *Dollars*, *Percent* ("7%", the share of a usual day or of the cycle before, which keeps counting past 100%) and *Dollars and percent* ("$6 7%"). The menu bar item follows the same choice. Both figures together are wider, so beside a crowded menu bar the second ring's figure gives way sooner.
+
+## [0.9.28](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.28) — 2026-11-18
 
 ### Cursor
 

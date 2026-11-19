@@ -546,11 +546,12 @@ final class AutoSideWatcher {
     }
 
     /// Re-fits when what the strip would draw changes under it: the style, what is kept first when crowded, which
-    /// tools there are and in what order, and the side preference itself. The fit it writes is not tracked here,
+    /// tools there are and in what order, how a comparison writes its figure ("$6 7%" is wider than "$6"), and the
+    /// side preference itself. The fit it writes is not tracked here,
     /// so answering cannot re-trigger this.
     private func observe() {
         withObservationTracking {
-            _ = (prefs.compactStyle, prefs.compactKeep, prefs.toolOrder, prefs.enabledTools, prefs.compactSide)
+            _ = (prefs.compactStyle, prefs.compactKeep, prefs.spendFigure, prefs.toolOrder, prefs.enabledTools, prefs.compactSide)
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.observe()

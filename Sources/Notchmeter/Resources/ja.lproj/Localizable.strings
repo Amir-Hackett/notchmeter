@@ -157,6 +157,8 @@
 "Deny (⌘N)" = "拒否（⌘N）";
 "Detail" = "詳細";
 "Diagnostics" = "診断";
+"Dollars" = "ドル";
+"Dollars and percent" = "ドルとパーセント";
 "Done — click to jump" = "完了 — クリックでジャンプ";
 "Expanded" = "展開";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI は起動時に settings.json を読み込みます。フックは次のセッションから働きます。";
@@ -170,6 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "リクエストを Cursor に戻し、Cursor が自身のプロンプトを表示します。Escape でも同じです。";
 "Hide assistants with nothing to show" = "表示するものがないアシスタントを隠す";
 "Hooks" = "フック";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "支出を比較するメーターが、リングの横に数値をどう表示するかを選びます。今日のドル額をいつもの1日と、または今のサイクルのドル額を前のサイクルと比べます。パーセントはその比較に対する割合で、上限に対するものではなく、「利用状況の表記」の選択にかかわらず常に使用済みの値です。";
 "Idle" = "アイドル";
 "Install the hook and status line…" = "フックとステータスラインをインストール…";
 "Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";
@@ -192,6 +195,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "「表示 › 自動」を選んだときだけ。最前面のアプリのメニュータイトルを避けて表示をずらすためで、メニューバーの位置と大きさ以外は何も読みません。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "セッションのターミナルウインドウへ移動するときだけ、その最初の一回。アプリの他の部分が別のアプリを操作することはありません。";
 "Open Automation settings…" = "オートメーション設定を開く…";
+"Percent" = "パーセント";
 "Permission request" = "許可リクエスト";
 "Question %1$ld of %2$ld" = "質問 %1$ld / %2$ld";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "すべてのモデルが未使用と読めます。このホストは計測元でない場合にも同じ応答をします";
@@ -257,6 +261,7 @@
 "Beta updates" = "ベータ版アップデート";
 "billing export" = "請求データ";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、上の通知と同じ規則に従います。ターミナルが最前面のときの設定と、「おやすみ時間」です。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はそのセッションだけのカードを戻り先へのジャンプ付きで数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
+"Show spend as" = "支出の表記";
 "Show the main figure beside the rings" = "リングの横にメインの数字を表示";
 "Show the whole panel" = "パネル全体を表示";
 "Show the whole panel (%ld more waiting)" = "パネル全体を表示（ほかに %ld 件待機中）";

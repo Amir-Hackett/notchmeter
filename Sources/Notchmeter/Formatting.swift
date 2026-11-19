@@ -112,6 +112,21 @@ enum UsageDisplay: String, CaseIterable, Codable {
     }
 }
 
+/// How a comparison window's figure is written beside its ring (Preferences.spendFigure): the money it measures,
+/// its share of what it is compared against, or both. Dollars is the default for the reason CompactLabel gives;
+/// the others are there to be chosen, by someone who knows no limit stands behind the percentage.
+enum SpendFigure: String, CaseIterable, Codable {
+    case dollars, percent, both
+
+    var title: String {
+        switch self {
+        case .dollars: L("Dollars")
+        case .percent: L("Percent")
+        case .both: L("Dollars and percent")
+        }
+    }
+}
+
 /// The digits beside a ring (CompactStyle): the main window's percentage and, after a thin dot, the second
 /// window's — or, at Auto's outer-figure rung, the main window's alone — in the Used or Left sense the user
 /// chose; "–" for a window without a limit, or no reading at all.
@@ -119,7 +134,10 @@ enum UsageDisplay: String, CaseIterable, Codable {
 /// A comparison window (LimitWindow.isComparison, Cursor's "Today's spend") is drawn in the money it measures,
 /// "$15", and not as a percentage. Its ring fills against a usual day, and "21%" beside a ring that sits next to
 /// Claude's real quota read as 21 % of a limit used, which no limit stands behind. Dollars cannot be read that
-/// way. It carries no countdown either: the time left is the time to midnight, when nothing resets but the day.
+/// way. That is the default and not the only way to read it: with `spend` at percent the figure is the share of the
+/// usual day (or of the cycle before) the ring is filled to, "21%", and at both it is "$15 21%". The share is
+/// always the Used sense, whatever `display` says: nothing is left of a usual day, and it can pass 100%.
+/// It carries no countdown either: the time left is the time to midnight, when nothing resets but the day.
 /// And a window after it that has no figure is left out, where anywhere else it is the "–": beside a percentage
 /// the dash says "this one has no limit", beside a sum of money it is an empty slot ("$15 · –").
 enum CompactLabel {
@@ -131,8 +149,9 @@ enum CompactLabel {
     static let noLimit = "–"
     static let separator = "·"
 
-    static func segments(for reading: UsageReading?, display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> [Segment] {
-        segments(for: reading.map { Array($0.windows.prefix(2)) } ?? [], display: display, countdown: countdown, now: now)
+    static func segments(for reading: UsageReading?, display: UsageDisplay, spend: SpendFigure = .dollars, countdown: Bool = false,
+                         now: Date = Date()) -> [Segment] {
+        segments(for: reading.map { Array($0.windows.prefix(2)) } ?? [], display: display, spend: spend, countdown: countdown, now: now)
     }
 
     /// `windows` are the ones the rings draw (Preferences.ringWindows). With `countdown`, the first window's figure
@@ -140,8 +159,8 @@ enum CompactLabel {
     /// `figures == .outer` only the first window's figure is answered, and without the countdown: that is the
     /// outer ring's window, the one the rings are for, and "90% 32m" is most of the width "90% · 4%" was, so a
     /// rung that kept it would rarely fit where the full one did not.
-    static func segments(for windows: [LimitWindow], display: UsageDisplay, figures: CompactFit.Figures = .all,
-                         countdown: Bool = false, now: Date = Date()) -> [Segment] {
+    static func segments(for windows: [LimitWindow], display: UsageDisplay, spend: SpendFigure = .dollars,
+                         figures: CompactFit.Figures = .all, countdown: Bool = false, now: Date = Date()) -> [Segment] {
         let shown = figures == .outer ? Array(windows.prefix(1)) : windows
         guard !shown.isEmpty else { return [Segment(text: noLimit, pace: nil)] }
         let comparisonLeads = shown.first.map { $0.isComparison && $0.usedFraction != nil } ?? false
@@ -150,7 +169,16 @@ enum CompactLabel {
                 return comparisonLeads && index > 0 ? nil : Segment(text: noLimit, pace: nil)
             }
             if window.isComparison, let spent = window.amountUSD {
-                return Segment(text: Money.dollars(spent, cents: false), pace: Pace.status(for: window, now: now))
+                // The share is the one the note is written from: past a usual day it keeps counting where the
+                // ring stops at full.
+                let share = "\(Int(((window.rawUsedPercent.map { $0 / 100 } ?? used) * 100).rounded()))%"
+                let money = Money.dollars(spent, cents: false)
+                let text = switch spend {
+                case .dollars: money
+                case .percent: share
+                case .both: money + " " + share
+                }
+                return Segment(text: text, pace: Pace.status(for: window, now: now))
             }
             let value = display == .used ? used : 1 - used
             var text = "\(Int((value * 100).rounded()))%"
@@ -170,13 +198,14 @@ enum CompactLabel {
         return primary ? .outer : nil
     }
 
-    static func text(for reading: UsageReading?, display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> String {
-        segments(for: reading, display: display, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
+    static func text(for reading: UsageReading?, display: UsageDisplay, spend: SpendFigure = .dollars, countdown: Bool = false,
+                     now: Date = Date()) -> String {
+        segments(for: reading, display: display, spend: spend, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
     }
 
-    static func text(for windows: [LimitWindow], display: UsageDisplay, figures: CompactFit.Figures = .all,
-                     countdown: Bool = false, now: Date = Date()) -> String {
-        segments(for: windows, display: display, figures: figures, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
+    static func text(for windows: [LimitWindow], display: UsageDisplay, spend: SpendFigure = .dollars,
+                     figures: CompactFit.Figures = .all, countdown: Bool = false, now: Date = Date()) -> String {
+        segments(for: windows, display: display, spend: spend, figures: figures, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
     }
 }
 

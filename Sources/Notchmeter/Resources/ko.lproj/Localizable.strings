@@ -157,6 +157,8 @@
 "Deny (⌘N)" = "거부 (⌘N)";
 "Detail" = "세부 내용";
 "Diagnostics" = "진단";
+"Dollars" = "달러";
+"Dollars and percent" = "달러와 퍼센트";
 "Done — click to jump" = "완료 — 클릭하면 이동";
 "Expanded" = "펼침";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI는 시작할 때 settings.json을 읽습니다: 훅은 다음 세션부터 동작합니다.";
@@ -170,6 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "요청을 Cursor로 돌려보내고 Cursor가 자체 프롬프트를 표시합니다. Escape도 같은 역할을 합니다.";
 "Hide assistants with nothing to show" = "표시할 내용이 없는 어시스턴트 숨기기";
 "Hooks" = "훅";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "지출을 비교하는 미터가 링 옆에 수치를 표시하는 방식입니다. 오늘의 달러 금액을 평소 하루와, 또는 이번 주기의 금액을 이전 주기와 비교합니다. 퍼센트는 그 비교에 대한 비율이며 한도 대비가 아니고, 사용량 표시 방식에서 무엇을 고르든 항상 사용한 값입니다.";
 "Idle" = "유휴";
 "Install the hook and status line…" = "훅과 상태 표시줄 설치…";
 "Installed, but an entry is out of date: Repair updates it" = "설치되었지만 오래된 항목이 있습니다: 복구가 업데이트합니다";
@@ -192,6 +195,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "표시 › 자동을 고른 경우에만. 맨 앞 앱의 메뉴 제목을 피해 표시를 옮기기 위한 것으로, 메뉴 막대의 위치와 크기 외에는 아무것도 읽지 않습니다.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "세션의 터미널 창으로 이동할 때만, 처음 한 번. 앱의 다른 어떤 부분도 다른 앱을 조작하지 않습니다.";
 "Open Automation settings…" = "자동화 설정 열기…";
+"Percent" = "퍼센트";
 "Permission request" = "권한 요청";
 "Question %1$ld of %2$ld" = "질문 %1$ld / %2$ld";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "모든 모델이 미사용으로 읽힘. 이 호스트는 계량 주체가 아닐 때도 같은 답을 함";
@@ -257,6 +261,7 @@
 "Beta updates" = "베타 업데이트";
 "billing export" = "청구 내보내기";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며, 위 알림과 같은 규칙을 따릅니다. 맨 앞 터미널 설정과 방해 금지 시간입니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 그 세션만의 카드를 돌아가기 버튼과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
+"Show spend as" = "지출 표시 방식";
 "Show the main figure beside the rings" = "링 옆에 주요 숫자 표시";
 "Show the whole panel" = "전체 패널 보기";
 "Show the whole panel (%ld more waiting)" = "전체 패널 보기 (%ld개 더 대기 중)";

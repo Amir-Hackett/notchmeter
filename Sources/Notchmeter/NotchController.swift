@@ -974,7 +974,7 @@ final class NotchController: NSObject, PanelPresenting {
         withObservationTracking {
             _ = (store.statuses, store.sessions, store.attendedAt, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools,
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
-                 prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
+                 prefs.compactStyle, prefs.usageDisplay, prefs.spendFigure, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
                  // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
                  // budget is set, and monthlyBudgetUSD reads it only while one is.
