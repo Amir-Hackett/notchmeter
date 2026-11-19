@@ -172,7 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Trả yêu cầu về Cursor, nơi hiện lời nhắc của chính nó; Escape cũng làm vậy.";
 "Hide assistants with nothing to show" = "Ẩn trợ lý chưa có gì để hiển thị";
 "Hooks" = "Hook";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "Cách một đồng hồ so sánh số đô la hôm nay với một ngày thông thường ghi con số bên cạnh vòng. Phần trăm là so với ngày thông thường đó, không phải so với hạn mức.";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Cách một đồng hồ so sánh chi tiêu ghi con số bên cạnh vòng: số đô la hôm nay so với một ngày thông thường, hoặc của chu kỳ này so với chu kỳ trước. Phần trăm là của phép so sánh đó, không phải so với hạn mức, và luôn là phần đã dùng, bất kể lựa chọn trong Hiện mức dùng dưới dạng.";
 "Idle" = "Rảnh";
 "Install the hook and status line…" = "Cài hook và dòng trạng thái…";
 "Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";

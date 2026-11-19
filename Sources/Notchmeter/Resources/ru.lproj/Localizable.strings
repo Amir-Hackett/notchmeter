@@ -189,7 +189,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Возвращает запрос в Cursor, который показывает собственный запрос; Escape делает то же самое.";
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
 "Hooks" = "Хуки";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "Как индикатор, сравнивающий сегодняшние доллары с обычным днём, пишет значение рядом с кольцом. Процент считается от обычного дня, а не от лимита.";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Как индикатор, сравнивающий расходы, пишет значение рядом с кольцом: сегодняшние доллары с обычным днём или доллары этого цикла с предыдущим циклом. Процент считается от этого сравнения, а не от лимита, и всегда показывает использованное, что бы ни было выбрано в «Показывать использование как».";
 "Idle" = "Бездействует";
 "Install the hook and status line…" = "Установить хук и строку состояния…";
 "Installed, but an entry is out of date: Repair updates it" = "Установлено, но одна из записей устарела: «Исправить» обновит её";

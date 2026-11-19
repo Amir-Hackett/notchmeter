@@ -172,7 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "リクエストを Cursor に戻し、Cursor が自身のプロンプトを表示します。Escape でも同じです。";
 "Hide assistants with nothing to show" = "表示するものがないアシスタントを隠す";
 "Hooks" = "フック";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "今日のドル額をいつもの1日と比べるメーターが、リングの横に数値をどう表示するかを選びます。パーセントはいつもの1日に対する割合で、上限に対するものではありません。";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "支出を比較するメーターが、リングの横に数値をどう表示するかを選びます。今日のドル額をいつもの1日と、または今のサイクルのドル額を前のサイクルと比べます。パーセントはその比較に対する割合で、上限に対するものではなく、「利用状況の表記」の選択にかかわらず常に使用済みの値です。";
 "Idle" = "アイドル";
 "Install the hook and status line…" = "フックとステータスラインをインストール…";
 "Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";

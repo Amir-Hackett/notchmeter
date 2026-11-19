@@ -189,7 +189,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same.";
 "Hide assistants with nothing to show" = "Hide assistants with nothing to show";
 "Hooks" = "Hooks";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit.";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as.";
 "Idle" = "Idle";
 "Install the hook and status line…" = "Install the hook and status line…";
 "Installed, but an entry is out of date: Repair updates it" = "Installed, but an entry is out of date: Repair updates it";

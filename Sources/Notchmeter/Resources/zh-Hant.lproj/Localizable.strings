@@ -172,7 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "把請求交還給 Cursor，由 Cursor 顯示它自己的提示；按 Escape 效果相同。";
 "Hide assistants with nothing to show" = "隱藏尚無內容可顯示的助理";
 "Hooks" = "掛鉤";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "將今日美元與平常一天相比較的指標在圓環旁如何顯示數值。百分比是相對於平常一天，而不是相對於限額。";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "比較花費的指標在圓環旁如何顯示數值：今日美元與平常一天相比，或本週期與上一週期相比。百分比是相對於該比較，而不是相對於限額，並且一律為已用口徑，無論「用量顯示方式」選擇了什麼。";
 "Idle" = "閒置";
 "Install the hook and status line…" = "安裝掛鉤與狀態列…";
 "Installed, but an entry is out of date: Repair updates it" = "已安裝，但有一個項目已過時：「修復」會更新它";

@@ -172,7 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "요청을 Cursor로 돌려보내고 Cursor가 자체 프롬프트를 표시합니다. Escape도 같은 역할을 합니다.";
 "Hide assistants with nothing to show" = "표시할 내용이 없는 어시스턴트 숨기기";
 "Hooks" = "훅";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "오늘의 달러 금액을 평소 하루와 비교하는 미터가 링 옆에 수치를 표시하는 방식입니다. 퍼센트는 평소 하루 대비 비율이며 한도 대비가 아닙니다.";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "지출을 비교하는 미터가 링 옆에 수치를 표시하는 방식입니다. 오늘의 달러 금액을 평소 하루와, 또는 이번 주기의 금액을 이전 주기와 비교합니다. 퍼센트는 그 비교에 대한 비율이며 한도 대비가 아니고, 사용량 표시 방식에서 무엇을 고르든 항상 사용한 값입니다.";
 "Idle" = "유휴";
 "Install the hook and status line…" = "훅과 상태 표시줄 설치…";
 "Installed, but an entry is out of date: Repair updates it" = "설치되었지만 오래된 항목이 있습니다: 복구가 업데이트합니다";

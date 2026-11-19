@@ -190,7 +190,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Gibt die Anfrage an Cursor zurück, das dafür seine eigene Abfrage zeigt; Escape tut dasselbe.";
 "Hide assistants with nothing to show" = "Assistenten ohne Anzeige ausblenden";
 "Hooks" = "Hooks";
-"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "Wie eine Anzeige, die die heutigen Dollar mit einem üblichen Tag vergleicht, ihren Wert neben einem Ring schreibt. Der Prozentwert bezieht sich auf diesen üblichen Tag, nicht auf ein Limit.";
+"How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Wie eine Anzeige, die Ausgaben vergleicht, ihren Wert neben einem Ring schreibt: die heutigen Dollar gegenüber einem üblichen Tag oder die dieses Zyklus gegenüber dem Zyklus davor. Der Prozentwert bezieht sich auf diesen Vergleich, nicht auf ein Limit, und zeigt immer das Genutzte, was auch immer unter „Nutzung anzeigen als“ gewählt ist.";
 "Idle" = "Inaktiv";
 "Install the hook and status line…" = "Hook und Statuszeile installieren …";
 "Installed, but an entry is out of date: Repair updates it" = "Installiert, aber ein Eintrag ist veraltet: „Reparieren“ aktualisiert ihn";
