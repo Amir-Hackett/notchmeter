@@ -6,7 +6,7 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 ### Rings
 
-- **Hide keeps the ring you picked.** Ticking *Hide* for a window under *Rings and windows* used to take its ring away too and put the next window in its place, so hiding the inner ring's window left a ring and a number you had not chosen. A window that a ring is set to now keeps that ring when you hide it: it leaves the card, and its figure leaves the notch and the menu bar item, and the ring stays. A hidden window that no ring is set to is drawn nowhere, as before. If you had already hidden a window a ring was set to, your rings stay as they are now. Picking a window for a ring still shows it again, and with the notch set to *Numbers* at least one figure always stays.
+- **Hide keeps the ring you picked.** Ticking *Hide* for a window under *Rings and windows* used to take its ring away too and put the next window in its place, so hiding the inner ring's window left a ring and a number you had not chosen. A window that a ring is set to now keeps that ring when you hide it: it leaves the card, and its figure leaves the notch and the menu bar item, and the ring stays. A hidden window that no ring is set to is drawn nowhere, as before. If you had already hidden a window a ring was set to, your rings stay as they are now. Picking a window for a ring still shows it again. Where figures are drawn with no ring beside them (the notch set to *Numbers*, the menu bar item set to *Text*), at least one always stays, even if every ring's window is hidden.
 
 ## [0.9.29](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.29) — 2026-11-19
 

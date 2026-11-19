@@ -147,7 +147,8 @@ final class MenuBarItem {
         let written = tools.compactMap { tool -> (windows: [LimitWindow], display: UsageDisplay)? in
             guard let reading = store.status(tool).reading else { return nil }
             let figures = prefs.figureWindows(of: reading, ringsDrawn: prefs.menuBarStyle != .text)
-            return figures.isEmpty ? nil : (figures, prefs.usageDisplay)
+            // Left out only where every ring window is hidden; a reading with no window at all still writes "—".
+            return figures.isEmpty && !reading.windows.isEmpty ? nil : (figures, prefs.usageDisplay)
         }
         guard !readings.isEmpty else {
             button.title = ""

@@ -198,6 +198,16 @@ enum CompactLabel {
         return primary ? .outer : nil
     }
 
+    /// The windows a readout writes figures for, from the ring windows and the ones not hidden (`figures`,
+    /// Preferences.figureWindows). At the outer-figure rung the figure is the outer ring's or none: with that
+    /// window hidden, the next ring's figure would stand where the main one is promised. Digits with no ring
+    /// beside them keep whatever figure is left rather than go blank.
+    static func numbered(rings: [LimitWindow], figures: [LimitWindow], drawn: CompactFit.Figures?, ringsDrawn: Bool) -> [LimitWindow] {
+        guard drawn == .outer else { return figures }
+        let outer = figures.filter { $0.id == rings.first?.id }
+        return outer.isEmpty && !ringsDrawn ? figures : outer
+    }
+
     static func text(for reading: UsageReading?, display: UsageDisplay, spend: SpendFigure = .dollars, countdown: Bool = false,
                      now: Date = Date()) -> String {
         segments(for: reading, display: display, spend: spend, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")

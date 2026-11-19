@@ -896,7 +896,7 @@ struct CompactReadout: View {
 
     @ViewBuilder private var parts: some View {
         let drawn = CompactLabel.figures(style: style, primary: primary, fit: figures)
-        let numbered = figureWindows ?? windows
+        let numbered = CompactLabel.numbered(rings: windows, figures: figureWindows ?? windows, drawn: drawn, ringsDrawn: style.showsRings)
         // No figure left to write beside rings whose every window is hidden: nothing, rather than the "—" an
         // empty list stands for where a tool has no window at all.
         let showNumbers = drawn != nil && !hideFigures && presence != .hidden && (apiKeyCost != nil || !numbered.isEmpty || windows.isEmpty)

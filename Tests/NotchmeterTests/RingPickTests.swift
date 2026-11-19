@@ -143,6 +143,32 @@ import Testing
         #expect(RingSelection.figures(rings: rings, hidden: ["cursor_models"], ringsDrawn: false).map(\.id) == ["spend_today"])
     }
 
+    /// "Show the main figure beside the rings" is the outer ring's figure. With that window hidden it is no figure,
+    /// not the inner ring's; digits alone keep what is left.
+    @Test func theMainFigureIsTheOuterRingsOrNone() {
+        let rings = [Self.spend, Self.cursorModels]
+        #expect(CompactLabel.numbered(rings: rings, figures: [Self.cursorModels], drawn: .outer, ringsDrawn: true).isEmpty)
+        #expect(CompactLabel.numbered(rings: rings, figures: [Self.cursorModels], drawn: .outer, ringsDrawn: false).map(\.id) == ["cursor_models"])
+        #expect(CompactLabel.numbered(rings: rings, figures: rings, drawn: .outer, ringsDrawn: true).map(\.id) == ["spend_today"])
+        #expect(CompactLabel.numbered(rings: rings, figures: [Self.cursorModels], drawn: .all, ringsDrawn: true).map(\.id) == ["cursor_models"])
+    }
+
+    /// A cached reading puts Settings on screen before the first refresh. A ring picked and hidden there is meant,
+    /// and the settling that the refresh brings leaves it; an old pick is still settled first.
+    @Test func aChoiceMadeBeforeTheFirstRefreshIsKept() {
+        withSuite("hiddenBeforeRefresh") { defaults in
+            defaults.set(["cursor": ["spend_today", "other_models"]], forKey: "ringWindows")
+            defaults.set(["cursor": ["other_models"]], forKey: "hiddenWindows")
+            let prefs = Preferences(defaults: defaults)
+            prefs.setRingWindow(at: 1, to: "cursor_models", in: Self.seat)
+            #expect(prefs.hiddenRingPicksSettled == [.cursor])
+            prefs.setHidden(true, window: Self.cursorModels, in: Self.seat)
+            prefs.settleHiddenRingPicks(with: Self.seat)
+            #expect(prefs.ringWindows(of: Self.seat).map(\.id) == ["spend_today", "cursor_models"])
+            #expect(!prefs.ringWindows(of: Self.seat).contains { $0.id == "other_models" }, "the old hidden pick did not come back")
+        }
+    }
+
     /// A pick saved before 0.9.30 that names a hidden window drew the next shown window instead. It is rewritten
     /// to what was drawn, once, so the update changes nobody's rings; a window hidden afterwards keeps its ring.
     @Test func aPickHiddenUnderTheOldRuleKeepsWhatItDrew() {

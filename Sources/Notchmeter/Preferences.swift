@@ -1839,6 +1839,9 @@ final class Preferences {
     /// user would reveal B, and A would drop out because the preference still said hidden. The Hide toggles then
     /// say what the card shows, which is the only state a checkbox can honestly hold.
     func setHidden(_ hidden: Bool, window: LimitWindow, in reading: UsageReading) {
+        // Before the write, so a pick saved under the old rule is settled against what was hidden then and not
+        // against this change. A cached reading puts Settings on screen before the first refresh settles anything.
+        settleHiddenRingPicks(with: reading)
         for shown in shownWindows(of: reading) where isHidden(shown, of: reading.tool) { setHidden(false, window: shown, of: reading.tool) }
         setHidden(hidden, window: window, of: reading.tool)
     }
@@ -1885,8 +1888,9 @@ final class Preferences {
     /// Rewrites, once per tool, a ring pick saved before 0.9.30 that names a hidden window. Under the rule of the
     /// time the rings skipped it and drew the next shown window; from 0.9.30 they would draw it again. The pick
     /// becomes what the rings were drawing, so nobody's rings change on the update. Asked of the first reading of
-    /// the tool, which arrives before Settings can offer its Hide boxes, so a window hidden from here on is one
-    /// whose ring was meant to stay.
+    /// the tool, and before the first change made in Settings (setHidden, setRingWindow), which a cached reading
+    /// can put on screen before any refresh has landed, so a window hidden from here on is one whose ring was
+    /// meant to stay.
     func settleHiddenRingPicks(with reading: UsageReading) {
         guard !hiddenRingPicksSettled.contains(reading.tool) else { return }
         defer { hiddenRingPicksSettled.insert(reading.tool) }
@@ -1907,6 +1911,7 @@ final class Preferences {
     /// pick, as if the choice had landed on the wrong ring. Emptying a ring closes the gap: the rings are drawn
     /// outermost first, so a chosen third with no second would otherwise be stored as a second anyway.
     func setRingWindow(at index: Int, to id: String, in reading: UsageReading) {
+        settleHiddenRingPicks(with: reading)
         if let window = reading.windows.first(where: { $0.id == id }), isHidden(window, of: reading.tool) {
             setHidden(false, window: window, in: reading)
         }
