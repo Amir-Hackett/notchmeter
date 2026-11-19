@@ -188,6 +188,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "把请求交还给终端，由终端照常询问；按 Escape 效果相同。";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "把请求交还给 Cursor，由 Cursor 显示它自己的提示；按 Escape 效果相同。";
 "Hide assistants with nothing to show" = "隐藏尚无内容可显示的助手";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "隐藏窗口后，它会从卡片中移除，圆环旁也不再显示它的数字。已设为该窗口的圆环会保留。";
 "Hooks" = "钩子";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "比较花费的指标在圆环旁如何显示数值：今日美元与平常一天相比，或本周期与上一周期相比。百分比是相对于该比较，而不是相对于限额，并且始终是已用口径，无论“用量显示为”选择了什么。";
 "Idle" = "空闲";

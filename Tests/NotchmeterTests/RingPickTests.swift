@@ -107,6 +107,74 @@ import Testing
         }
     }
 
+    // MARK: - Hide keeps a picked ring
+
+    /// The recording that asked for it: Inner ring on Cursor models, Hide ticked for Cursor models. The ring used to
+    /// go to Monthly usage and "42% · 43%" became "42% · 39%". Now the ring stays and only its figure goes.
+    @Test func hidingAPickedWindowKeepsItsRingAndDropsItsFigure() {
+        withSuite("hideKeepsRing") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.setRingWindow(at: 0, to: "spend_today", in: Self.seat)
+            prefs.setRingWindow(at: 1, to: "cursor_models", in: Self.seat)
+            prefs.setHidden(true, window: Self.cursorModels, in: Self.seat)
+            #expect(prefs.ringWindows(of: Self.seat).map(\.id) == ["spend_today", "cursor_models"])
+            #expect(prefs.figureWindows(of: Self.seat, ringsDrawn: true).map(\.id) == ["spend_today"])
+            #expect(!prefs.shownWindows(of: Self.seat).contains { $0.id == "cursor_models" }, "and it is off the card")
+            #expect(CompactLabel.text(for: prefs.figureWindows(of: Self.seat, ringsDrawn: true), display: .used) == "$15")
+            prefs.setHidden(false, window: Self.cursorModels, in: Self.seat)
+            #expect(prefs.figureWindows(of: Self.seat, ringsDrawn: true).map(\.id) == ["spend_today", "cursor_models"])
+        }
+    }
+
+    /// Only a pick survives Hide: a hidden window nobody chose is not drawn anywhere.
+    @Test func aHiddenWindowNobodyPickedFillsNoRing() {
+        withSuite("hideUnpicked") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.setHidden(true, window: Self.monthly, in: Self.seat)
+            #expect(!prefs.ringWindows(of: Self.seat).contains { $0.id == Self.monthly.id })
+        }
+    }
+
+    /// Beside rings, hiding every ring window leaves no figure. Digits alone keep theirs: there is nothing else.
+    @Test func digitsAloneNeverGoBlank() {
+        let rings = [Self.spend, Self.cursorModels]
+        #expect(RingSelection.figures(rings: rings, hidden: ["spend_today", "cursor_models"], ringsDrawn: true).isEmpty)
+        #expect(RingSelection.figures(rings: rings, hidden: ["spend_today", "cursor_models"], ringsDrawn: false).map(\.id) == ["spend_today", "cursor_models"])
+        #expect(RingSelection.figures(rings: rings, hidden: ["cursor_models"], ringsDrawn: false).map(\.id) == ["spend_today"])
+    }
+
+    /// A pick saved before 0.9.30 that names a hidden window drew the next shown window instead. It is rewritten
+    /// to what was drawn, once, so the update changes nobody's rings; a window hidden afterwards keeps its ring.
+    @Test func aPickHiddenUnderTheOldRuleKeepsWhatItDrew() {
+        withSuite("hiddenLegacy") { defaults in
+            defaults.set(["cursor": ["spend_today", "cursor_models"]], forKey: "ringWindows")
+            defaults.set(["cursor": ["cursor_models"]], forKey: "hiddenWindows")
+            let prefs = Preferences(defaults: defaults)
+            let old = RingSelection.windows(of: Self.seat, chosen: ["spend_today", "cursor_models"], hidden: ["cursor_models", Self.team.id], keepingHidden: false).map(\.id)
+            #expect(old.count == 2 && !old.contains("cursor_models"))
+            prefs.settleHiddenRingPicks(with: Self.seat)
+            #expect(prefs.ringWindows(of: Self.seat).map(\.id) == old)
+            #expect(prefs.ringWindows[.cursor] == old)
+            #expect(Preferences(defaults: defaults).hiddenRingPicksSettled == [.cursor])
+            // Settled once: a ring picked and hidden from here on is meant, and a later reading leaves it.
+            prefs.setRingWindow(at: 1, to: "cursor_models", in: Self.seat)
+            prefs.setHidden(true, window: Self.cursorModels, in: Self.seat)
+            prefs.settleHiddenRingPicks(with: Self.seat)
+            #expect(prefs.ringWindows(of: Self.seat).map(\.id) == ["spend_today", "cursor_models"])
+        }
+    }
+
+    /// With every picked window hidden the rings were on the fallback, and stay on it rather than gaining a pick.
+    @Test func aPickWithNothingLeftStandingGoesBackToTheDefault() {
+        withSuite("hiddenLegacyAll") { defaults in
+            defaults.set(["cursor": ["cursor_models"]], forKey: "ringWindows")
+            defaults.set(["cursor": ["cursor_models"]], forKey: "hiddenWindows")
+            let prefs = Preferences(defaults: defaults)
+            prefs.settleHiddenRingPicks(with: Self.seat)
+            #expect(prefs.ringWindows[.cursor] == nil)
+        }
+    }
+
     // MARK: - Picks saved before 0.9.27
 
     /// Rings saved for the model meters drew Today's spend under the old rule. Honoured as saved they would draw

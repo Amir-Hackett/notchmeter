@@ -188,6 +188,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Renvoie la demande au terminal, qui la pose comme d'habitude ; Échap fait de même.";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Renvoie la demande à Cursor, qui affiche sa propre invite ; Échap fait de même.";
 "Hide assistants with nothing to show" = "Masquer les assistants sans rien à afficher";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "Masquer une fenêtre la retire de la carte et supprime son chiffre à côté des anneaux. Un anneau qui lui est attribué reste affiché.";
 "Hooks" = "Hooks";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Comment une jauge qui compare des dépenses écrit son chiffre à côté d'un anneau : les dollars du jour face à une journée habituelle, ou ceux de ce cycle face au cycle précédent. Le pourcentage porte sur cette comparaison, pas sur une limite, et indique toujours ce qui a été utilisé, quel que soit le choix sous Afficher l'utilisation en.";
 "Idle" = "Inactif";

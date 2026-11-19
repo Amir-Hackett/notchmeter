@@ -2248,7 +2248,7 @@ private struct WindowChoices: View {
                 Toggle(window.label, isOn: Binding(get: { !shown.contains { $0.id == window.id } }, set: { prefs.setHidden($0, window: window, in: reading) }))
                     .toggleStyle(.checkbox).controlSize(.small)
                     .disabled(last)
-                    .help(last ? L("The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one.") : "")
+                    .help(last ? L("The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one.") : L("Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays."))
             }
         }
     }

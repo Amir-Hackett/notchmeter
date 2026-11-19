@@ -171,6 +171,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Trả yêu cầu về terminal, nơi hỏi như xưa nay; Escape cũng làm vậy.";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Trả yêu cầu về Cursor, nơi hiện lời nhắc của chính nó; Escape cũng làm vậy.";
 "Hide assistants with nothing to show" = "Ẩn trợ lý chưa có gì để hiển thị";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "Ẩn một cửa sổ sẽ gỡ nó khỏi thẻ và bỏ con số của nó bên cạnh các vòng. Vòng đã đặt cho cửa sổ đó vẫn được giữ.";
 "Hooks" = "Hook";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Cách một đồng hồ so sánh chi tiêu ghi con số bên cạnh vòng: số đô la hôm nay so với một ngày thông thường, hoặc của chu kỳ này so với chu kỳ trước. Phần trăm là của phép so sánh đó, không phải so với hạn mức, và luôn là phần đã dùng, bất kể lựa chọn trong Hiện mức dùng dưới dạng.";
 "Idle" = "Rảnh";

@@ -188,6 +188,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Hands the request back to the terminal, which asks as it always has; Escape does the same.";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same.";
 "Hide assistants with nothing to show" = "Hide assistants with nothing to show";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays.";
 "Hooks" = "Hooks";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as.";
 "Idle" = "Idle";
