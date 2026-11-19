@@ -70,6 +70,51 @@ import Testing
         #expect(CompactLabel.text(for: [included, spend], display: .used, now: now) == "– · $15")
     }
 
+    /// Dollars is the default and a choice (Preferences.spendFigure): the same comparison can read as its share of a
+    /// usual day, or as both. The share is always what was used, it keeps counting past a usual day where the ring
+    /// stops, and a window with a real limit beside it is untouched by the choice.
+    @Test func aComparisonReadsInPercentOrBothWhenAsked() {
+        let midnight = now.addingTimeInterval(12 * 3600)
+        let spend = LimitWindow(id: "spend_today", label: .key("Today's spend"), usedFraction: 0.22, resetsAt: midnight,
+                                periodDuration: Period.day, source: .localEstimate, amountUSD: 15.19)
+        let models = LimitWindow(id: "cursor_models", label: "Cursor models", usedFraction: 0.074, resetsAt: midnight,
+                                 periodDuration: Period.day, source: .localEstimate, amountUSD: 5.93, comparison: true)
+        let metered = session("included", used: 0.12)
+        #expect(CompactLabel.text(for: [spend, models], display: .used, now: now) == "$15 · $6")
+        #expect(CompactLabel.text(for: [spend, models], display: .used, spend: .dollars, now: now) == "$15 · $6")
+        #expect(CompactLabel.text(for: [spend, models], display: .used, spend: .percent, countdown: true, now: now) == "22% · 7%")
+        #expect(CompactLabel.text(for: [spend, models], display: .used, spend: .both, countdown: true, now: now) == "$15 22% · $6 7%")
+        // Nothing is left of a usual day: the share is the Used sense whatever the limits beside it are read in.
+        #expect(CompactLabel.text(for: [spend, metered], display: .left, spend: .percent, now: now) == "22% · 88%")
+        #expect(CompactLabel.text(for: [spend, metered], display: .left, spend: .both, now: now) == "$15 22% · 88%")
+        // The choice changes the words, never the pace or what an empty window behind it does.
+        let included = LimitWindow(id: "included", label: "Included usage", usedFraction: nil, resetsAt: nil, note: "No limit")
+        #expect(CompactLabel.segments(for: [spend, included], display: .used, spend: .both, now: now) == [CompactLabel.Segment(text: "$15 22%", pace: .ahead)])
+        #expect(CompactLabel.text(for: [spend], display: .used, spend: .percent, figures: .outer, countdown: true, now: now) == "22%")
+        // Past a usual day the ring is full and the share goes on counting, as the note under the bar does.
+        let over = LimitWindow(id: "spend_today", label: .key("Today's spend"), usedFraction: 1, resetsAt: midnight, periodDuration: Period.day,
+                               source: .localEstimate, rawUsedPercent: 165, amountUSD: 132)
+        #expect(CompactLabel.text(for: [over], display: .used, spend: .percent, now: now) == "165%")
+        #expect(CompactLabel.text(for: [over], display: .left, spend: .both, now: now) == "$132 165%")
+        // A meter with nothing spent today reads as nothing in either figure.
+        let idle = LimitWindow(id: "other_models", label: "Other models", usedFraction: 0, resetsAt: midnight, periodDuration: Period.day,
+                               source: .localEstimate, amountUSD: 0, comparison: true)
+        #expect(CompactLabel.text(for: [idle], display: .used, spend: .both, now: now) == "$0 0%")
+    }
+
+    @MainActor @Test func theSpendFigureIsDollarsUntilChosenAndIsRemembered() {
+        let suite = "NotchmeterTests.spendFigure"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(Preferences(defaults: defaults).spendFigure == .dollars)
+        Preferences(defaults: defaults).spendFigure = .both
+        #expect(Preferences(defaults: defaults).spendFigure == .both)
+        #expect(MenuBarItem.label(readings: [([LimitWindow(id: "spend_today", label: .key("Today's spend"), usedFraction: 0.22, resetsAt: nil,
+                                                             periodDuration: Period.day, source: .localEstimate, amountUSD: 15.19)], .used)],
+                                  spend: .percent, countdown: false, now: now) == "22%")
+    }
+
     /// Auto's outer-figure rung: the first window's figure alone — no dot, no second figure, and no countdown,
     /// which is most of the width the second figure was.
     @Test func theOuterFigureStandsAlone() {

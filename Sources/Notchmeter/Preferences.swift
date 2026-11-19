@@ -715,6 +715,10 @@ final class Preferences {
     var usageDisplay: UsageDisplay {
         didSet { defaults.set(usageDisplay.rawValue, forKey: Keys.usageDisplay); report(Keys.usageDisplay, usageDisplay.rawValue, changed: usageDisplay != oldValue) }
     }
+    /// How a comparison window ("Today's spend", Cursor's model meters) writes its figure beside a ring.
+    var spendFigure: SpendFigure {
+        didSet { defaults.set(spendFigure.rawValue, forKey: Keys.spendFigure); report(Keys.spendFigure, spendFigure.rawValue, changed: spendFigure != oldValue) }
+    }
     var resetDisplay: ResetDisplay {
         didSet { defaults.set(resetDisplay.rawValue, forKey: Keys.resetDisplay); report(Keys.resetDisplay, resetDisplay.rawValue, changed: resetDisplay != oldValue) }
     }
@@ -1415,6 +1419,7 @@ final class Preferences {
         static let usageStyle = "usageStyle"
         static let hourClock = "hourClock"
         static let usageDisplay = "usageDisplay"
+        static let spendFigure = "spendFigure"
         static let resetDisplay = "resetDisplay"
         static let timeFormat = "timeFormat"
         static let density = "density"
@@ -1586,6 +1591,7 @@ final class Preferences {
         usageStyle = UsageStyle(rawValue: defaults.string(forKey: Keys.usageStyle) ?? "") ?? .bars
         hourClock = defaults.bool(forKey: Keys.hourClock)
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
+        spendFigure = SpendFigure(rawValue: defaults.string(forKey: Keys.spendFigure) ?? "") ?? .dollars
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
         density = Density(rawValue: defaults.string(forKey: Keys.density) ?? "") ?? .comfortable

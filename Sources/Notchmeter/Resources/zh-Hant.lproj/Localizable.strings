@@ -157,6 +157,8 @@
 "Deny (⌘N)" = "拒絕（⌘N）";
 "Detail" = "詳細";
 "Diagnostics" = "診斷";
+"Dollars" = "美元";
+"Dollars and percent" = "美元和百分比";
 "Done — click to jump" = "已完成 — 點一下跳轉";
 "Expanded" = "已展開";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI 在啟動時讀取 settings.json：掛鉤從下一個工作階段開始生效。";
@@ -170,6 +172,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "把請求交還給 Cursor，由 Cursor 顯示它自己的提示；按 Escape 效果相同。";
 "Hide assistants with nothing to show" = "隱藏尚無內容可顯示的助理";
 "Hooks" = "掛鉤";
+"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "將今日美元與平常一天相比較的指標在圓環旁如何顯示數值。百分比是相對於平常一天，而不是相對於限額。";
 "Idle" = "閒置";
 "Install the hook and status line…" = "安裝掛鉤與狀態列…";
 "Installed, but an entry is out of date: Repair updates it" = "已安裝，但有一個項目已過時：「修復」會更新它";
@@ -192,6 +195,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "僅當你選擇「讀數 › 自動」時需要，它讓讀數避開最前方 App 的選單標題。它只讀取選單列的幾何位置，別無其他。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "僅用於跳至某個工作階段的終端機視窗，且只在你第一次跳轉時要求。App 中沒有其他部分會操控別的 App。";
 "Open Automation settings…" = "打開自動化設定…";
+"Percent" = "百分比";
 "Permission request" = "權限請求";
 "Question %1$ld of %2$ld" = "第 %1$ld 個問題，共 %2$ld 個";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "每個模型都讀為未使用；當此主機並非計量你的那台時也會這樣回答";
@@ -257,6 +261,7 @@
 "Beta updates" = "測試版更新";
 "billing export" = "帳單匯出";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要該助手的掛鉤，並遵循與上述通知相同的規則：終端機在最前時保持安靜的設定，以及勿擾時段。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會開啟只屬於該工作階段的卡片（附跳回按鈕）幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
+"Show spend as" = "花費顯示方式";
 "Show the main figure beside the rings" = "在圓環旁顯示主要數字";
 "Show the whole panel" = "顯示整個面板";
 "Show the whole panel (%ld more waiting)" = "顯示整個面板（另有 %ld 個在等待）";

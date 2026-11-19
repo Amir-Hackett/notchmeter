@@ -631,6 +631,7 @@ struct CompactNumbers: View {
     let status: ToolStatus
     var windows: [LimitWindow] = []
     let display: UsageDisplay
+    var spend: SpendFigure = .dollars
     /// At Auto's outer-figure rung (CompactFit.Figures) the row is one figure, the outer ring's, with no dot after
     /// it and no countdown.
     var figures: CompactFit.Figures = .all
@@ -652,7 +653,7 @@ struct CompactNumbers: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: countdown ? 60 : 3600)) { context in
-            let segments = CompactLabel.segments(for: windows, display: display, figures: figures, countdown: countdown, now: context.date)
+            let segments = CompactLabel.segments(for: windows, display: display, spend: spend, figures: figures, countdown: countdown, now: context.date)
             let figures = ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
                 if index > 0, !stacked {
                     Text(verbatim: CompactLabel.separator).foregroundStyle(.secondary)
@@ -833,6 +834,8 @@ struct CompactReadout: View {
     /// beside a ring has any to thin.
     var figures: CompactFit.Figures = .all
     let display: UsageDisplay
+    /// How a comparison window writes its figure (Preferences.spendFigure).
+    var spend: SpendFigure = .dollars
     var windows: [LimitWindow] = []
     /// What the assistant is asking of the user (ToolSignal): the rings' colour, the mark and what VoiceOver reads
     /// first all come from this one value, so none of the three can disagree with another.
@@ -917,7 +920,7 @@ struct CompactReadout: View {
                              contextUsed: contextUsed, presence: presence, symbol: ringSymbol)
             }
             if showNumbers {
-                CompactNumbers(tool: tool, status: status, windows: windows, display: display, figures: drawn ?? .all, countdown: countdown,
+                CompactNumbers(tool: tool, status: status, windows: windows, display: display, spend: spend, figures: drawn ?? .all, countdown: countdown,
                                badges: !style.showsRings, signal: signal, presence: presence, quietDims: style.showsNumbers, stacked: axis == .vertical)
             }
         }
@@ -949,7 +952,7 @@ private extension UsageStore {
         let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
         let cycles = status.reading.map { RingCycle.candidates(prefs.panelWindows(of: $0)).count > 1 } ?? false
         return CompactReadout(tool: tool, status: status, style: style, figures: figures, display: prefs.usageDisplay,
-                              windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
+                              spend: prefs.spendFigure, windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, primary: prefs.compactPrimary,
                               hideFigures: hidesFigures, presence: presence, axis: axis, apiKeyCost: apiKeyCost, ringSymbol: prefs.ringSymbols,
                               retarget: cycles ? { [weak self] step in self?.cycleRing(tool, by: step, cause: .voiceOver) } : nil)

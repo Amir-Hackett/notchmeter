@@ -932,6 +932,10 @@ struct SettingsView: View {
             Picker(L("Show usage as"), selection: Binding(get: { prefs.usageDisplay }, set: { prefs.usageDisplay = $0 })) {
                 ForEach(UsageDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
             }
+            Picker(L("Show spend as"), selection: Binding(get: { prefs.spendFigure }, set: { prefs.spendFigure = $0 })) {
+                ForEach(SpendFigure.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .help(L("How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit."))
             Picker(L("Reset times"), selection: Binding(get: { prefs.resetDisplay }, set: { prefs.resetDisplay = $0 })) {
                 ForEach(ResetDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
             }

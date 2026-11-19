@@ -174,6 +174,8 @@
 "Deny (⌘N)" = "Запретить (⌘N)";
 "Detail" = "Подробности";
 "Diagnostics" = "Диагностика";
+"Dollars" = "Доллары";
+"Dollars and percent" = "Доллары и проценты";
 "Done — click to jump" = "Готово — щёлкните для перехода";
 "Expanded" = "Развёрнуто";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI читает settings.json при запуске: хук заработает со следующей сессии.";
@@ -187,6 +189,7 @@
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Возвращает запрос в Cursor, который показывает собственный запрос; Escape делает то же самое.";
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
 "Hooks" = "Хуки";
+"How a meter that compares today's dollars with a usual day writes its figure beside a ring. The percentage is of that usual day, not of a limit." = "Как индикатор, сравнивающий сегодняшние доллары с обычным днём, пишет значение рядом с кольцом. Процент считается от обычного дня, а не от лимита.";
 "Idle" = "Бездействует";
 "Install the hook and status line…" = "Установить хук и строку состояния…";
 "Installed, but an entry is out of date: Repair updates it" = "Установлено, но одна из записей устарела: «Исправить» обновит её";
@@ -209,6 +212,7 @@
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Только если вы выберете Показатели › Авто: показатели смещаются так, чтобы не перекрывать меню активного приложения. Считывается только геометрия строки меню, и ничего больше.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Только для перехода к окну терминала сессии, при первом переходе. Больше ничто в приложении не управляет другими приложениями.";
 "Open Automation settings…" = "Открыть настройки автоматизации…";
+"Percent" = "Проценты";
 "Permission request" = "Запрос разрешения";
 "Question %1$ld of %2$ld" = "Вопрос %1$ld из %2$ld";
 "Reads untouched on every model, which this host also answers when it is not the one metering you" = "На всех моделях показывает нетронутый лимит — этот хост отвечает так, даже когда учёт ведёт не он";
@@ -274,6 +278,7 @@
 "Beta updates" = "Бета-обновления";
 "billing export" = "выгрузка счетов";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Для обоих нужен хук ассистента, и они подчиняются тем же правилам, что и уведомления выше: настройке активного терминала и тихим часам. Здесь выбирается, что делает панель; переключатель выше выбирает, что делают кольца, и каждый можно выключить независимо. «Мельком» открывает карточку только этой сессии с переходом к ней и снова сворачивается, если указатель не заходит на неё; при «Уменьшении движения» она открывается без анимации и держится чуть дольше. Уведомление «ждёт» убирается, когда вы отвечаете. В неподписанной сборке ни одно уведомление не может пробиться через Фокусирование или «Не беспокоить»; срочные (лимит заканчивается, ожидание вас) пробиваются в подписанном выпуске.";
+"Show spend as" = "Показывать расходы как";
 "Show the main figure beside the rings" = "Показывать главную цифру рядом с кольцами";
 "Show the whole panel" = "Показывать панель целиком";
 "Show the whole panel (%ld more waiting)" = "Показывать панель целиком (ещё ждут: %ld)";

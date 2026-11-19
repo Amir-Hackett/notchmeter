@@ -1359,7 +1359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func emitSnapshot() {
         var fields: [String: Any] = [
             "edge": prefs.edge.rawValue, "visibility": prefs.visibility.rawValue, "compactStyle": prefs.compactStyle.rawValue,
-            "usageDisplay": prefs.usageDisplay.rawValue, "toolOrder": prefs.toolOrder.map(\.rawValue),
+            "usageDisplay": prefs.usageDisplay.rawValue, "spendFigure": prefs.spendFigure.rawValue, "toolOrder": prefs.toolOrder.map(\.rawValue),
             "enabledTools": prefs.enabledTools.map(\.rawValue).sorted(), "showSpend": prefs.showSpend, "display": prefs.display.rawValue,
             "visibleTools": store.visibleTools.map(\.rawValue), "presence": String(describing: store.presence),
             "costCard": ["carried": store.costSelection.providers.map(\.tool.rawValue),
