@@ -171,6 +171,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "요청을 터미널로 돌려보내고 터미널이 평소처럼 묻습니다. Escape도 같은 역할을 합니다.";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "요청을 Cursor로 돌려보내고 Cursor가 자체 프롬프트를 표시합니다. Escape도 같은 역할을 합니다.";
 "Hide assistants with nothing to show" = "표시할 내용이 없는 어시스턴트 숨기기";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "창을 숨기면 카드에서 사라지고 링 옆의 숫자도 표시되지 않습니다. 해당 창으로 설정한 링은 그대로 남습니다.";
 "Hooks" = "훅";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "지출을 비교하는 미터가 링 옆에 수치를 표시하는 방식입니다. 오늘의 달러 금액을 평소 하루와, 또는 이번 주기의 금액을 이전 주기와 비교합니다. 퍼센트는 그 비교에 대한 비율이며 한도 대비가 아니고, 사용량 표시 방식에서 무엇을 고르든 항상 사용한 값입니다.";
 "Idle" = "유휴";

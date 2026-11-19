@@ -189,6 +189,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Gibt die Anfrage an das Terminal zurück, das wie gewohnt fragt; Escape tut dasselbe.";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Gibt die Anfrage an Cursor zurück, das dafür seine eigene Abfrage zeigt; Escape tut dasselbe.";
 "Hide assistants with nothing to show" = "Assistenten ohne Anzeige ausblenden";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "Ein ausgeblendetes Fenster verschwindet von der Karte, und seine Zahl neben den Ringen entfällt. Ein Ring, der darauf eingestellt ist, bleibt.";
 "Hooks" = "Hooks";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Wie eine Anzeige, die Ausgaben vergleicht, ihren Wert neben einem Ring schreibt: die heutigen Dollar gegenüber einem üblichen Tag oder die dieses Zyklus gegenüber dem Zyklus davor. Der Prozentwert bezieht sich auf diesen Vergleich, nicht auf ein Limit, und zeigt immer das Genutzte, was auch immer unter „Nutzung anzeigen als“ gewählt ist.";
 "Idle" = "Inaktiv";

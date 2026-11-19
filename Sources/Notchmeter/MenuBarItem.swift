@@ -142,6 +142,14 @@ final class MenuBarItem {
             guard let reading = store.status(tool).reading else { return nil }
             return (prefs.ringWindows(of: reading), prefs.usageDisplay)
         }
+        // What the item writes as text: a hidden window keeps its place in the glyph and the tooltip and loses its
+        // figure (Preferences.figureWindows). The text style draws no ring, so there it keeps one figure at least.
+        let written = tools.compactMap { tool -> (windows: [LimitWindow], display: UsageDisplay)? in
+            guard let reading = store.status(tool).reading else { return nil }
+            let figures = prefs.figureWindows(of: reading, ringsDrawn: prefs.menuBarStyle != .text)
+            // Left out only where every ring window is hidden; a reading with no window at all still writes "—".
+            return figures.isEmpty && !reading.windows.isEmpty ? nil : (figures, prefs.usageDisplay)
+        }
         guard !readings.isEmpty else {
             button.title = ""
             button.image = Self.icon(signal: signalled?.signal)
@@ -155,16 +163,16 @@ final class MenuBarItem {
             // on: the raised hand while an assistant waits. No gauge beside the numbers, and no tick after a finish.
             let image = Self.textIcon(signal: signalled?.signal)
             button.image = image
-            button.title = (image == nil ? "" : " ") + Self.label(readings: readings, spend: prefs.spendFigure, countdown: prefs.showResetCountdown)
+            button.title = (image == nil ? "" : " ") + Self.label(readings: written, spend: prefs.spendFigure, countdown: prefs.showResetCountdown)
             button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize(for: .small), weight: .medium)
         case .bars, .rings, .dots:
             button.title = ""
             button.image = Self.glyph(windows: Array(readings.flatMap(\.windows).prefix(4)), style: prefs.menuBarStyle,
                                       tint: prefs.menuBarTint, custom: HexColour.colour(prefs.menuBarTintHex), signal: signalled?.signal)
         }
-        button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: readings, spend: prefs.spendFigure, countdown: prefs.showResetCountdown)]
+        button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: written, spend: prefs.spendFigure, countdown: prefs.showResetCountdown)]
             .compactMap { $0 }.joined(separator: ", "))
-        button.toolTip = [signalLine, Self.tooltip(readings: readings, prefs: prefs)].compactMap { $0 }.joined(separator: "\n")
+        button.toolTip = [signalLine, Self.tooltip(readings: written, prefs: prefs)].compactMap { $0 }.joined(separator: "\n")
     }
 
     private func observe() {

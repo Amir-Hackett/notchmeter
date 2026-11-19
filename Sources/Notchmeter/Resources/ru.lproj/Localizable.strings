@@ -188,6 +188,7 @@
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Возвращает запрос в терминал, который спрашивает как обычно; Escape делает то же самое.";
 "Hands the request back to Cursor, which shows its own prompt for it; Escape does the same." = "Возвращает запрос в Cursor, который показывает собственный запрос; Escape делает то же самое.";
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
+"Hiding a window takes it off the card and removes its number from beside the rings. A ring set to it stays." = "Скрытое окно исчезает с карточки, и его число рядом с кольцами больше не показывается. Кольцо, назначенное этому окну, остаётся.";
 "Hooks" = "Хуки";
 "How a meter that compares spending writes its figure beside a ring: today's dollars against a usual day, or this cycle's against the cycle before. The percentage is of that comparison, not of a limit, and is always what was used, whatever is chosen under Show usage as." = "Как индикатор, сравнивающий расходы, пишет значение рядом с кольцом: сегодняшние доллары с обычным днём или доллары этого цикла с предыдущим циклом. Процент считается от этого сравнения, а не от лимита, и всегда показывает использованное, что бы ни было выбрано в «Показывать использование как».";
 "Idle" = "Бездействует";

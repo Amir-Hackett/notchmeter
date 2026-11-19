@@ -1380,6 +1380,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "ringWindows": ToolID.allCases.reduce(into: [String: [String]]()) { rings, tool in
                 if let reading = store.status(tool).reading { rings[tool.rawValue] = prefs.ringWindows(of: reading).map(\.id) }
             },
+            "figureWindows": ToolID.allCases.reduce(into: [String: [String]]()) { figures, tool in
+                if let reading = store.status(tool).reading {
+                    figures[tool.rawValue] = prefs.figureWindows(of: reading, ringsDrawn: prefs.compactStyle.showsRings).map(\.id)
+                }
+            },
             "closedNotch": ["phase": store.closedNotchPhase.rawValue, "shows": store.closedNotchShows.rawValue],
             "screens": NSScreen.descriptions,
             "captured": store.screenCaptured,

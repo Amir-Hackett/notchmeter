@@ -68,7 +68,12 @@ import Testing
         #expect(RingSelection.windows(of: reading, chosen: ["scoped_fable", "extra_usage"], hidden: []).map(\.id) == ["scoped_fable", "extra_usage"])
         #expect(RingSelection.windows(of: reading, chosen: ["scoped_fable"], hidden: []).map(\.id) == ["scoped_fable"], "one chosen ring is one ring")
         #expect(RingSelection.windows(of: reading, chosen: ["gone", "seven_day"], hidden: []).map(\.id) == ["seven_day", "five_hour"])
-        #expect(RingSelection.windows(of: reading, chosen: ["five_hour"], hidden: ["five_hour", "seven_day"]).map(\.id) == ["scoped_fable", "extra_usage"])
+        #expect(RingSelection.windows(of: reading, chosen: ["five_hour"], hidden: ["five_hour", "seven_day"]).map(\.id) == ["five_hour"],
+                "a hidden window keeps the ring picked for it")
+        #expect(RingSelection.windows(of: reading, chosen: [], hidden: ["five_hour", "seven_day"]).map(\.id) == ["scoped_fable", "extra_usage"],
+                "and one nobody picked fills no ring")
+        #expect(RingSelection.windows(of: reading, chosen: ["five_hour"], hidden: ["five_hour", "seven_day"], keepingHidden: false).map(\.id)
+                == ["scoped_fable", "extra_usage"], "the rule before 0.9.30, kept for settling picks saved under it")
         #expect(RingSelection.windows(of: reading, chosen: ["seven_day", "seven_day"], hidden: []).map(\.id) == ["seven_day", "five_hour"])
     }
 

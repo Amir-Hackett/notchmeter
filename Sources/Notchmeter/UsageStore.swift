@@ -1123,6 +1123,7 @@ final class UsageStore {
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
         prefs.settleLegacyRingPicks(with: reading)
+        prefs.settleHiddenRingPicks(with: reading)
         statuses[reading.tool] = .ready(reading)
         backoff[reading.tool] = 0
         cache.store(reading)

@@ -1210,6 +1210,10 @@ final class Preferences {
     var legacyRingPicksSettled: Set<ToolID> {
         didSet { defaults.set(legacyRingPicksSettled.map(\.rawValue).sorted(), forKey: Keys.legacyRingPicksSettled) }
     }
+    /// The tools whose ring picks saved before 0.9.30 have been looked at (settleHiddenRingPicks). Not a setting.
+    var hiddenRingPicksSettled: Set<ToolID> {
+        didSet { defaults.set(hiddenRingPicksSettled.map(\.rawValue).sorted(), forKey: Keys.hiddenRingPicksSettled) }
+    }
     /// A file dropped on the notch, the panel or a row is typed into a session's prompt (FileDrop, 0.9.24).
     var fileDrop: Bool {
         didSet { defaults.set(fileDrop, forKey: Keys.fileDrop); report(Keys.fileDrop, fileDrop, changed: fileDrop != oldValue) }
@@ -1525,6 +1529,7 @@ final class Preferences {
         static let jumpToTerminal = "jumpToTerminal"
         static let fileDrop = "fileDrop"
         static let legacyRingPicksSettled = "legacyRingPicksSettled"
+        static let hiddenRingPicksSettled = "hiddenRingPicksSettled"
         static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
         static let debugLogging = "debugLogging"
@@ -1695,6 +1700,7 @@ final class Preferences {
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
         fileDrop = defaults.object(forKey: Keys.fileDrop) as? Bool ?? true
         legacyRingPicksSettled = Set((defaults.array(forKey: Keys.legacyRingPicksSettled) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
+        hiddenRingPicksSettled = Set((defaults.array(forKey: Keys.hiddenRingPicksSettled) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
         debugLogging = defaults.bool(forKey: Keys.debugLogging)
@@ -1833,6 +1839,9 @@ final class Preferences {
     /// user would reveal B, and A would drop out because the preference still said hidden. The Hide toggles then
     /// say what the card shows, which is the only state a checkbox can honestly hold.
     func setHidden(_ hidden: Bool, window: LimitWindow, in reading: UsageReading) {
+        // Before the write, so a pick saved under the old rule is settled against what was hidden then and not
+        // against this change. A cached reading puts Settings on screen before the first refresh settles anything.
+        settleHiddenRingPicks(with: reading)
         for shown in shownWindows(of: reading) where isHidden(shown, of: reading.tool) { setHidden(false, window: shown, of: reading.tool) }
         setHidden(hidden, window: window, of: reading.tool)
     }
@@ -1858,12 +1867,39 @@ final class Preferences {
         return [combined] + shownWindows(of: reading)
     }
 
-    /// The windows the rings show: the chosen ids when they exist in the reading, else the first two shown. The
-    /// hidden set is what `shownWindows(of:)` leaves out, floor included, so the rings are never empty for a tool
-    /// that has a window.
+    /// The windows the rings show: the chosen ids when they exist in the reading, hidden or not, else the first
+    /// two shown. The hidden set is what `shownWindows(of:)` leaves out, floor included, so the rings are never
+    /// empty for a tool that has a window.
     func ringWindows(of reading: UsageReading) -> [LimitWindow] {
-        let shown = Set(shownWindows(of: reading).map(\.id))
-        return RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: Set(reading.windows.map(\.id)).subtracting(shown))
+        RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: hiddenIDs(of: reading))
+    }
+
+    /// The ids `shownWindows(of:)` leaves out, floor included.
+    private func hiddenIDs(of reading: UsageReading) -> Set<String> {
+        Set(reading.windows.map(\.id)).subtracting(shownWindows(of: reading).map(\.id))
+    }
+
+    /// The ring windows that also write a figure (RingSelection.figures): a hidden window keeps the ring picked
+    /// for it and loses its number. `ringsDrawn` is whether the place draws rings at all.
+    func figureWindows(of reading: UsageReading, ringsDrawn: Bool) -> [LimitWindow] {
+        RingSelection.figures(rings: ringWindows(of: reading), hidden: hiddenIDs(of: reading), ringsDrawn: ringsDrawn)
+    }
+
+    /// Rewrites, once per tool, a ring pick saved before 0.9.30 that names a hidden window. Under the rule of the
+    /// time the rings skipped it and drew the next shown window; from 0.9.30 they would draw it again. The pick
+    /// becomes what the rings were drawing, so nobody's rings change on the update. Asked of the first reading of
+    /// the tool, and before the first change made in Settings (setHidden, setRingWindow), which a cached reading
+    /// can put on screen before any refresh has landed, so a window hidden from here on is one whose ring was
+    /// meant to stay.
+    func settleHiddenRingPicks(with reading: UsageReading) {
+        guard !hiddenRingPicksSettled.contains(reading.tool) else { return }
+        defer { hiddenRingPicksSettled.insert(reading.tool) }
+        let chosen = ringWindows[reading.tool] ?? []
+        let hidden = hiddenIDs(of: reading)
+        guard chosen.contains(where: hidden.contains) else { return }
+        let drawn = RingSelection.windows(of: reading, chosen: chosen, hidden: hidden, keepingHidden: false).map(\.id)
+        // With no pick left standing the rings were on the fallback, and stay on it.
+        ringWindows[reading.tool] = drawn.contains(where: chosen.contains) ? drawn : nil
     }
 
     /// A ring picker's write: `id` for the ring at `index` (outermost first), "" for none. Choosing a window for a
@@ -1875,6 +1911,7 @@ final class Preferences {
     /// pick, as if the choice had landed on the wrong ring. Emptying a ring closes the gap: the rings are drawn
     /// outermost first, so a chosen third with no second would otherwise be stored as a second anyway.
     func setRingWindow(at index: Int, to id: String, in reading: UsageReading) {
+        settleHiddenRingPicks(with: reading)
         if let window = reading.windows.first(where: { $0.id == id }), isHidden(window, of: reading.tool) {
             setHidden(false, window: window, in: reading)
         }
@@ -2113,7 +2150,7 @@ enum QuietHours {
 }
 
 /// The windows the compact rings draw: chosen ids first, in the chosen order, filled up to `fallback` from the
-/// reading's own order, hidden windows never. The derived combined window is selectable but never fills a ring on
+/// reading's own order, a hidden window only where it was chosen. The derived combined window is selectable but never fills a ring on
 /// its own, so an install that chose nothing keeps the two rings it has always had.
 enum RingSelection {
     /// The most rings a readout draws, outermost first.
@@ -2147,9 +2184,15 @@ enum RingSelection {
         return !picked.isEmpty && picked.allSatisfy { $0.usedFraction == nil } && shown.contains { $0.isComparison && $0.usedFraction != nil }
     }
 
-    static func windows(of reading: UsageReading, chosen: [String], hidden: Set<String>) -> [LimitWindow] {
+    /// A chosen window keeps its ring when it is hidden (from 0.9.30): Hide takes its row off the card and its
+    /// figure from beside the rings (`figures`), and the ring that was picked for it stays. Until then a hidden
+    /// pick lost its ring to the next shown window, so ticking Hide on the inner ring's window put a ring and a
+    /// number nobody chose in its place. Only a pick survives: the fill below is from the shown windows, so a
+    /// hidden window nobody picked is drawn nowhere. `keepingHidden: false` is the rule as it was, for the one
+    /// settling of picks saved under it (Preferences.settleHiddenRingPicks).
+    static func windows(of reading: UsageReading, chosen: [String], hidden: Set<String>, keepingHidden: Bool = true) -> [LimitWindow] {
         let shown = reading.windows.filter { !hidden.contains($0.id) }
-        let selectable = shown + [CombinedWindow.of(windows: shown)].compactMap { $0 }
+        let selectable = (keepingHidden ? reading.windows : shown) + [CombinedWindow.of(windows: shown)].compactMap { $0 }
         var result: [LimitWindow] = []
         for id in chosen {
             if let window = selectable.first(where: { $0.id == id }), !result.contains(where: { $0.id == id }) { result.append(window) }
@@ -2174,6 +2217,14 @@ enum RingSelection {
             result.append(window)
         }
         return Array(result.prefix(maximum))
+    }
+
+    /// The ring windows whose figures are written beside the rings and in the menu bar item: the ones not hidden.
+    /// Where no ring is drawn the figures are all there is, so a readout of digits alone whose every ring window
+    /// is hidden keeps them rather than going blank (the rule WindowFloor keeps for the card).
+    static func figures(rings: [LimitWindow], hidden: Set<String>, ringsDrawn: Bool) -> [LimitWindow] {
+        let figures = rings.filter { !hidden.contains($0.id) }
+        return figures.isEmpty && !ringsDrawn ? rings : figures
     }
 }
 
