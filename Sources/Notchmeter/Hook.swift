@@ -728,7 +728,18 @@ enum Hook {
         // A batch boundary fires once per model step and says nothing about where the session runs that the
         // session's other events have not already said, so it skips the ancestry walk, which is most of a hook's
         // few milliseconds (docs/hooks.md gives the figures).
-        message.terminal = message.event == Hook.batchEvent ? nil : TerminalIdentity.capture(tool: message.tool)
+        if message.event != Hook.batchEvent {
+            let captured = TerminalIdentity.captureWithHeadless(tool: message.tool)
+            message.terminal = captured.terminal
+            // A headless Cursor agent (`cursor-agent -p` run by a script or a server) has no window or terminal
+            // to open, and each run is a new conversation, so it would be a row that cannot be opened and keeps
+            // jumping around the list. Its events stay off the panel. A request awaiting a decision still goes
+            // through as before, so *Require notch approval* answers the same way it always has.
+            if message.tool == .cursor, captured.headless, message.request == nil {
+                if mustAnswer { print(Answer.cursorDefer) }
+                exit(0)
+            }
+        }
         if TerminalJump.opensFolders(message.terminal?.bundleID) { message.terminal?.workspace = folder(in: payload) }
         if message.request != nil {
             var output: String?
