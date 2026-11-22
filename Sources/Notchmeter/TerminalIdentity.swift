@@ -106,9 +106,24 @@ enum TerminalIdentity {
     /// it is the one call here that leaves the kernel.
     /// For Cursor's agent the lookup always runs, since the environment is exactly what it cannot trust there.
     static func capture(environment: [String: String] = ProcessInfo.processInfo.environment, pid: pid_t = getpid(), tool: ToolID? = nil) -> TerminalRef? {
+        captureWithHeadless(environment: environment, pid: pid, tool: tool).terminal
+    }
+
+    /// `capture`, plus whether the same walk found the hook running headless (`isHeadless`). One walk serves both.
+    static func captureWithHeadless(environment: [String: String] = ProcessInfo.processInfo.environment, pid: pid_t = getpid(),
+                                    tool: ToolID? = nil) -> (terminal: TerminalRef?, headless: Bool) {
         let needsBundle = tool == .cursor || (environment["__CFBundleIdentifier"].map(\.isEmpty) ?? true)
         let chain = ancestry(of: pid, parent: liveParent, bundleID: needsBundle ? liveBundleID : { _ in nil })
-        return resolve(environment: environment, ancestry: chain, tool: tool)
+        return (resolve(environment: environment, ancestry: chain, tool: tool), needsBundle && isHeadless(chain))
+    }
+
+    /// Whether the ancestry says nobody is watching: the walk got all the way up to launchd without meeting a
+    /// controlling tty or an app. That is a scripted run, such as `cursor-agent -p` started by a server or a
+    /// launch agent, which has no window or terminal to jump to. A walk cut short at `maximumHops` proves nothing
+    /// and is never headless, and the bundle ids must have been looked up for an absent app to mean anything.
+    static func isHeadless(_ ancestry: [Ancestor], ownBundleID: String? = Bundle.main.bundleIdentifier) -> Bool {
+        guard let top = ancestry.last, top.parent <= 1 else { return false }
+        return ancestry.allSatisfy { $0.tty == nil } && nearestApp(ancestry, ownBundleID: ownBundleID) == nil
     }
 
     /// The parent pid and the controlling tty (`/dev/ttys003`) of `pid`, from `PROC_PIDTBSDINFO`; nil when the

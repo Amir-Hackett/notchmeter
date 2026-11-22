@@ -144,3 +144,33 @@ import Testing
         #expect(merged.sessionID == "w0t0p0:A", "a field the newer event lacks is kept")
     }
 }
+
+/// A Cursor agent nobody is watching: started by a server or a launch agent with no terminal and no app above it.
+/// Its hook events are kept off the panel (Hook.runCommand), so the test is what counts as headless and what not.
+@Suite struct TerminalIdentityHeadless {
+    typealias A = TerminalIdentity.Ancestor
+
+    @Test func aScriptedRunUpToLaunchdIsHeadless() {
+        // hook → sh → cursor-agent -p → ts-node → bash → launchd, the Support Ops bot's chain.
+        let chain = [A(pid: 50, parent: 40), A(pid: 40, parent: 30), A(pid: 30, parent: 20), A(pid: 20, parent: 10), A(pid: 10, parent: 1)]
+        #expect(TerminalIdentity.isHeadless(chain, ownBundleID: "com.example.notchmeter"))
+    }
+
+    @Test func aTerminalOrAnAppAboveIsNotHeadless() {
+        let tty = [A(pid: 50, parent: 40), A(pid: 40, parent: 30, tty: "/dev/ttys004"), A(pid: 30, parent: 1)]
+        #expect(!TerminalIdentity.isHeadless(tty, ownBundleID: nil))
+        let ide = [A(pid: 50, parent: 40), A(pid: 40, parent: 30), A(pid: 30, parent: 1, bundleID: "com.todesktop.230313mzl4w4u92")]
+        #expect(!TerminalIdentity.isHeadless(ide, ownBundleID: nil))
+    }
+
+    @Test func aWalkCutShortOrEmptyProvesNothing() {
+        let cut = (0..<TerminalIdentity.maximumHops).map { A(pid: pid_t(100 - $0), parent: pid_t(99 - $0)) }
+        #expect(!TerminalIdentity.isHeadless(cut, ownBundleID: nil), "the walk stopped at its limit, not at launchd")
+        #expect(!TerminalIdentity.isHeadless([], ownBundleID: nil))
+    }
+
+    @Test func theHooksOwnBundleIsNotAnApp() {
+        let chain = [A(pid: 50, parent: 40), A(pid: 40, parent: 1, bundleID: "com.example.notchmeter")]
+        #expect(TerminalIdentity.isHeadless(chain, ownBundleID: "com.example.notchmeter"))
+    }
+}

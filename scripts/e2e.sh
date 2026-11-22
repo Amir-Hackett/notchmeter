@@ -144,10 +144,20 @@ expect_none() { # description, predicate
   if [ "$n" -eq 0 ]; then echo "ok: $1"; else echo "FAIL: $1 (saw $n)" >&2; tail -n 40 "$ORACLE" >&2; return 1; fi
 }
 
+# The Cursor hook, as Cursor runs it, with stdin as the payload. Under a terminal: a CI runner has no tty and no
+# app above it, which is what a headless `cursor-agent -p` looks like, and the hook keeps those runs off the panel
+# (TerminalIdentity.isHeadless). script(1) gives the hook a controlling tty, as a person's terminal or Cursor would.
+cursor_hook() { # hook arguments after --tool cursor
+  local payload; payload="$(mktemp "$WORK/cursor-hook.XXXXXX")"
+  cat >"$payload"
+  HOOK_IN="$payload" script -q /dev/null /bin/sh -c 'exec "$0" "$@" <"$HOOK_IN"' "$BIN" --hook --tool cursor "$@" </dev/null
+  rm -f "$payload"
+}
+
 # One Cursor hook event, through the hook command an assistant runs.
 cursor() { # conversation, folder, event
   printf '{"conversation_id":"%s","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"]}' "$1" "$3" "$WORK/$2" \
-    | "$BIN" --hook --tool cursor --event "$3" >/dev/null
+    | cursor_hook --event "$3" >/dev/null
 }
 
 wait_for "the app launched" 'o["event"] == "launched"' 1 60
@@ -195,7 +205,7 @@ mkdir -p "$(dirname "$TRANSCRIPT")"
 todo_line() { printf '{"role":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":%s}]}}\n' "$1" >>"$TRANSCRIPT"; }
 cursor_event() { # event
   printf '{"conversation_id":"e2e-cursor","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"],"transcript_path":"%s","model":"claude-opus-4-7"}' "$1" "$WORK/loud-proj" "$TRANSCRIPT" \
-    | "$BIN" --hook --tool cursor --event "$1" >/dev/null
+    | cursor_hook --event "$1" >/dev/null
 }
 planned='o["event"] == "session" and o.get("action") == "plan" and o.get("session") == "e2e-cursor"'
 todo_line '{"merge":false,"todos":[{"id":"1","content":"a","status":"in_progress"},{"id":"2","content":"b","status":"pending"},{"id":"3","content":"c","status":"pending"}]}'
@@ -211,7 +221,7 @@ PLAN_TRANSCRIPT="$CURSOR_PROJECT/agent-transcripts/e2e-plan/e2e-plan.jsonl"
 mkdir -p "$(dirname "$PLAN_TRANSCRIPT")" "$(dirname "$CURSOR_PLAN")"
 plan_event() { # event, extra JSON members
   printf '{"conversation_id":"e2e-plan","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"],"transcript_path":"%s"%s}' \
-    "$1" "$WORK/loud-proj" "$PLAN_TRANSCRIPT" "${2:-}" | "$BIN" --hook --tool cursor --event "$1" >/dev/null
+    "$1" "$WORK/loud-proj" "$PLAN_TRANSCRIPT" "${2:-}" | cursor_hook --event "$1" >/dev/null
 }
 plan_file() { # status of a, b, c
   printf -- '---\nname: notchmeter e2e %s\noverview: A plan the end-to-end run wrote.\ntodos:\n  - id: a\n    content: "One: first"\n    status: %s\n  - id: b\n    content: Second\n    status: %s\n  - id: c\n    content: Third\n    status: %s\nisProject: false\n---\n\n# E2E\n' \
@@ -241,7 +251,7 @@ wait_for "a Build is a Build, in Agent mode" "$heard and o.get(\"session\") == \
 # is left out: *Require notch approval* is on for this run and would hold each one.
 stuck_event() { # conversation, event, extra JSON members
   printf '{"conversation_id":"%s","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"]%s}' "$1" "$2" "$WORK/loud-proj" "${3:-}" \
-    | "$BIN" --hook --tool cursor --event "$2" >/dev/null
+    | cursor_hook --event "$2" >/dev/null
 }
 failed_command() { # conversation
   stuck_event "$1" afterShellExecution ',"command":"false","output":"","duration":12.5,"sandbox":true'
