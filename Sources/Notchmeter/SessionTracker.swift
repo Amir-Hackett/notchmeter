@@ -1370,6 +1370,13 @@ struct SessionTracker: Equatable, Sendable {
 
     /// The sessions that may be stuck at `now` (`AgentSession.mayBeStuck`), by id: what the store compares before
     /// and after a change, so a "may be stuck" notice comes down the moment its streak ends, however it ends.
+    /// Whether the session `message` is about has a row the hook owns: not absent, and not one only the process
+    /// scan found (`scanned`).
+    func holdsRow(for message: Hook.Message) -> Bool {
+        let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
+        return sessions[id] != nil && !scanned.contains(id)
+    }
+
     func stuck(now: Date) -> Set<String> {
         Set(sessions.values.filter { $0.mayBeStuck(now: now) }.map(\.id))
     }

@@ -40,6 +40,7 @@ enum Hook {
     static let titleKey = "title"
     /// Present, and true, on a `UserPromptSubmit` nobody typed (`Hook.harnessTags`).
     static let harnessTurnKey = "harnessTurn"
+    static let headlessKey = "headless"
     /// The request keys, present together on a deciding event and absent otherwise.
     static let awaitsDecisionKey = "awaitsDecision"
     static let requestIDKey = "requestID"
@@ -156,6 +157,10 @@ enum Hook {
         /// A `UserPromptSubmit` the assistant's harness wrote rather than the person (`Hook.harnessTags`): it starts
         /// a turn but leaves the session's title as it was, where a prompt with no title clears it.
         var harnessTurn = false
+        /// Sent by a Cursor agent nobody is watching (`TerminalIdentity.isHeadless`): no terminal and no app above
+        /// it, such as `cursor-agent -p` run by a script or a server. The store keeps such an event off the panel
+        /// unless its session already has a row (`UsageStore.hookReceived`).
+        var headless = false
         /// A decision the assistant is holding the session for; the command waits on the socket while it is set.
         var request: Request?
         /// Where the hook process's terminal is; absent for a remote post, whose terminal is on another machine.
@@ -252,6 +257,7 @@ enum Hook {
             tool = (userInfo?[Hook.toolKey] as? String).flatMap(ToolID.init(rawValue:)) ?? .claude
             title = (userInfo?[Hook.titleKey] as? String).flatMap { $0.isEmpty ? nil : $0 }
             harnessTurn = userInfo?[Hook.harnessTurnKey] as? Bool ?? false
+            headless = userInfo?[Hook.headlessKey] as? Bool ?? false
             request = Hook.request(userInfo: userInfo)
             terminal = Hook.terminal(userInfo: userInfo)
             // Read back under the command's own limits, since a line on the socket may not be the command's.
@@ -300,6 +306,7 @@ enum Hook {
             // none of them is byte for byte the line it was.
             if let title { info[Hook.titleKey] = title }
             if harnessTurn { info[Hook.harnessTurnKey] = true }
+            if headless { info[Hook.headlessKey] = true }
             if let request { info.merge(Hook.userInfo(request: request)) { _, new in new } }
             if let terminal { info.merge(Hook.userInfo(terminal: terminal)) { _, new in new } }
             if let todos { info[Hook.todosKey] = Hook.userInfo(todos: todos) }
@@ -733,12 +740,9 @@ enum Hook {
             message.terminal = captured.terminal
             // A headless Cursor agent (`cursor-agent -p` run by a script or a server) has no window or terminal
             // to open, and each run is a new conversation, so it would be a row that cannot be opened and keeps
-            // jumping around the list. Its events stay off the panel. A request awaiting a decision still goes
-            // through as before, so *Require notch approval* answers the same way it always has.
-            if message.tool == .cursor, captured.headless, message.request == nil {
-                if mustAnswer { print(Answer.cursorDefer) }
-                exit(0)
-            }
+            // jumping around the list. The event is marked and sent as usual; the store decides, since only it
+            // knows whether the session already has a row (one a request made) that this event has to end.
+            message.headless = message.tool == .cursor && captured.headless
         }
         if TerminalJump.opensFolders(message.terminal?.bundleID) { message.terminal?.workspace = folder(in: payload) }
         if message.request != nil {

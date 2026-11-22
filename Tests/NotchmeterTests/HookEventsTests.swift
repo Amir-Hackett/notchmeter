@@ -989,3 +989,53 @@ import UserNotifications
                 "a chip wider than the row still takes a line of its own")
     }
 }
+
+/// A headless Cursor agent (`Hook.Message.headless`, set by the hook from `TerminalIdentity.isHeadless`) stays off
+/// the panel, unless a request has already given its session a row: then its later events reach that row, so a Stop
+/// or a SessionEnd ends it instead of leaving it working until it goes stale.
+extension HookEventStore {
+    func cursor(_ event: String, _ session: String, headless: Bool = true) -> Hook.Message {
+        var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: nil), sessionID: session,
+                                   project: "full", tool: .cursor)
+        message.headless = headless
+        return message
+    }
+
+    @Test func theHeadlessMarkCrossesTheWireAndAnUnmarkedLineIsUnchanged() throws {
+        let marked = cursor("UserPromptSubmit", "c1")
+        #expect(Hook.Message(userInfo: marked.userInfo) == marked)
+        #expect(marked.userInfo[Hook.headlessKey] as? Bool == true)
+        let plain = cursor("UserPromptSubmit", "c1", headless: false)
+        #expect(plain.userInfo[Hook.headlessKey] == nil, "an absent mark writes no key")
+        #expect(Hook.Message(userInfo: plain.userInfo)?.headless == false)
+    }
+
+    @MainActor @Test func aHeadlessRunWithNoRowNeverMakesOne() {
+        let suite = "NotchmeterTests.headless.none"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for (offset, event) in ["SessionStart", "UserPromptSubmit", "PostToolUse", "Stop", "SessionEnd"].enumerated() {
+            store.hookReceived(cursor(event, "bot"), now: t0.addingTimeInterval(Double(offset)))
+        }
+        #expect(store.sessions.sessions[SessionTracker.key(tool: .cursor, session: "bot", host: nil)] == nil)
+        store.hookReceived(cursor("UserPromptSubmit", "chat", headless: false), now: t0.addingTimeInterval(10))
+        #expect(store.sessions.sessions[SessionTracker.key(tool: .cursor, session: "chat", host: nil)] != nil, "a watched chat still has its row")
+    }
+
+    @MainActor @Test func aRowARequestMadeIsEndedByTheRunsLaterEvents() throws {
+        let suite = "NotchmeterTests.headless.request"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let key = SessionTracker.key(tool: .cursor, session: "bot", host: nil)
+        var asked = cursor("PermissionRequest", "bot")
+        asked.request = Hook.Request(id: "r1", kind: .permission(tool: "Shell", summary: "ls", detail: nil, suggestions: []))
+        store.hookReceived(asked, now: t0)
+        #expect(store.sessions.sessions[key] != nil, "a request goes through, headless or not")
+        store.hookReceived(cursor("UserPromptSubmit", "bot"), now: t0.addingTimeInterval(2))
+        #expect(store.sessions.sessions[key]?.isWorking == true, "the run's next turn reaches the row")
+        store.hookReceived(cursor("Stop", "bot"), now: t0.addingTimeInterval(4))
+        #expect(store.sessions.sessions[key]?.isWorking == false, "the Stop reaches the row and ends the turn")
+        store.hookReceived(cursor("SessionEnd", "bot"), now: t0.addingTimeInterval(6))
+        #expect(store.sessions.sessions[key] == nil, "and the SessionEnd takes the row away")
+    }
+}

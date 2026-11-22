@@ -2169,6 +2169,11 @@ final class UsageStore {
     /// moves the activity the polling policy reads at most once a minute: the batch boundary is where a turn's state
     /// settles, not a reason to redraw the notch or read the vendor's endpoint every few seconds.
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
+        // A headless Cursor agent's events stay off the panel, and off the activity they would otherwise count as
+        // (`Hook.Message.headless`): it has nothing to open and each run is a new conversation. A request still goes
+        // through, and once a request has given the session a row, its later events reach it, so a Stop or a
+        // SessionEnd ends that row instead of leaving it working.
+        if message.headless, message.request == nil, !sessions.holdsRow(for: message) { return }
         guard prefs.readsSessions(of: message.tool) else {
             meterOnly(message, now: now, reply: reply)
             return
