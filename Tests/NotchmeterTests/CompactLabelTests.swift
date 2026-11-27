@@ -42,11 +42,14 @@ import Testing
         #expect(CompactLabel.text(for: [extra], display: .used, countdown: true, now: now) == "$166")
         #expect(CompactLabel.text(for: [extra], display: .left, now: now) == "$166")
         #expect(CompactLabel.segments(for: [extra], display: .used, now: now) == [CompactLabel.Segment(text: "$166", pace: nil)])
-        // Nothing spent yet is still "–", and Codex's credits are a balance left, not spend.
+        // Nothing spent yet is still "–", and so is a balance left (Codex's credits), which carries no amount.
         let none = LimitWindow(id: "extra_usage", label: .key("Extra usage"), usedFraction: nil, resetsAt: nil, amountUSD: 0)
         #expect(CompactLabel.text(for: [none], display: .used, now: now) == "–")
-        let credits = LimitWindow(id: "credits", label: .key("Credits"), usedFraction: nil, resetsAt: nil, note: "$12.00 remaining", amountUSD: 12)
-        #expect(CompactLabel.text(for: [credits], display: .used, now: now) == "–")
+        let balance = LimitWindow(id: "credits", label: .key("Credits"), usedFraction: nil, resetsAt: nil, note: "$12.00 remaining")
+        #expect(CompactLabel.text(for: [balance], display: .used, now: now) == "–")
+        // Copilot's AI credits share the id and are money spent: they read in dollars.
+        let copilot = LimitWindow(id: "credits", label: .key("AI credits"), usedFraction: nil, resetsAt: nil, note: "420 credits used", amountUSD: 4.2)
+        #expect(CompactLabel.text(for: [copilot], display: .used, now: now) == "$4")
     }
 
     @Test func eachFigureCarriesItsOwnPace() {

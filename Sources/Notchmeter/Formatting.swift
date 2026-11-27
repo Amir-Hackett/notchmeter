@@ -192,10 +192,10 @@ enum CompactLabel {
     }
 
     /// Money spent in a window with no cap behind it (Claude's extra usage with no monthly limit, Cursor's monthly
-    /// usage with none set): there is no share to draw, but "$166" says what "–" hid. Codex's `credits` is left out:
-    /// its amount is the balance remaining, not money spent, and "$12" beside a ring would read as spend.
+    /// usage with none set, Copilot's AI credits on a seat with no allowance): there is no share to draw, but "$166"
+    /// says what "–" hid. A balance left (Codex's credits) carries no `amountUSD`, so it keeps the dash.
     static func uncappedSpend(_ window: LimitWindow) -> Double? {
-        guard window.usedFraction == nil, window.id != "credits", let spent = window.amountUSD, spent > 0 else { return nil }
+        guard window.usedFraction == nil, let spent = window.amountUSD, spent > 0 else { return nil }
         return spent
     }
 

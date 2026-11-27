@@ -169,9 +169,10 @@ actor CodexProvider: UsageProvider {
         }
         windows += perModel
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
-           // Codex's own client models the balance as a string ("12.50").
+           // Codex's own client models the balance as a string ("12.50"). It is what is left, not money spent, so it
+           // is no `amountUSD` and reads only in the note: a ring never shows a balance as spend.
            let balance = JSON.number(credits["balance"]) ?? (credits["balance"] as? String).flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }) {
-            windows.append(LimitWindow(id: "credits", label: .key("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance)), amountUSD: balance))
+            windows.append(LimitWindow(id: "credits", label: .key("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance))))
         }
         let plan = (root["plan_type"] as? String).map(Naming.codexPlan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)

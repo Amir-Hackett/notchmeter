@@ -6,7 +6,7 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 
 ### Rings
 
-- **Spend with no limit shows in dollars.** When an assistant reports money spent but no limit to measure it against, the figure beside its ring now shows the dollars ("$166") instead of "–". Claude's extra usage with no monthly limit set is the case that showed up first: on a seat where Anthropic sends no session or weekly limit, the Claude ring was left with nothing but a dash. Cursor's *Monthly usage* with no limit set reads the same way. The ring itself still draws empty, since there is no share to fill. Nothing spent yet still shows "–", and Codex's credits, which are a balance left rather than money spent, keep the dash too.
+- **Spend with no limit shows in dollars.** When an assistant reports money spent but no limit to measure it against, the figure beside its ring now shows the dollars ("$166") instead of "–". Claude's extra usage with no monthly limit set is the case that showed up first: on a seat where Anthropic sends no session or weekly limit, the Claude ring was left with nothing but a dash. Cursor's *Monthly usage* with no limit set, and Copilot's AI credits on a seat with no allowance, read the same way. The ring itself still draws empty, since there is no share to fill. Nothing spent yet still shows "–", and Codex's credits, which are a balance left rather than money spent, keep the dash too.
 
 ## [0.9.31](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.31) — 2026-11-22
 
