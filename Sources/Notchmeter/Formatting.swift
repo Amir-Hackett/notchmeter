@@ -129,7 +129,8 @@ enum SpendFigure: String, CaseIterable, Codable {
 
 /// The digits beside a ring (CompactStyle): the main window's percentage and, after a thin dot, the second
 /// window's — or, at Auto's outer-figure rung, the main window's alone — in the Used or Left sense the user
-/// chose; "–" for a window without a limit, or no reading at all.
+/// chose; "–" for a window without a limit, or no reading at all, unless that window has money spent behind it,
+/// which reads as the dollars ("$166", `uncappedSpend`).
 ///
 /// A comparison window (LimitWindow.isComparison, Cursor's "Today's spend") is drawn in the money it measures,
 /// "$15", and not as a percentage. Its ring fills against a usual day, and "21%" beside a ring that sits next to
@@ -166,6 +167,7 @@ enum CompactLabel {
         let comparisonLeads = shown.first.map { $0.isComparison && $0.usedFraction != nil } ?? false
         return shown.enumerated().compactMap { index, window in
             guard let used = window.usedFraction else {
+                if let spent = uncappedSpend(window) { return Segment(text: Money.dollars(spent, cents: false), pace: nil) }
                 return comparisonLeads && index > 0 ? nil : Segment(text: noLimit, pace: nil)
             }
             if window.isComparison, let spent = window.amountUSD {
@@ -187,6 +189,14 @@ enum CompactLabel {
             }
             return Segment(text: text, pace: Pace.status(for: window, now: now))
         }
+    }
+
+    /// Money spent in a window with no cap behind it (Claude's extra usage with no monthly limit, Cursor's monthly
+    /// usage with none set): there is no share to draw, but "$166" says what "–" hid. Codex's `credits` is left out:
+    /// its amount is the balance remaining, not money spent, and "$12" beside a ring would read as spend.
+    static func uncappedSpend(_ window: LimitWindow) -> Double? {
+        guard window.usedFraction == nil, window.id != "credits", let spent = window.amountUSD, spent > 0 else { return nil }
+        return spent
     }
 
     /// Which of a readout's figures a style draws, once the primary-number setting (Preferences.compactPrimary) is
