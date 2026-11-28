@@ -350,7 +350,10 @@ import Testing
     @Test func aCreditsBalanceSentAsAStringIsRead() throws {
         let json = #"{"rate_limit":{"primary_window":{"used_percent":1,"limit_window_seconds":18000}},"credits":{"has_credits":true,"unlimited":false,"balance":"12.50"}}"#
         let reading = try CodexProvider.parseBackend(Data(json.utf8))
-        #expect(reading.windows.first { $0.id == "credits" }?.amountUSD == 12.5)
+        let credits = reading.windows.first { $0.id == "credits" }
+        // A balance left, not money spent: it reads in the note and never as spend beside a ring.
+        #expect(credits?.amountUSD == nil)
+        #expect(credits?.note == "$12.50 remaining")
     }
 
     /// A body with no measured window is not a reading, as the snapshot read already held. The backend read used
