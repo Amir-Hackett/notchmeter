@@ -228,8 +228,10 @@ enum Advisor {
     static func limitHit(_ context: Context) -> [Advice] {
         context.readings.flatMap { reading -> [Advice] in
             guard context.limitHitTools.contains(reading.tool) else { return [] }
+            // A comparison window (Today's spend against a usual day) is full on any busy day and resets at
+            // midnight; it is not a limit, so it is never the one that was hit (CodeRabbit, #178).
             let candidates = reading.windows.filter { window in
-                guard let resetsAt = window.resetsAt, resetsAt > context.now, let used = window.usedFraction else { return false }
+                guard !window.isComparison, let resetsAt = window.resetsAt, resetsAt > context.now, let used = window.usedFraction else { return false }
                 return used >= atLimit
             }
             let hit = candidates.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) })
