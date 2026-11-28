@@ -2,6 +2,12 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.33](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.33) — 2026-11-27
+
+### Rings
+
+- **Claude's rings fill from your own spend when Anthropic sends no limit.** On a login where Anthropic reports extra usage with no monthly limit and no session or weekly limit, the Claude ring had nothing to fill, and Settings had nothing else to pick. Claude now gets *Today's spend*: today's dollars against a usual day for you, the way Cursor's already works. A usual day is the middle value of the days in the last thirty on which you spent anything. It shows on the card. Up to three model rings (Opus, Fable or Sonnet, say: the ones you spent most on in the last thirty days) each compare that model's spend today with its own usual day. They stay off the card until you pick one for a ring in Settings. These are comparisons, not limits, so they never warn or notify. A ring you already picked stays as picked: if yours is set to *Extra usage*, choose *Today's spend* in Settings to see it fill. When Anthropic sends a session or weekly limit, those show as before and the spend rings are not added. The spend rings also wait until there is an earlier day of spend to compare with, and they need the Cost card switched on, since its scan is what keeps your spend history current.
+
 ## [0.9.32](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.32) — 2026-11-27
 
 ### Rings
