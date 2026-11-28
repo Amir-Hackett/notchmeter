@@ -591,20 +591,7 @@ actor CursorProvider: UsageProvider {
     /// ordinary workday read high against it, and one heavy day pulled it up for a month. The median of the
     /// active days answers the question the ring asks, "is today a normal day of work?", and is moved by neither.
     static func spendToday(_ days: [Date: CostHistory.Record], now: Date = Date(), calendar: Calendar = .current) -> LimitWindow? {
-        let today = calendar.startOfDay(for: now)
-        guard let start = calendar.date(byAdding: .day, value: -30, to: today),
-              let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return nil }
-        let active = days.filter { $0.key >= start && $0.key < today && $0.value.cost > 0 }.map(\.value.cost).sorted()
-        guard !active.isEmpty else { return nil }
-        let middle = active.count / 2
-        let usual = active.count % 2 == 1 ? active[middle] : (active[middle - 1] + active[middle]) / 2
-        let spent = days[today]?.cost ?? 0
-        let percent = spent / usual * 100
-        return LimitWindow(
-            id: "spend_today", label: .key("Today's spend"), usedFraction: min(max(spent / usual, 0), 1), resetsAt: tomorrow,
-            note: L("%1$@ of a usual %2$@ day", Money.dollars(spent), Money.dollars(usual, cents: false)),
-            periodDuration: tomorrow.timeIntervalSince(today), source: .localEstimate, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: spent
-        )
+        UsualDaySpend.window(id: LimitWindow.todaysSpendID, label: .key("Today's spend"), days: days, now: now, calendar: calendar)
     }
 
     /// *Monthly usage* against the cycle before it, on a seat that has the cycle's dollars and no limit to set them
@@ -692,23 +679,10 @@ actor CursorProvider: UsageProvider {
     /// day for that meter yet, which leaves the meter blank as before.
     static func withModelSpend(_ window: LimitWindow, days: [Date: CostHistory.Record], now: Date = Date(),
                                calendar: Calendar = .current) -> LimitWindow? {
-        let today = calendar.startOfDay(for: now)
-        guard let start = calendar.date(byAdding: .day, value: -30, to: today),
-              let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return nil }
-        func spent(_ record: CostHistory.Record) -> Double {
+        UsualDaySpend.window(id: window.id, label: window.name, days: days, model: window.model, hiddenByDefault: window.hiddenByDefault,
+                             now: now, calendar: calendar) { record in
             record.byModel.reduce(0) { modelMeter(of: $1.key) == window.id ? $0 + $1.value : $0 }
         }
-        let active = days.filter { $0.key >= start && $0.key < today }.map { spent($0.value) }.filter { $0 > 0 }.sorted()
-        guard !active.isEmpty else { return nil }
-        let middle = active.count / 2
-        let usual = active.count % 2 == 1 ? active[middle] : (active[middle - 1] + active[middle]) / 2
-        let todaySpent = days[today].map(spent) ?? 0
-        let percent = todaySpent / usual * 100
-        return LimitWindow(id: window.id, label: window.name, usedFraction: min(max(todaySpent / usual, 0), 1), resetsAt: tomorrow,
-                           note: L("%1$@ of a usual %2$@ day", Money.dollars(todaySpent), Money.dollars(usual, cents: false)),
-                           periodDuration: tomorrow.timeIntervalSince(today), model: window.model, source: .localEstimate,
-                           hiddenByDefault: window.hiddenByDefault, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: todaySpent,
-                           comparison: true)
     }
 
     /// How much of a window is spent, 0...1: whichever of Cursor's two answers reads further along.

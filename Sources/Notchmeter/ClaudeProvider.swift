@@ -34,10 +34,14 @@ actor ClaudeProvider: UsageProvider {
     private let session: URLSession?
     private let configDir: URL
     private var cached: ClaudeCredentials?
+    /// Claude's daily cost history (the Cost card's), read only for a reading with nothing to fill a ring
+    /// (`withSpendRings`).
+    private let history: CostHistory?
 
-    init(session: URLSession? = nil, configDir: URL = ClaudeProvider.defaultConfigDir()) {
+    init(session: URLSession? = nil, configDir: URL = ClaudeProvider.defaultConfigDir(), history: CostHistory? = CostHistory()) {
         self.session = session
         self.configDir = configDir
+        self.history = history
     }
 
     /// `$CLAUDE_CONFIG_DIR` when set, else `~/.claude`, the same rule Claude Code applies.
@@ -90,7 +94,8 @@ actor ClaudeProvider: UsageProvider {
         switch http?.statusCode ?? 0 {
         case 200:
             do {
-                return try Self.parseUsage(data, plan: plan, now: now)
+                let reading = try Self.parseUsage(data, plan: plan, now: now)
+                return reading.with(windows: Self.withSpendRings(reading.windows, days: Self.historyDays(history, for: reading.windows), now: now))
             } catch let error as ProviderError {
                 guard !headerWindows.isEmpty else { throw error }
                 return UsageReading(tool: .claude, windows: headerWindows, plan: plan, fetchedAt: now, observedAt: nil)
@@ -264,6 +269,50 @@ actor ClaudeProvider: UsageProvider {
         }
         guard !windows.isEmpty else { throw ProviderError.parse(L("Claude reported no usage windows")) }
         return UsageReading(tool: .claude, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
+    }
+
+    /// Rings for a login Anthropic publishes no limit for. Since 2026-11-23 the usage endpoint has answered one Team
+    /// login with `extra_usage` alone, enabled with no monthly cap: no `five_hour`, no `seven_day`, no `limits`. A
+    /// spend with no cap has nothing to fill a ring with, so the only window drew a dashed circle and was the only
+    /// pick in Settings. The Cost card's history has the login's own dollars, so they fill the rings the way they
+    /// do for a Cursor seat nothing meters (UsualDaySpend): *Today's spend* against a usual day, shown, and each
+    /// model family's spend today against its own usual day, hidden until picked for a ring, at most three, the
+    /// families that spent most in the last thirty days first. Left alone: a reading with any window that has a
+    /// figure, so a vendor limit always leads, and a history with no usual day yet.
+    static func withSpendRings(_ windows: [LimitWindow], days: [Date: CostHistory.Record], now: Date = Date(),
+                               calendar: Calendar = .current) -> [LimitWindow] {
+        guard !windows.contains(where: { $0.usedFraction != nil }),
+              let spend = UsualDaySpend.window(id: LimitWindow.todaysSpendID, label: .key("Today's spend"), days: days, now: now, calendar: calendar)
+        else { return windows }
+        let today = calendar.startOfDay(for: now)
+        let start = calendar.date(byAdding: .day, value: -30, to: today) ?? today
+        var recent: [String: Double] = [:]
+        for (day, record) in days where day >= start && day <= today {
+            for (model, cost) in record.byModel { if let family = modelFamily(model) { recent[family, default: 0] += cost } }
+        }
+        let families = recent.filter { $0.value > 0 }.sorted { ($0.value, $1.key) > ($1.value, $0.key) }.prefix(3).map(\.key)
+        let models = families.compactMap { family in
+            UsualDaySpend.window(id: "spend_today_\(family.lowercased())", label: .vendor(family), days: days, hiddenByDefault: true,
+                                 now: now, calendar: calendar) { record in
+                record.byModel.reduce(0) { modelFamily($1.key) == family ? $0 + $1.value : $0 }
+            }
+        }
+        return [spend] + models + windows
+    }
+
+    /// A Claude model id's family as the panel names it: `claude-opus-5-5` is Opus, `claude-fable-5-1` Fable. Nil
+    /// for anything that is not a `claude-` id (`<synthetic>`, the Cost card's "Other").
+    static func modelFamily(_ model: String) -> String? {
+        let parts = model.lowercased().split(separator: "-")
+        guard parts.count >= 2, parts[0] == "claude", let first = parts[1].first, first.isLetter else { return nil }
+        return parts[1].prefix(1).uppercased() + parts[1].dropFirst()
+    }
+
+    /// The history's days, read only when `withSpendRings` would use them: a reading with a figure never touches
+    /// the file.
+    static func historyDays(_ history: CostHistory?, for windows: [LimitWindow]) -> [Date: CostHistory.Record] {
+        guard let history, !windows.contains(where: { $0.usedFraction != nil }) else { return [:] }
+        return history.load(calendar: .current)
     }
 
     /// `extra_usage`: `used_credits` and `monthly_limit` in cents; the cycle's end under any of the names the
