@@ -300,6 +300,14 @@ actor ClaudeProvider: UsageProvider {
         return [spend] + models + windows
     }
 
+    /// A reading without the rings `withSpendRings` added. They are drawn from the Cost card's history, which only
+    /// the cost scan writes, and the scan does not run while the card is switched off (UsageStore.refreshCost): the
+    /// history then stops at the last scan, and Today's spend would read $0, or an old figure, on a day with
+    /// spending. With no scan the rings are left out and the reading is what Anthropic sent (CodeRabbit, #178).
+    static func withoutSpendRings(_ reading: UsageReading) -> UsageReading {
+        reading.with(windows: reading.windows.filter { !$0.isComparison })
+    }
+
     /// A Claude model id's family as the panel names it: `claude-opus-5-5` is Opus, `claude-fable-5-1` Fable. Nil
     /// for anything that is not a `claude-` id (`<synthetic>`, the Cost card's "Other").
     static func modelFamily(_ model: String) -> String? {

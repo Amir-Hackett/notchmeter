@@ -70,4 +70,45 @@ import Testing
         #expect(ClaudeProvider.modelFamily("<synthetic>") == nil)
         #expect(ClaudeProvider.modelFamily("Other") == nil)
     }
+
+    private func reading(_ windows: [LimitWindow]) -> UsageReading {
+        UsageReading(tool: .claude, windows: windows, plan: nil, fetchedAt: now, observedAt: nil)
+    }
+
+    /// With the Cost card off nothing keeps the history current, so the rings drawn from it are left out and the
+    /// reading is what Anthropic sent (CodeRabbit, #178).
+    @Test func theSpendRingsAreLeftOutWhenNothingKeepsTheHistoryCurrent() {
+        let windows = ClaudeProvider.withSpendRings([uncapped], days: history, now: now, calendar: calendar)
+        #expect(ClaudeProvider.withoutSpendRings(reading(windows)).windows.map(\.id) == ["extra_usage"])
+        let session = LimitWindow(id: "five_hour", label: .key("Session"), usedFraction: 0.2, resetsAt: nil)
+        #expect(ClaudeProvider.withoutSpendRings(reading([session, uncapped])).windows.map(\.id) == ["five_hour", "extra_usage"])
+    }
+
+    /// Today's spend at or past a usual day is not a limit that was hit: a rate-limit hook beside it keeps the
+    /// plain line instead of naming a ring that resets at midnight (CodeRabbit, #178).
+    @Test func aFullSpendRingIsNotTheLimitThatWasHit() {
+        var busy = history
+        busy[day(0)] = record(["claude-opus-5-5": 90])
+        let windows = ClaudeProvider.withSpendRings([uncapped], days: busy, now: now, calendar: calendar)
+        #expect(windows.first?.usedFraction == 1)
+        var context = Advisor.Context(readings: [reading(windows)], now: now)
+        context.limitHitTools = [.claude]
+        #expect(Advisor.limitHit(context).map(\.text) == ["Claude Code hit its rate limit; wait for the reset."])
+    }
+
+    /// A ring saved for Extra usage before the spend rings existed stays as picked: the one settling of old picks
+    /// clears Cursor's alone (CodeRabbit, #178).
+    @MainActor @Test func aSavedExtraUsagePickStaysWhenTheSpendRingsArrive() throws {
+        let suite = "NotchmeterTests.ClaudeSpendRings.saved-pick"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(["claude": ["extra_usage"]], forKey: "ringWindows")
+        let prefs = Preferences(defaults: defaults)
+        let arrived = reading(ClaudeProvider.withSpendRings([uncapped], days: history, now: now, calendar: calendar))
+        prefs.settleLegacyRingPicks(with: arrived)
+        #expect(prefs.ringWindows[.claude] == ["extra_usage"])
+        #expect(prefs.ringWindows(of: arrived).first?.id == "extra_usage")
+        #expect(prefs.legacyRingPicksSettled == [.claude])
+    }
 }

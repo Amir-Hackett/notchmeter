@@ -1940,11 +1940,16 @@ final class Preferences {
     /// all the same, and from 0.9.27 would draw empty. With the pick cleared the rings go on showing what they
     /// showed. Asked, tool by tool, of the first reading of that tool with a comparison window on show; a pick made
     /// for the tool since (setRingWindow) is deliberate and is never cleared.
+    ///
+    /// Only Cursor's picks are ever cleared: before 0.9.27 its Today's spend was the one comparison window there
+    /// was, so the old rule set aside no other tool's pick. Claude has had comparison windows since 0.9.33
+    /// (ClaudeProvider.withSpendRings), and a ring saved for its Extra usage is a pick that was being drawn, empty,
+    /// and stays as picked; the question is closed for it without a change (CodeRabbit, #178).
     func settleLegacyRingPicks(with reading: UsageReading) {
         guard !legacyRingPicksSettled.contains(reading.tool) else { return }
         let shown = shownWindows(of: reading)
         guard shown.contains(where: { $0.isComparison && $0.usedFraction != nil }) else { return }
-        if RingSelection.wasSetAside(chosen: ringWindows[reading.tool] ?? [], shown: shown) {
+        if reading.tool == .cursor, RingSelection.wasSetAside(chosen: ringWindows[reading.tool] ?? [], shown: shown) {
             ringWindows[reading.tool] = nil
         }
         legacyRingPicksSettled.insert(reading.tool)

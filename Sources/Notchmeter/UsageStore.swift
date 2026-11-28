@@ -1122,6 +1122,8 @@ final class UsageStore {
             reading = CodeAssistStaleness.unverified(reading, runs: runs, activeSince: lastActivity[tool])
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
+        // Claude's spend rings read the history the cost scan keeps; with the Cost card off nothing keeps it.
+        if reading.tool == .claude, !prefs.showSpend { reading = ClaudeProvider.withoutSpendRings(reading) }
         prefs.settleLegacyRingPicks(with: reading)
         prefs.settleHiddenRingPicks(with: reading)
         statuses[reading.tool] = .ready(reading)
